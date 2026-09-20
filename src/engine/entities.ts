@@ -95,7 +95,7 @@ interface Rule {
 
 const RULES: Rule[] = [
   // ── 텔레그램 ──
-  { type: "telegram", re: new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?(?:t|telegram|tlgrm)\\s*\\.\\s*(?:me|dog)\\s*\\/\\s*(\\+?${HANDLE}|joinchat\\/[a-z0-9_-]+)`, "gi"), pick: (m) => trimValue(cutKoreanTail(m[1])) || null },
+  { type: "telegram", re: new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?(?:t|telegram|tlgrm)\\s*\\.\\s*(?:me|em|dog)\\s*\\/\\s*(\\+?${HANDLE}|joinchat\\/[a-z0-9_-]+)`, "gi"), pick: (m) => trimValue(cutKoreanTail(m[1])) || null },
   { type: "telegram", re: new RegExp(`(?:텔레그램|텔레그렘|텔레방|텔방|텔레|텔그|telegram|tele|tg)${SEP}@?(${HANDLE})`, "gi"), pick: (m) => pickHandle(m[1]) },
 
   // ── 카카오 오픈채팅 ──

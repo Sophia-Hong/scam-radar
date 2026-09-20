@@ -85,7 +85,7 @@ export function Lookup() {
             </dl>
             {res.account.bio && <p className="mt-3 rounded bg-zinc-50 p-2 text-sm text-zinc-700">프로필: {res.account.bio} {res.account.externalUrl && <a className="text-blue-700 underline" href={res.account.externalUrl} target="_blank" rel="noreferrer">{res.account.externalUrl}</a>}</p>}
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <Link href={`/report/${encodeURIComponent(res.account.id)}`} className="rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white">신고용 리포트 보기</Link>
+              <Link href={`/report/${encodeURIComponent(res.account.id)}`} className="rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white">리포트 보기</Link>
               <a href={`/api/reports/${encodeURIComponent(res.account.id)}`} className="rounded-md border border-zinc-300 px-3 py-1.5">리포트 JSON</a>
               <button onClick={() => feedback(true)} className="rounded-md border border-red-300 px-3 py-1.5 text-red-700">관련 경험 제보</button>
               <button onClick={() => feedback(false)} className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700">해당 없는 것 같아요</button>

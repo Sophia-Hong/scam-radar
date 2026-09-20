@@ -20,7 +20,7 @@ export interface InvestigationReport {
   account: { platform: string; handle: string; displayName: string | null; url: string; profileCapture: string | null; bio: string | null; externalUrl: string | null; followers: number | null; following: number | null; createdAt: string | null };
   /** 일시 */
   timeline: { firstSeen: string; lastSeen: string; postCount: number; distinctTargets: number };
-  /** 내용 — 범죄사실요약 (요건사실 위주) */
+  /** 내용 — 내용 요약 (관측 사실 위주) */
   summary: { text: string; generatedBy: string };
   /** 유도 수단 — 본문·프로필에서 확인된 실제 연락처 */
   contacts: { id: string; type: string; typeLabel: string; value: string; source: string; strong: boolean }[];

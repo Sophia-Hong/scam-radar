@@ -37,9 +37,9 @@ export default async function Home() {
           ))}
         </section>
       )}
-      {!hasDb && (
+      {(!hasDb || !stats) && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          데이터베이스가 연결되지 않았습니다. 계정 조회는 비활성이며 <a className="underline" href="/analyze">텍스트 분석</a>은 사용할 수 있습니다.
+          계정 조회가 일시 비활성입니다. <a className="underline" href="/analyze">텍스트 분석</a>은 사용할 수 있습니다.
         </p>
       )}
 
@@ -54,7 +54,7 @@ export default async function Home() {
         </div>
         <div className="rounded-lg border border-zinc-200 bg-white p-4">
           <h3 className="font-semibold">3. 리포트</h3>
-          <p className="mt-1 text-zinc-600">계정명·일시·범죄사실요약·증거 캡처·계정 URL·프로필 캡처·판단 근거를 한 장으로. 신고는 사람이 마지막에 결정합니다.</p>
+          <p className="mt-1 text-zinc-600">계정명·일시·내용 요약·증거 캡처·계정 URL·프로필 캡처·판단 근거를 한 장으로. 신고는 사람이 마지막에 결정합니다.</p>
         </div>
       </section>
     </div>

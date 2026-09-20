@@ -14,7 +14,7 @@ export default async function ClustersPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">캠페인 (유사 문구 묶음)</h1>
-      <p className="text-sm text-zinc-600">문자 3-gram MinHash/LSH 로 묶은 뒤 실제 Jaccard ≥ 0.75 만 남긴 결과입니다. 같은 문구를 여러 계정이 뿌리면 조직적 캠페인일 가능성이 큽니다.</p>
+      <p className="text-sm text-zinc-600">문자 3-gram MinHash/LSH 로 묶은 뒤 실제 Jaccard ≥ 0.75 만 남긴 결과입니다.</p>
       {rows.length === 0 && <p className="text-sm text-zinc-500">아직 클러스터가 없습니다. 게시물이 3건 이상 유사할 때 생성됩니다.</p>}
       <ul className="space-y-3">
         {rows.map((c, i) => (

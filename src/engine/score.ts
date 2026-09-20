@@ -216,7 +216,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     }
     if (cta > 0) {
       const pts = Math.min(14, Math.round(cta));
-      reasons.push({ code: "cta", label: "연락채널 + 행동 유도 문구", points: pts, evidence: ctaLabels.join(", ") });
+      reasons.push({ code: "cta", label: "행동 유도 문구 (연락채널·사칭 구조 동반)", points: pts, evidence: ctaLabels.join(", ") });
       score += pts;
     }
   }

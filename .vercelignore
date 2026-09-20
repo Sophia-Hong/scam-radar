@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+collector/inbox
+collector/done
+logs
+reviews
+reports
+.vercel
+node_modules

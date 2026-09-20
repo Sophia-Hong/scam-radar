@@ -23,6 +23,9 @@ describe("extractEntities — 텔레그램", () => {
   it("초성 난독화 ㅌㄹㄱㄹ @핸들", () => {
     expect(vals(extractEntities("ㅌㄹㄱㄹ @vip_stock_room77 참고"), "telegram")).toContain("vip_stock_room77");
   });
+  it("오타형 t.em/xxx 도 텔레그램으로 잡는다", () => {
+    expect(vals(extractEntities("텔레그램 : t.em/yuheehoon11"), "telegram")).toContain("yuheehoon11");
+  });
   it("후행 한글·구두점은 값에 포함하지 않는다", () => {
     expect(vals(extractEntities("t.me/room_abc으로, 오세요."), "telegram")).toContain("room_abc");
   });

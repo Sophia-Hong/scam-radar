@@ -3,8 +3,9 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "리딩방 레이더 — SNS 투자사기 유인 계정 탐지",
-  description: "Threads 등 SNS 게시물에서 리딩방 유인 계정을 탐지하고 사이버수사대 제출용 증거 리포트를 생성합니다.",
+  title: "리딩방 레이더 — SNS 유인 신호 조회",
+  description: "SNS 게시물에서 리딩방 유인·사칭·살포 신호를 찾아 근거와 함께 보여줍니다. 최종 판단은 사람이 합니다.",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
