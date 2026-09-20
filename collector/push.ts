@@ -11,7 +11,7 @@ import type { CollectedItem } from "./schema";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3000";
 const TOKEN = process.env.INGEST_TOKEN ?? "";
-const BATCH = 20;
+const BATCH = Number(process.env.PUSH_BATCH ?? 20); // 서버리스 30초 제한에 걸리면 PUSH_BATCH=3 처럼 줄인다
 const MAX_SHOT_BYTES = 3.5 * 1024 * 1024; // Vercel 요청 본문 4.5MB 제한 고려
 
 const root = process.argv[2] ?? path.join("collector", "inbox");
