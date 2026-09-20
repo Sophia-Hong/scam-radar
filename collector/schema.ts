@@ -22,6 +22,9 @@ export interface CollectedItem {
     following?: number | null;
     postCount?: number | null;
     createdAt?: string | null;
+    /** Threads '프로필 정보'에 표시된 국가. 추정값을 넣지 않는다. */
+    profileCountry?: string | null;
+    countrySource?: "threads_about_profile" | "manual" | null;
     profileScreenshot?: string | null;
   };
 }

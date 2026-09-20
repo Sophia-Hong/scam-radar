@@ -18,7 +18,7 @@ Aside 브라우저(로컬, 로그인 세션)  ──JSON+캡처──▶  collec
 | 수집기는 **내 PC 에서 Aside 로** 실행 | Vercel 함수는 10~60초 제한이라 브라우저 상시 실행 불가. Playwright 는 Threads 에 막힘. 로그인 세션·IP 도 로컬이 안전 |
 | 판정은 **화면이 아니라 코드**가 | AI 브라우저는 {URL·작성자·본문·캡처}만 뽑는다. 판정 로직이 코드에 있어야 재현·검증·튜닝이 된다 |
 | **룰 엔진 1차**, LLM 은 40~69점 경계 사례만 | BotometerLite 처럼 ML 은 도메인 밖에서 무너진다. LLM 호출은 건당 수 원, 그것도 경계 구간에만 |
-| **LLM 결과 캐시** (`llm_cache`, 내용 해시) | 같은 문구 재수집 시 0원 |
+| **LLM 결과 캐시** (`llm_cache`, 내용·이미지 해시) | 같은 문구·증빙 재수집 시 0원 |
 | **URL 정확 중복은 DB 조회 1회로 즉시 반환** | 재수집이 파이프라인을 다시 타지 않음 |
 | **MinHash 128 + LSH 16×8**, SimHash 안 씀 | 300자 미만 짧은 글에서 SimHash 해밍거리 분포가 무너짐. 한국어는 교착어라 문자 3-gram 필수 |
 | `/analyze` 는 **브라우저에서 계산** | 서버 비용 0. 판정 엔진이 순수 TS 라 클라이언트에 그대로 번들됨 |
@@ -40,7 +40,7 @@ npm test                    # 엔진 단위 테스트
 
 1. GitHub 에 push → Vercel 에서 Import.
 2. **Storage → Postgres(Neon) 생성** → `POSTGRES_URL` 자동 주입. **Storage → Blob 생성** → `BLOB_READ_WRITE_TOKEN` 자동 주입.
-3. Environment Variables 에 `INGEST_TOKEN`·`ADMIN_TOKEN`(각각 아무 긴 문자열), 선택으로 `ANTHROPIC_API_KEY`.
+3. Environment Variables 에 `INGEST_TOKEN`·`ADMIN_TOKEN`(각각 아무 긴 문자열)을 설정한다. 보조 모델은 Vercel AI Gateway OIDC를 사용하므로 배포 환경에서 별도 공급자 키가 필요 없다. 모델을 바꾸려면 선택으로 `AI_REVIEW_MODEL`을 설정한다(기본 `google/gemini-2.5-flash-lite`, 실패 시 `deepseek/deepseek-v4.1-flash`).
    `ADMIN_TOKEN` 은 `/review` 검토 화면과 `/api/admin/*` 을 여는 열쇠다. **프로덕션에서 비워 두면 검토 API 가 잠긴다.**
 4. 로컬에서 `POSTGRES_URL=<Neon URL> npm run db:push` 로 스키마 생성 (또는 `drizzle/0000_*.sql` 을 Neon SQL 콘솔에 붙여넣기).
 5. 로컬 `.env` 의 `API_BASE=https://<your-app>.vercel.app`, `INGEST_TOKEN` 을 맞춘 뒤 `npm run seed` 또는 `npm run push`.

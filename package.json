@@ -16,9 +16,9 @@
     "score:local": "tsx collector/score-local.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.126.0",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.8.0",
+    "ai": "^7.0.107",
     "drizzle-orm": "^0.45.2",
     "next": "16.3.5",
     "pg": "^8.23.0",

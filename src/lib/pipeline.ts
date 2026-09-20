@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { db, schema } from "@/db";
 import { normalize, exactKey, minhash, bandKeys, jaccard, scoreText, fnv1a64, JACCARD_THRESHOLD, extractEntities, entityId, entityLabel, STRONG_ENTITY_TYPES, type Label, type Reason, type Entity } from "@/engine";
-import { reviewPost } from "./llm";
+import { reviewEvidenceImage, reviewPost } from "./llm";
 import { accountIdOf } from "./ids";
 export { accountIdOf };
 
@@ -27,6 +27,8 @@ export const IngestSchema = z.object({
     following: z.number().int().nullish(),
     postCount: z.number().int().nullish(),
     createdAt: z.string().nullish(),
+    profileCountry: z.string().max(120).nullish(),
+    countrySource: z.enum(["threads_about_profile", "manual"]).nullish(),
     profileScreenshot: z.string().nullish(),
   }),
 });
@@ -256,22 +258,34 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
   }
   const clusterAccounts = spreadAccounts.size;
 
-  // 4) 룰 스코어
-  const r = scoreText(payload.text, {
+  // 4) 룰 스코어. 가입 국가는 한국 기관 사칭 결합이 있을 때만 약한 보조 신호로 사용한다.
+  const baseFeatures = {
     bio: payload.author.bio, externalUrl: payload.author.externalUrl,
     followers: payload.author.followers, following: payload.author.following,
     createdAt: payload.author.createdAt,
+    profileCountry: payload.author.profileCountry, countrySource: payload.author.countrySource,
     clusterSize: clusterSizeForAccount, clusterAccounts, distinctTargets,
-  });
+  };
+  let r = scoreText(payload.text, baseFeatures);
+
+  // 사원증·급여명세 등 증빙을 동반한 기관 사칭 후보만 이미지 보조 검토한다.
+  // 이미지가 없거나 Gateway가 비활성화되면 비용 0원이며 룰 결과를 그대로 쓴다.
+  const credentialCandidate = r.reasons.some((x) => x.code === "impersonate:institution+credential");
+  const visualReview = credentialCandidate && payload.screenshot
+    ? await reviewEvidenceImage(payload.text, payload.screenshot)
+    : null;
+  if (visualReview?.verdict === "suspicious" && visualReview.confidence >= 0.75) {
+    r = scoreText(payload.text, { ...baseFeatures, syntheticEvidenceConfidence: visualReview.confidence });
+  }
   let score = r.score;
   let label = r.label;
   const reasons: Reason[] = [...r.reasons];
-  let llmVerdict: unknown = null;
+  let llmVerdict: unknown = visualReview ? { visual: visualReview } : null;
 
   // 5) 경계 사례만 LLM 재판정 (비용 통제)
   if (r.needsLlmReview) {
     const v = await reviewPost(payload.text, r.reasons.map((x) => x.label));
-    llmVerdict = v;
+    llmVerdict = { ...(typeof llmVerdict === "object" && llmVerdict ? llmVerdict : {}), text: v };
     if (v.verdict === "scam" && v.confidence >= 0.6) { score = Math.min(100, score + 20); reasons.unshift({ code: "llm:scam", label: `LLM 재판정: 유인글 (${v.rationale})`, points: 20 }); }
     if (v.verdict === "benign" && v.confidence >= 0.6) { score = Math.max(0, score - 20); reasons.unshift({ code: "llm:benign", label: `LLM 재판정: 정상 (${v.rationale})`, points: -20 }); }
     label = score >= 70 ? "HIGH" : score >= 40 ? "REVIEW" : "LOW";

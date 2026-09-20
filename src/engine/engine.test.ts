@@ -186,6 +186,32 @@ describe("기관 사칭 (2026-09-20 실데이터 후 재설계)", () => {
     expect(r.reasons.some((x) => x.code.startsWith("impersonate:"))).toBe(false);
     expect(r.label).toBe("LOW");
   });
+  it("퇴직자 서사 + 기관 + 투자정보 제안을 사칭 구조로 결합한다", () => {
+    const r = scoreText("삼성전자에서 마지막 월급을 받고 공식 퇴직했습니다. 20년 근무하며 얻은 반도체 종목 정보를 필요한 분께 공유합니다. 디엠 주세요");
+    expect(r.reasons.some((x) => x.code === "impersonate:institution+credential")).toBe(true);
+    expect(r.matched.some((x) => x.label.includes("퇴직"))).toBe(true);
+    expect(r.label).toBe("HIGH");
+  });
+  it("외국 가입 국가는 한국 기관 사칭 결합이 있을 때만 약한 보조 신호다", () => {
+    const benign = scoreText("해외에서 한국 주식 공부 중입니다", { profileCountry: "Singapore", countrySource: "threads_about_profile" });
+    expect(benign.reasons.some((x) => x.code === "identity:country-mismatch")).toBe(false);
+
+    const impersonator = scoreText("삼성전자에서 공식 퇴직했습니다. 사원증도 있습니다. 반도체 종목 정보 공유하니 디엠 주세요", {
+      profileCountry: "Singapore", countrySource: "threads_about_profile",
+    });
+    expect(impersonator.reasons.find((x) => x.code === "identity:country-mismatch")?.points).toBe(4);
+  });
+  it("이미지 보조 신호는 사칭 구조 없이 단독으로 점수를 만들지 않는다", () => {
+    expect(scoreText("휴가 사진입니다", { syntheticEvidenceConfidence: 0.95 }).score).toBe(0);
+    const r = scoreText("대신증권 재직 중입니다. 사원증 첨부합니다. 종목 정보 드릴게요", { syntheticEvidenceConfidence: 0.9 });
+    expect(r.reasons.find((x) => x.code === "evidence:synthetic-image")?.points).toBe(6);
+  });
+  it("결과에는 7개 신호군의 활성 상태가 포함된다", () => {
+    const r = scoreText("삼성전자 퇴직했습니다. 사원증 첨부하고 종목 정보 드립니다. 텔레그램으로 오세요", { profileCountry: "Cambodia" });
+    expect(r.signalGroups).toHaveLength(7);
+    expect(r.signalGroups.find((x) => x.code === "impersonation")?.active).toBe(true);
+    expect(r.signalGroups.find((x) => x.code === "identity")?.active).toBe(true);
+  });
 });
 
 describe("살포 (clusterAccounts) — 서로 다른 계정의 동일 문구", () => {

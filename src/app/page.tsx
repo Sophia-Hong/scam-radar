@@ -10,40 +10,54 @@ const PIPELINE = [
   },
   {
     step: "02",
-    label: "SIGNALS",
-    title: "7개 신호군 탐지",
-    description: "연락 유도·투자·수익·긴급성·무료 미끼·링크·기관 사칭을 어휘 사전과 정규식 구조 신호로 동시 탐지.",
-    chips: ["연락 최대 32", "투자 최대 28", "수익 최대 24", "사칭 최대 20"],
+    label: "IDENTITY",
+    title: "재직·퇴직 사칭 서사",
+    description: "한국 기업·증권사 이름, 재직·퇴직 경력, 내부자 주장과 정보 제공 제안이 실제로 결합되는지 분석.",
+    chips: ["기관명", "재직·퇴직", "내부자 주장", "제안 구조"],
   },
   {
     step: "03",
-    label: "COMBINE",
-    title: "유인 구조 조합 분석",
-    description: "단일 키워드가 아닌 연락 유도 × 투자·수익 약속의 동시 출현 계산. 사칭·행동 유도 결합에 추가 가중치 적용.",
-    chips: ["연락×투자 +15", "3요소 결합 +6", "사칭 구조 +25", "행동 유도 +14"],
+    label: "EVIDENCE",
+    title: "페이크 증빙 이미지 정황",
+    description: "사원증·급여명세·재직증명 이미지가 동반된 사칭 후보만 선택적으로 보조 모델이 시각적 모순을 검토.",
+    chips: ["OCR 맥락", "로고·레이아웃", "합성 정황", "단독 확정 금지"],
   },
   {
     step: "04",
-    label: "NETWORK",
-    title: "계정 간 연결 탐지",
-    description: "공유 연락처, 반복 문구, 다계정 살포 관계 연결. 문자 3-gram, MinHash, Jaccard 유사도를 통한 근사 중복 판별.",
-    chips: ["공유 연락처", "MinHash 128", "Jaccard ≥ .75", "다계정 +15~32"],
+    label: "CONVERSION",
+    title: "투자 유인 전환 구조",
+    description: "신뢰 형성에서 무료 정보·수익 인증·상담 제안·입장 요청으로 이어지는 단계적 전환 구조를 조합 분석.",
+    chips: ["신뢰 형성", "수익 미끼", "상담 제안", "행동 유도"],
   },
   {
     step: "05",
-    label: "DECIDE",
-    title: "오탐 확률 제어",
-    description: "피해 후기·경고·인용 맥락 감점, 고위험 관문 및 점수 상한 적용. 자동 판정의 과잉 확신 억제.",
-    chips: ["LOW 0–39", "REVIEW 40–69", "HIGH 70–100", "근거 코드 출력"],
+    label: "INFRA",
+    title: "외부 이동 인프라",
+    description: "본문·프로필의 메신저 주소, 오픈채팅, 전화번호, 링크모음과 동일 연락처를 사용하는 계정을 연결.",
+    chips: ["메신저 ID", "프로필 링크", "공유 연락처", "외부 도메인"],
+  },
+  {
+    step: "06",
+    label: "NETWORK",
+    title: "계정·캠페인 연결",
+    description: "문장 일부가 바뀌어도 문자 3-gram과 MinHash로 유사 서사를 묶고, 여러 게시물·계정의 반복 살포를 탐지.",
+    chips: ["근사 중복", "다계정 살포", "댓글 확산", "캠페인 군집"],
+  },
+  {
+    step: "07",
+    label: "CONTEXT",
+    title: "신원 맥락·오탐 제어",
+    description: "한국 기관 경력 주장과 프로필 국가 불일치를 보조 신호로 검토하고, 피해 후기·뉴스·경고·정상 직장인 맥락은 억제.",
+    chips: ["가입 국가", "계정 연령", "피해자 맥락", "사람 검토"],
   },
 ];
 
 const WEIGHTS = [
-  ["메신저 유도", "+22", "텔레그램·오픈채팅·프로필 링크"],
-  ["연락 + 투자/수익", "+15", "상이한 신호군 동시 출현"],
-  ["기관 사칭 구조", "+25", "기관명 + 재직·증빙 + 정보 제안"],
-  ["여러 계정의 동일 문구", "+15~32", "2개 계정부터 가중, 3개부터 관문 충족"],
-  ["피해·경고 맥락", "최대 −45", "피해·예방 문맥에 대한 오탐 억제"],
+  ["콘텐츠 신호", "복합", "낱말 하나가 아닌 사칭·수익·행동 유도 조합"],
+  ["증빙 이미지", "선택 검토", "기관 사칭 후보의 이미지에만 보조 모델 사용"],
+  ["외부 인프라", "연결", "공유 연락처·링크·메신저 ID로 계정 군집화"],
+  ["확산 행동", "연결", "유사한 사칭 서사의 다게시물·다계정 살포"],
+  ["오탐 방어", "상한", "피해·경고·뉴스·정상 활동 맥락 우선 검토"],
 ];
 
 export default function Home() {
@@ -59,7 +73,7 @@ export default function Home() {
           <div className="engine-badge"><span /> DETERMINISTIC RULE ENGINE · 입력 동일 시 결과 재현</div>
         </header>
 
-        <div className="algorithm-flow" aria-label="리딩방 유인 신호 판독 알고리즘 5단계">
+        <div className="algorithm-flow" aria-label="리딩방 유인 신호 판독 알고리즘 7단계">
           {PIPELINE.map((item) => (
             <article key={item.step}>
               <div className="algorithm-step"><b>{item.step}</b><span>{item.label}</span></div>
@@ -73,11 +87,11 @@ export default function Home() {
         <div className="score-system">
           <div className="score-formula">
             <span className="score-system-label">SCORING LOGIC</span>
-            <h3>가중치 누적과 상한 규칙</h3>
+            <h3>복합 근거 누적과 상한 규칙</h3>
             <p className="formula-line"><b>카테고리 점수</b> + <b>결합 가점</b> + <b>계정·네트워크 보정</b> − <b>경고·피해 맥락 감점</b></p>
             <div className="hard-gate">
               <span>HIGH GATE</span>
-              <p>다음 중 최소 1개 충족 필요: <b>연락처 유도</b> · <b>기관 사칭 결합</b> · <b>3개 이상 계정의 동일 문구</b>. 미충족 시 총점 69점 상한.</p>
+              <p>강한 판정에는 <b>외부 이동</b> · <b>기관 사칭 결합</b> · <b>다계정 확산</b> 중 하나 이상의 구조적 근거가 필요합니다. 정확한 운영 임계값은 공개하지 않습니다.</p>
             </div>
           </div>
 
@@ -95,9 +109,9 @@ export default function Home() {
             <div className="risk-scale-title"><span>최종 위험도</span><small>0—100</small></div>
             <div className="risk-track"><i /><i /><i /></div>
             <div className="risk-labels">
-              <div><b>LOW</b><span>0–39</span><small>유인 구조 근거 불충분</small></div>
-              <div><b>REVIEW</b><span>40–69</span><small>사람·보조 모델 검토 구간</small></div>
-              <div><b>HIGH</b><span>70–100</span><small>고위험 관문 충족·근거 확보</small></div>
+              <div><b>LOW</b><span>낮은 구간</span><small>유인 구조 근거 불충분</small></div>
+              <div><b>REVIEW</b><span>검토 구간</span><small>사람·보조 모델 추가 검토</small></div>
+              <div><b>HIGH</b><span>강한 신호</span><small>구조적 근거 복수 확보</small></div>
             </div>
           </div>
         </div>

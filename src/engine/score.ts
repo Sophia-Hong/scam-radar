@@ -20,6 +20,12 @@ export interface AccountFeatures {
   clusterAccounts?: number | null;
   /** 이 계정이 서로 다른 원글 몇 개에 댓글로 같은 내용을 달았는지 */
   distinctTargets?: number | null;
+  /** Threads 프로필 정보에 표시된 계정 국가. 단독 판정에는 사용하지 않는다. */
+  profileCountry?: string | null;
+  /** 국가 정보의 출처(예: threads_about_profile, manual). */
+  countrySource?: string | null;
+  /** 증빙 이미지에 대해 보조 모델이 합성·조작 정황을 판단한 신뢰도(0~1). */
+  syntheticEvidenceConfidence?: number | null;
 }
 
 export interface Reason {
@@ -37,6 +43,14 @@ export interface ScoreResult {
   categories: Record<Category, number>;
   normalized: Normalized;
   needsLlmReview: boolean;
+  signalGroups: SignalGroup[];
+}
+
+export interface SignalGroup {
+  code: "normalization" | "impersonation" | "evidence" | "conversion" | "infrastructure" | "coordination" | "identity";
+  label: string;
+  active: boolean;
+  evidence: string[];
 }
 
 const CAT_WEIGHT: Record<Category, number> = {
@@ -83,6 +97,12 @@ export const BIG_ACCOUNT_FOLLOWERS = 20000;
 export const THRESHOLD_HIGH = 70;
 export const THRESHOLD_REVIEW = 40;
 
+const KOREA_COUNTRY = /^(kr|kor|korea|south korea|republic of korea|korea republic of|대한민국|한국)$/i;
+function foreignProfileCountry(country?: string | null): boolean {
+  const value = country?.toLowerCase().replace(/[^a-z가-힣 ]+/g, " ").replace(/\s+/g, " ").trim();
+  return !!value && !KOREA_COUNTRY.test(value);
+}
+
 const TERM_CHOSUNG = TERMS.filter((t) => t.chosung).map((t) => ({ t, cs: choseongSeq(t.term) }));
 
 function findTerms(compact: string): { term: Term; via: "exact" }[] {
@@ -115,6 +135,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0, impersonate: 0 };
   let sawInstitution = false;
   let sawCredential = false;
+  let sawEvidenceImageClaim = false;
   const institutionHits: string[] = [];
   const credentialHits: string[] = [];
   const matched: ScoreResult["matched"] = [];
@@ -128,6 +149,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     categories[t.cat] += pts;
     if (t.sub === "institution") { sawInstitution = true; institutionHits.push(t.term); }
     if (t.sub === "credential") { sawCredential = true; credentialHits.push(t.term); }
+    if (["사원증", "급여명세", "명세서", "재직증명"].includes(t.term)) sawEvidenceImageClaim = true;
     matched.push({ term: t.term, cat: t.cat, label: t.label });
     reasons.push({ code: `term:${t.term}`, label: viaLabel ? `${t.label} (${viaLabel})` : t.label, points: Math.round(pts), evidence });
   };
@@ -198,6 +220,32 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
       reasons.push({ code: "impersonate:institution+credential+invest", label: "사칭 구조 + 투자·수익·연락 어휘 동반", points: IMPERSONATE_INVEST_POINTS });
       score += IMPERSONATE_INVEST_POINTS;
     }
+  }
+
+  // 4d) 한국 기관 재직·퇴직 사칭과 프로필 국가가 불일치하는 경우의 보조 신호.
+  //     해외 거주자·출장·VPN 등 정상 사례가 많으므로 단독 가점·게이트로는 절대 사용하지 않는다.
+  const countryMismatch = impersonateCombo && foreignProfileCountry(account.profileCountry);
+  if (countryMismatch) {
+    reasons.push({
+      code: "identity:country-mismatch",
+      label: "한국 기관 경력 주장과 프로필 국가 불일치 (보조 신호)",
+      points: 4,
+      evidence: `${account.profileCountry}${account.countrySource ? ` · ${account.countrySource}` : ""}`,
+    });
+    score += 4;
+  }
+
+  // 4e) 이미지 자체는 단정 근거가 아니다. 기관 사칭 결합이 성립하고 별도 이미지 검토가
+  //     높은 신뢰도로 합성·조작 정황을 반환했을 때만 제한적으로 보조한다.
+  const visualConfidence = Math.max(0, Math.min(1, account.syntheticEvidenceConfidence ?? 0));
+  if (impersonateCombo && visualConfidence >= 0.75) {
+    reasons.push({
+      code: "evidence:synthetic-image",
+      label: "증빙 이미지의 합성·조작 정황 (보조 모델 검토)",
+      points: 6,
+      evidence: `신뢰도 ${Math.round(visualConfidence * 100)}%`,
+    });
+    score += 6;
   }
 
   // 5) 난독화 가점 — 정상 사용자는 자기 연락처를 난독화하지 않는다 (PIP 논문: 샘플의 59%)
@@ -311,5 +359,19 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const label: Label = score >= THRESHOLD_HIGH ? "HIGH" : score >= THRESHOLD_REVIEW ? "REVIEW" : "LOW";
   reasons.sort((a, b) => b.points - a.points);
 
-  return { score, label, reasons, matched, categories, normalized: n, needsLlmReview: label === "REVIEW" };
+  const reasonEvidence = (prefixes: string[]) => reasons
+    .filter((r) => prefixes.some((prefix) => r.code.startsWith(prefix)) && r.points > 0)
+    .slice(0, 4)
+    .map((r) => r.evidence || r.label);
+  const signalGroups: SignalGroup[] = [
+    { code: "normalization", label: "숨긴 글자 복원", active: n.techniques.length > 0, evidence: n.techniques },
+    { code: "impersonation", label: "재직·퇴직 사칭 서사", active: impersonateCombo, evidence: reasonEvidence(["impersonate:"]) },
+    { code: "evidence", label: "페이크 증빙 이미지 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "evidence:"]) },
+    { code: "conversion", label: "투자 유인 전환 구조", active: reasons.some((r) => r.code.startsWith("combo:") || r.code === "cta"), evidence: reasonEvidence(["combo:", "cta"]) },
+    { code: "infrastructure", label: "외부 이동 인프라", active: categories.contact > 0, evidence: reasonEvidence(["term:텔레", "term:카카오", "term:오픈", "acct:lure-link", "pattern:"]) },
+    { code: "coordination", label: "계정·캠페인 연결", active: clusterAccounts >= 2 || (account.clusterSize ?? 0) >= 3 || (account.distinctTargets ?? 0) >= 3, evidence: reasonEvidence(["spread", "cluster", "spray", "shared-contact"]) },
+    { code: "identity", label: "신원·활동 맥락 불일치", active: countryMismatch, evidence: reasonEvidence(["identity:"]) },
+  ];
+
+  return { score, label, reasons, matched, categories, normalized: n, needsLlmReview: label === "REVIEW", signalGroups };
 }

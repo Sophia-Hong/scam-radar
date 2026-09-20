@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { scoreText } from "@/engine";
+import { scoreText, type Label, type Reason, type SignalGroup } from "@/engine";
 
 const SAMPLE = "급등주 종목 무료로 공개합니다. 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
 
@@ -15,7 +15,7 @@ const LEVEL = {
 type AccountLookup =
   | { status: "idle" }
   | { status: "loading"; handle: string }
-  | { status: "known"; handle: string; profileUrl: string; score: number; postCount: number }
+  | { status: "known"; handle: string; profileUrl: string; score: number; label: Label; reasons: Reason[]; postCount: number; profileCountry?: string | null; sharedAccounts: number }
   | { status: "paste"; handle: string; profileUrl: string }
   | { status: "error"; message: string };
 
@@ -30,7 +30,11 @@ export function LiveAnalyzer() {
   const [text, setText] = useState("");
   const [accountQuery, setAccountQuery] = useState("");
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
-  const result = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
+  const [manualOverride, setManualOverride] = useState(false);
+  const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
+  const result = account.status === "known" && !manualOverride
+    ? { score: account.score, label: account.label, reasons: account.reasons, signalGroups: groupsFromReasons(account.reasons) }
+    : textResult;
   const level = result ? LEVEL[result.label] : null;
   const reasons = result?.reasons.filter((reason) => reason.points > 0).slice(0, 4) ?? [];
 
@@ -43,6 +47,7 @@ export function LiveAnalyzer() {
     }
 
     setAccount({ status: "loading", handle });
+    setManualOverride(false);
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(handle)}`, { cache: "no-store" });
       const data = await response.json().catch(() => null);
@@ -55,8 +60,12 @@ export function LiveAnalyzer() {
           status: "known",
           handle: data.account.handle ?? handle,
           profileUrl: data.account.profileUrl ?? `https://www.threads.com/@${handle}`,
-          score: postText ? scoreText(postText).score : Number(data.account.score ?? 0),
+          score: Number(data.account.score ?? 0),
+          label: (["LOW", "REVIEW", "HIGH"].includes(data.account.label) ? data.account.label : "LOW") as Label,
+          reasons: Array.isArray(data.account.reasons) ? data.account.reasons : [],
           postCount: Number(data.account.postTotal ?? data.posts?.length ?? 0),
+          profileCountry: data.account.profileCountry,
+          sharedAccounts: Array.isArray(data.sharedWith) ? data.sharedWith.length : 0,
         });
         return;
       }
@@ -90,14 +99,14 @@ export function LiveAnalyzer() {
             <small>로그인 없이 공개된 정보만 확인하며, 계정명만으로 사기를 단정하지 않습니다.</small>
           </form>
         </div>
-        <div className="analyzer-evidence" aria-label="서로 다른 사원 정보에 같은 얼굴 사진이 쓰인 게시물 사례">
+        <div className="analyzer-evidence" aria-label="페이크 사원증 이미지로 신뢰를 위조하고 유사한 사칭 내용을 반복 게시한 사례">
           <figure className="analyzer-evidence-card evidence-dark">
             <Image src="/evidence-dark.jpeg" alt="삼성전자 사원증을 내세운 Threads 게시물 캡처" fill priority sizes="(max-width: 900px) 50vw, 28vw" />
           </figure>
           <figure className="analyzer-evidence-card evidence-light">
             <Image src="/evidence-light.jpeg" alt="다른 직무와 부서가 적힌 삼성전자 사원증 게시물 캡처" fill priority sizes="(max-width: 900px) 50vw, 28vw" />
           </figure>
-          <div className="analyzer-evidence-note"><b>CASE 01</b><span>같은 얼굴, 다른 부서·직무</span></div>
+          <div className="analyzer-evidence-note"><b>CASE 01</b><span>페이크 증빙 이미지 · 유사 사칭글 반복 살포</span></div>
         </div>
       </header>
 
@@ -105,7 +114,7 @@ export function LiveAnalyzer() {
         <div className={`account-status account-status-${account.status}`} aria-live="polite">
           {account.status === "known" && (
             <>
-              <div><b>@{account.handle}</b><span>확인된 게시물 {account.postCount}건을 현재 판독 기준으로 다시 계산했어요.</span></div>
+              <div><b>@{account.handle}</b><span>게시물 {account.postCount}건 · 연결 계정 {account.sharedAccounts}개{account.profileCountry ? ` · 프로필 국가 ${account.profileCountry}` : ""}의 종합 근거를 불러왔어요.</span></div>
               <strong>{account.score}점</strong>
             </>
           )}
@@ -130,7 +139,7 @@ export function LiveAnalyzer() {
           <div className="textarea-wrap">
             <textarea
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => { setText(event.target.value); setManualOverride(true); }}
               placeholder={"Threads 게시물, 댓글, DM 문구를 여기에 붙여넣으세요.\n\n예) 무료 종목 공개, 수익 보장, 텔레그램 입장…"}
               aria-label="분석할 게시물 문구"
               rows={9}
@@ -138,8 +147,8 @@ export function LiveAnalyzer() {
             <div className="textarea-meta">
               <span>{text.length.toLocaleString()}자</span>
               <div>
-                <button type="button" onClick={() => setText(SAMPLE)}>예시 넣기</button>
-                {text && <button type="button" onClick={() => setText("")}>지우기</button>}
+                <button type="button" onClick={() => { setText(SAMPLE); setManualOverride(true); }}>예시 넣기</button>
+                {text && <button type="button" onClick={() => { setText(""); setManualOverride(true); }}>지우기</button>}
               </div>
             </div>
           </div>
@@ -176,6 +185,9 @@ export function LiveAnalyzer() {
                   </ul>
                 ) : <p className="no-reason">현재 문구에서는 뚜렷한 유인 신호를 찾지 못했어요.</p>}
               </div>
+              <div className="signal-groups" aria-label="활성 탐지 신호군">
+                {result.signalGroups.map((group) => <span key={group.code} data-active={group.active}>{group.label}</span>)}
+              </div>
               <p className="result-caution">자동 판독은 참고용이며, 특정 계정을 사기로 단정하지 않습니다.</p>
             </>
           )}
@@ -183,4 +195,17 @@ export function LiveAnalyzer() {
       </div>
     </section>
   );
+}
+
+function groupsFromReasons(reasons: Reason[]): SignalGroup[] {
+  const has = (...prefixes: string[]) => reasons.some((reason) => prefixes.some((prefix) => reason.code.startsWith(prefix)) && reason.points > 0);
+  return [
+    { code: "normalization", label: "숨긴 글자 복원", active: has("obfuscation"), evidence: [] },
+    { code: "impersonation", label: "재직·퇴직 사칭", active: has("impersonate:"), evidence: [] },
+    { code: "evidence", label: "페이크 증빙 정황", active: has("evidence:", "term:사원증", "term:급여명세", "term:재직증명"), evidence: [] },
+    { code: "conversion", label: "투자 유인 전환", active: has("combo:", "cta"), evidence: [] },
+    { code: "infrastructure", label: "외부 이동 인프라", active: has("acct:lure-link", "term:텔레", "term:카카오", "term:오픈"), evidence: [] },
+    { code: "coordination", label: "계정·캠페인 연결", active: has("spread", "spray", "cluster", "shared-contact"), evidence: [] },
+    { code: "identity", label: "신원 맥락 불일치", active: has("identity:"), evidence: [] },
+  ];
 }

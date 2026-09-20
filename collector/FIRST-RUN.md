@@ -27,9 +27,10 @@ Threads(https://www.threads.net)에서 다음 검색어를 하나씩 검색해�
 
 고른 게시물마다:
 1. 게시물을 열고 전체 화면 스크린샷을 {{OUT_DIR}}/<번호>.png 로 저장
-2. 작성자 프로필을 열어 스크린샷을 {{OUT_DIR}}/<번호>.profile.png 로 저장하고, 소개글·외부 링크·팔로워 수를 읽어라
-3. 게시물의 댓글 중 같은 조건을 만족하는 댓글이 있으면 그 댓글도 별도 항목으로 기록 (kind: "comment", parentUrl: 원글 URL)
-4. 아래 JSON 을 {{OUT_DIR}}/<번호>.json 으로 저장
+2. 작성자 프로필을 열어 스크린샷을 {{OUT_DIR}}/<번호>.profile.png 로 저장하고, 소개글·외부 링크·팔로워·팔로잉 수를 읽어라
+3. `프로필 정보`/`About this profile`에 가입 국가가 실제 표시될 때만 기록한다. 이름·언어로 추정하지 마라
+4. 게시물의 댓글 중 같은 조건을 만족하는 댓글이 있으면 그 댓글도 별도 항목으로 기록 (kind: "comment", parentUrl: 원글 URL)
+5. 아래 JSON 을 {{OUT_DIR}}/<번호>.json 으로 저장
 
 {
   "platform": "threads",
@@ -46,7 +47,10 @@ Threads(https://www.threads.net)에서 다음 검색어를 하나씩 검색해�
     "externalUrl": "프로필 외부 링크 또는 null",
     "followers": 123,
     "following": null,
-    "postCount": null
+    "postCount": null,
+    "createdAt": null,
+    "profileCountry": "가입 국가 표시값 또는 null",
+    "countrySource": "threads_about_profile 또는 null"
   }
 }
 
