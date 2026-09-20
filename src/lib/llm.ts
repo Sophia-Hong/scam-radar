@@ -9,7 +9,9 @@ import { fnv1a64 } from "@/engine";
  *  2) HIGH 계정의 '내용 요약' 생성 — 계정당 1회, 내용 해시로 캐시
  * 키가 없으면 템플릿으로 대체되어 파이프라인은 항상 동작한다.
  */
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5";
+// MVP 기본값: Anthropic의 현행 모델 중 가장 저렴한 실시간 모델.
+// 규칙만으로 결론이 나는 요청에는 호출하지 않고 40~69점 경계 사례에만 사용한다.
+const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
 export const llmEnabled = !!process.env.ANTHROPIC_API_KEY;
 
 let _client: Anthropic | null = null;
