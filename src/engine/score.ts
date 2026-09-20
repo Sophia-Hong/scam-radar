@@ -1,6 +1,6 @@
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
-import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, type Category, type Term } from "./lexicon";
+import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
 
 export type Label = "HIGH" | "REVIEW" | "LOW";
 
@@ -14,8 +14,10 @@ export interface AccountFeatures {
   bio?: string | null;
   /** 프로필 외부 링크 */
   externalUrl?: string | null;
-  /** 이 계정이 남긴 게시물·댓글 중 유사 클러스터 크기 */
+  /** 이 계정이 남긴 게시물·댓글 중 유사 클러스터 크기 (같은 계정의 반복) */
   clusterSize?: number | null;
+  /** 이 글과 근사 중복인 문구를 쓰는 **서로 다른 계정** 수 (본 계정 포함). 여러 일회용 계정에 같은 글을 살포하는 형 */
+  clusterAccounts?: number | null;
   /** 이 계정이 서로 다른 원글 몇 개에 댓글로 같은 내용을 달았는지 */
   distinctTargets?: number | null;
 }
@@ -44,6 +46,7 @@ const CAT_WEIGHT: Record<Category, number> = {
   urgency: 6,
   free: 5,
   link: 8,
+  impersonate: 10,
 };
 const CAT_CAP: Record<Category, number> = {
   contact: 32,
@@ -52,10 +55,28 @@ const CAT_CAP: Record<Category, number> = {
   urgency: 12,
   free: 8,
   link: 10,
+  impersonate: 20,
 };
 
-/** 연락채널 신호가 없으면 HIGH 를 줄 수 없다 (hard gate) — 이 점수 이상으로 못 올라간다 */
+/**
+ * HARD GATE 상한 — 아래 셋 중 하나도 없으면 HIGH 를 줄 수 없다:
+ *   ① 연락채널 유도  ② 기관 사칭 결합(기관명+재직·증빙 주장+제안)  ③ 서로 다른 계정 3개 이상이 같은 문구 살포
+ * 이름은 호환을 위해 유지한다.
+ */
 export const NO_CONTACT_CAP = 69;
+/** 같은 문구를 쓰는 서로 다른 계정 수가 이 이상이면 게이트를 연다 */
+export const SPREAD_GATE_ACCOUNTS = 3;
+/** 사칭 결합 가점 */
+export const IMPERSONATE_COMBO_POINTS = 25;
+export const IMPERSONATE_INVEST_POINTS = 10;
+
+/** 여러 계정이 같은 문구를 뿌릴 때의 가점 (본 계정 포함 계정 수) */
+export function spreadPoints(accounts: number): number {
+  if (accounts >= 5) return 32;
+  if (accounts >= 3) return 25;
+  if (accounts >= 2) return 15;
+  return 0;
+}
 /** 대형 계정은 자동 HIGH 대상에서 제외하고 사람이 본다 */
 export const BIG_ACCOUNT_FOLLOWERS = 20000;
 
@@ -91,7 +112,11 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const n = normalize(raw);
 
   const reasons: Reason[] = [];
-  const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0 };
+  const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0, impersonate: 0 };
+  let sawInstitution = false;
+  let sawCredential = false;
+  const institutionHits: string[] = [];
+  const credentialHits: string[] = [];
   const matched: ScoreResult["matched"] = [];
   const seenLabel = new Set<string>();
 
@@ -101,6 +126,8 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     seenLabel.add(key);
     const pts = CAT_WEIGHT[t.cat] * (t.w ?? 1);
     categories[t.cat] += pts;
+    if (t.sub === "institution") { sawInstitution = true; institutionHits.push(t.term); }
+    if (t.sub === "credential") { sawCredential = true; credentialHits.push(t.term); }
     matched.push({ term: t.term, cat: t.cat, label: t.label });
     reasons.push({ code: `term:${t.term}`, label: viaLabel ? `${t.label} (${viaLabel})` : t.label, points: Math.round(pts), evidence });
   };
@@ -154,6 +181,24 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     reasons.push({ code: "combo:triple", label: "채널 유도 + 투자 + 수익 제시 3요소 결합", points: 6 });
     score += 6;
   }
+  // 4c) 기관 사칭 결합 — 기관명 + 재직·증빙 주장 + 무언가를 *제공하겠다는* 말(투자·수익·연락채널 어휘 또는 제안 표현).
+  //     "삼성전자 재직 중인데 구내식당 맛없다" 는 기관명+재직이지만 제안이 없어 결합이 안 된다.
+  //     "대신증권 재직중입니다, 사원증 인증, 종목 정보 드릴게요" 가 결합이다.
+  const offered = categories.invest > 0 || categories.profit > 0 || categories.contact > 0 || OFFER_PATTERN.test(n.text);
+  const impersonateCombo = sawInstitution && sawCredential && offered;
+  if (impersonateCombo) {
+    reasons.push({
+      code: "impersonate:institution+credential",
+      label: "기관명 + 재직·증빙 주장 + 제안 결합 (사칭 구조)",
+      points: IMPERSONATE_COMBO_POINTS,
+      evidence: `${institutionHits.join(", ")} / ${credentialHits.join(", ")}`,
+    });
+    score += IMPERSONATE_COMBO_POINTS;
+    if (categories.invest > 0 || categories.profit > 0 || categories.contact > 0) {
+      reasons.push({ code: "impersonate:institution+credential+invest", label: "사칭 구조 + 투자·수익·연락 어휘 동반", points: IMPERSONATE_INVEST_POINTS });
+      score += IMPERSONATE_INVEST_POINTS;
+    }
+  }
 
   // 5) 난독화 가점 — 정상 사용자는 자기 연락처를 난독화하지 않는다 (PIP 논문: 샘플의 59%)
   if (n.techniques.length > 0 && categories.contact + categories.invest > 0) {
@@ -162,8 +207,8 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     score += pts;
   }
 
-  // 5a) 행동 유도(CTA) — 연락채널 신호와 결합했을 때만. "방이 있다" 가 아니라 "들어와라" 여야 유인이다.
-  if (categories.contact > 0) {
+  // 5a) 행동 유도(CTA) — 연락채널 신호(또는 사칭 결합)와 붙었을 때만. "방이 있다" 가 아니라 "들어와라" 여야 유인이다.
+  if (categories.contact > 0 || impersonateCombo) {
     let cta = 0;
     const ctaLabels: string[] = [];
     for (const c of CTA_PATTERNS) {
@@ -210,8 +255,14 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     score += 7;
   }
   if ((account.clusterSize ?? 0) >= 3) {
-    const pts = Math.min(15, 5 + (account.clusterSize! - 3) * 3);
+    const pts = Math.min(20, 5 + (account.clusterSize! - 3) * 3);
     reasons.push({ code: "cluster", label: "동일·유사 문구 반복 게시", points: pts, evidence: `${account.clusterSize}건` }); score += pts;
+  }
+  // 6c) 살포(spread) — 서로 다른 계정 여러 개가 같은 문구를 쓴다. 한 사람이 일회용 계정을 여러 개 굴리는 형.
+  const clusterAccounts = account.clusterAccounts ?? 0;
+  if (clusterAccounts >= 2) {
+    const pts = spreadPoints(clusterAccounts);
+    reasons.push({ code: "spread", label: "서로 다른 계정 여러 개가 같은 문구 게시", points: pts, evidence: `${clusterAccounts}개 계정` }); score += pts;
   }
   if ((account.distinctTargets ?? 0) >= 3) {
     reasons.push({ code: "spray", label: "무관한 여러 원글에 동일 댓글 살포", points: 10, evidence: `${account.distinctTargets}개 원글` }); score += 10;
@@ -244,13 +295,14 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정 — 자동 HIGH 보류", `팔로워 ${account.followers}`);
   }
 
-  // 8) HARD GATE — 연락채널 신호가 없으면 HIGH 불가.
-  //    리딩방 유인의 정의상 "어디로 오라" 가 반드시 있다. 그게 없는 글을 HIGH 로 올리면
-  //    (투자 자랑·시황 과장 글 등) 방어할 수 없는 지목이 된다.
-  if (categories.contact <= 0 && score > NO_CONTACT_CAP) {
+  // 8) HARD GATE — 다음 셋 중 하나는 있어야 HIGH 가 된다.
+  //    ① 연락채널 유도("어디로 오라")  ② 기관 사칭 결합(기관명+재직·증빙+제안)  ③ 서로 다른 계정 3개 이상의 동일 문구 살포
+  //    셋 다 없는 글(투자 자랑·시황 과장·수익 인증만 있는 글)을 HIGH 로 올리면 방어할 수 없는 지목이 된다.
+  const gateOpen = categories.contact > 0 || impersonateCombo || clusterAccounts >= SPREAD_GATE_ACCOUNTS;
+  if (!gateOpen && score > NO_CONTACT_CAP) {
     reasons.push({
       code: "gate:no-contact",
-      label: `연락채널 유도 신호 없음 — HIGH 불가, ${NO_CONTACT_CAP}점으로 상한`,
+      label: `연락채널 유도·기관 사칭 결합·다계정 살포 중 어느 것도 없음 — ${NO_CONTACT_CAP}점으로 상한`,
       points: NO_CONTACT_CAP - score,
     });
     score = NO_CONTACT_CAP;

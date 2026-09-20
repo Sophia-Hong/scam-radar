@@ -21,13 +21,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     <article className="mx-auto max-w-3xl space-y-8 rounded-lg border border-zinc-200 bg-white p-8 print:border-0 print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 pb-4">
         <div>
-          <div className="text-xs text-zinc-500">리딩방 유인 의심 계정 · 조사 참고 리포트</div>
+          <div className="text-xs text-zinc-500">리딩방 유인 신호 · 조사 참고 리포트</div>
           <h1 className="text-2xl font-bold">{r.reportId}</h1>
           <div className="text-xs text-zinc-500">생성 {fmt(r.generatedAt)}</div>
         </div>
         <div className="flex flex-col items-end gap-2">
           {/* 오탐 확정이면 점수 배지를 흐리게 — 사람의 판단이 기계 점수보다 앞선다 */}
-          <ScoreBadge score={r.score} label={r.effectiveStatus} size="lg" muted={r.effectiveStatus === "CLEARED"} />
+          <ScoreBadge score={r.score} label={r.effectiveStatus} size="lg" muted={r.effectiveStatus === "CLEARED"} signals={r.rationale.filter((x) => x.points > 0).length} />
           <div className="no-print flex gap-2 text-xs">
             <a className="rounded border border-zinc-300 px-2 py-1" href={`/api/reports/${encodeURIComponent(id)}`}>JSON</a>
             <a className="rounded border border-zinc-300 px-2 py-1" href="javascript:window.print()">인쇄/PDF</a>
@@ -37,7 +37,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {r.effectiveStatus === "CLEARED" && (
         <div className="rounded-lg border-2 border-emerald-500 bg-emerald-50 p-4">
-          <div className="text-lg font-bold text-emerald-900">이 리포트는 사람 검토에서 오탐으로 결론 났습니다</div>
+          <div className="text-lg font-bold text-emerald-900">이 리포트는 사람 검토에서 해당 없음으로 결론 났습니다</div>
           <p className="mt-1 text-sm text-emerald-900">
             아래 자동 분석 내용은 기록 보존용이며, <b>신고 근거로 사용하지 마십시오.</b>
           </p>
@@ -68,7 +68,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       <section>
         <h2 className="mb-2 text-lg font-semibold">3. 내용 (범죄사실 요약 — 요건사실 위주)</h2>
         <pre className="whitespace-pre-wrap rounded bg-zinc-50 p-3 text-sm leading-relaxed">{r.summary.text}</pre>
-        <div className="mt-1 text-xs text-zinc-500">작성: {r.summary.generatedBy === "template" ? "템플릿(규칙 기반)" : `LLM ${r.summary.generatedBy} 초안 — 사람 검토 필요`}</div>
+        <div className="mt-1 text-xs text-zinc-500">작성: {r.summary.generatedBy === "template" ? "템플릿(규칙 기반)" : `LLM ${r.summary.generatedBy} 초안 — 사람 검토 전`}</div>
       </section>
 
       <section>
@@ -124,7 +124,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       </section>
 
       <section>
-        <h2 className="mb-2 text-lg font-semibold">6. 판단 근거</h2>
+        <h2 className="mb-2 text-lg font-semibold">6. 감지된 신호와 설명</h2>
         <Reasons reasons={r.rationale as Reason[]} />
       </section>
 

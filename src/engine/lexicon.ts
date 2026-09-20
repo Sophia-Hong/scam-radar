@@ -2,7 +2,10 @@
  * 리딩방 유인 어휘 사전. 모든 항목은 normalize().compact 기준(소문자·구분자 제거)으로 매칭된다.
  * category 별 가중치는 score.ts 에서 결정. 여기서는 어휘와 사람이 읽을 라벨만.
  */
-export type Category = "contact" | "invest" | "profit" | "urgency" | "link" | "free";
+export type Category = "contact" | "invest" | "profit" | "urgency" | "link" | "free" | "impersonate";
+
+/** impersonate 범주의 하위 구분 — 기관명 vs 재직·증빙 주장. 결합 규칙(score.ts)이 이 둘을 구분한다 */
+export type ImpersonateSub = "institution" | "credential";
 
 export interface Term {
   term: string;
@@ -12,6 +15,8 @@ export interface Term {
   chosung?: boolean;
   /** 개별 가중치 조정 (기본 1.0) */
   w?: number;
+  /** impersonate 범주 전용 하위 구분 */
+  sub?: ImpersonateSub;
 }
 
 export const TERMS: Term[] = [
@@ -130,6 +135,12 @@ export const TERMS: Term[] = [
   { term: "적중", cat: "invest", label: "적중 주장", w: 0.8 },
   { term: "기관수급", cat: "invest", label: "기관 수급 정보 주장" },
   { term: "기관물량", cat: "invest", label: "기관 물량 정보 주장" },
+  // 사칭형이 즐겨 쓰는 "정보 공유" 제안 — 단독으로는 약하게
+  { term: "종목정보", cat: "invest", label: "종목 정보 제공", w: 0.9 },
+  { term: "투자정보", cat: "invest", label: "투자 정보 제공", w: 0.7 },
+  { term: "정보공유", cat: "invest", label: "정보 공유 제안", w: 0.5 },
+  { term: "시장정보", cat: "invest", label: "시장 정보 제공", w: 0.5 },
+  { term: "매수추천", cat: "invest", label: "매수 추천", w: 1.0 },
 
   // ── 수익 보장·인증 ──
   { term: "수익인증", cat: "profit", label: "수익 인증", chosung: true },
@@ -184,6 +195,54 @@ export const TERMS: Term[] = [
   { term: "무료공개", cat: "free", label: "무료 공개" },
   { term: "무료공유", cat: "free", label: "무료 공유" },
   { term: "무료배포", cat: "free", label: "무료 배포", w: 0.8 },
+
+  // ── 기관 사칭 (foreign-registered 계정이 한국 증권사·대기업 직원 행세) ──
+  // 기관명 단독은 거의 점수가 없다(일반 주식 잡담·뉴스에 흔함). 재직·증빙 주장과 결합할 때만 의미가 있다.
+  { term: "대신증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (대신증권)", w: 0.3 },
+  { term: "삼성증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (삼성증권)", w: 0.3 },
+  { term: "키움증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (키움증권)", w: 0.3 },
+  { term: "미래에셋", cat: "impersonate", sub: "institution", label: "기관명 언급 (미래에셋)", w: 0.3 },
+  { term: "한국투자증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (한국투자증권)", w: 0.3 },
+  { term: "한투증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (한국투자증권)", w: 0.3 },
+  { term: "nh투자증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (NH투자증권)", w: 0.3 },
+  { term: "kb증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (KB증권)", w: 0.3 },
+  { term: "신한투자증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (신한투자증권)", w: 0.3 },
+  { term: "하나증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (하나증권)", w: 0.3 },
+  { term: "메리츠증권", cat: "impersonate", sub: "institution", label: "기관명 언급 (메리츠증권)", w: 0.3 },
+  { term: "유안타", cat: "impersonate", sub: "institution", label: "기관명 언급 (유안타증권)", w: 0.3 },
+  { term: "삼성전자", cat: "impersonate", sub: "institution", label: "기관명 언급 (삼성전자)", w: 0.3 },
+  { term: "sk하이닉스", cat: "impersonate", sub: "institution", label: "기관명 언급 (SK하이닉스)", w: 0.3 },
+  { term: "하이닉스", cat: "impersonate", sub: "institution", label: "기관명 언급 (SK하이닉스)", w: 0.3 },
+  { term: "현대차", cat: "impersonate", sub: "institution", label: "기관명 언급 (현대차)", w: 0.3 },
+  { term: "현대자동차", cat: "impersonate", sub: "institution", label: "기관명 언급 (현대차)", w: 0.3 },
+  { term: "lg전자", cat: "impersonate", sub: "institution", label: "기관명 언급 (LG)", w: 0.3 },
+  { term: "lg화학", cat: "impersonate", sub: "institution", label: "기관명 언급 (LG)", w: 0.3 },
+  { term: "lg에너지", cat: "impersonate", sub: "institution", label: "기관명 언급 (LG)", w: 0.3 },
+  { term: "lg디스플레이", cat: "impersonate", sub: "institution", label: "기관명 언급 (LG)", w: 0.3 },
+  { term: "lg그룹", cat: "impersonate", sub: "institution", label: "기관명 언급 (LG)", w: 0.3 },
+  { term: "한국은행", cat: "impersonate", sub: "institution", label: "기관명 언급 (한국은행)", w: 0.3 },
+  { term: "증권사", cat: "impersonate", sub: "institution", label: "증권사 언급", w: 0.3 },
+  { term: "자산운용", cat: "impersonate", sub: "institution", label: "자산운용사 언급", w: 0.3 },
+  // 재직·신분 주장
+  { term: "재직중", cat: "impersonate", sub: "credential", label: "재직 주장", w: 0.9 },
+  { term: "재직", cat: "impersonate", sub: "credential", label: "재직 주장", w: 0.8 },
+  { term: "현직", cat: "impersonate", sub: "credential", label: "현직 주장", w: 0.7 },
+  { term: "근무중", cat: "impersonate", sub: "credential", label: "근무 주장", w: 0.7 },
+  { term: "임직원", cat: "impersonate", sub: "credential", label: "임직원 주장", w: 0.7 },
+  { term: "직원입니다", cat: "impersonate", sub: "credential", label: "직원 자칭", w: 0.9 },
+  { term: "회사에서", cat: "impersonate", sub: "credential", label: "회사 소속 암시", w: 0.3 },
+  { term: "팀장", cat: "impersonate", sub: "credential", label: "직급 주장 (팀장)", w: 0.4 },
+  { term: "부장", cat: "impersonate", sub: "credential", label: "직급 주장 (부장)", w: 0.4 },
+  { term: "과장", cat: "impersonate", sub: "credential", label: "직급 주장 (과장)", w: 0.4 },
+  { term: "매니저", cat: "impersonate", sub: "credential", label: "직급 주장 (매니저)", w: 0.4 },
+  // 증빙 사진·내부정보 주장 — 사원증·급여명세 사진은 사칭형의 서명 같은 요소
+  { term: "사원증", cat: "impersonate", sub: "credential", label: "사원증 제시", w: 1.0 },
+  { term: "급여명세", cat: "impersonate", sub: "credential", label: "급여명세서 제시", w: 1.0 },
+  { term: "명세서", cat: "impersonate", sub: "credential", label: "명세서 제시", w: 0.7 },
+  { term: "재직증명", cat: "impersonate", sub: "credential", label: "재직증명서 제시", w: 1.0 },
+  { term: "내부정보", cat: "impersonate", sub: "credential", label: "내부정보 주장", w: 1.0 },
+  { term: "내부자", cat: "impersonate", sub: "credential", label: "내부자 자칭", w: 0.9 },
+  { term: "인사이더", cat: "impersonate", sub: "credential", label: "인사이더 자칭", w: 0.8 },
 
   // ── 단축 링크 ──
   { term: "bit.ly", cat: "link", label: "단축 링크" },
@@ -301,6 +360,12 @@ export const CTA_PATTERNS: { re: RegExp; label: string; w: number }[] = [
   { re: /(확인해\s*주?세요|참고해\s*주?세요|클릭|타고\s*들어)/, label: "링크 클릭 유도", w: 0.9 },
   { re: /(팔로우|좋아요|구독).{0,12}(하시면|하면|해주시면|누르시면|남기신)/, label: "팔로우·좋아요 조건부 제공", w: 1.2 },
 ];
+
+/**
+ * 제공·상담 제안 — 사칭형 결합 규칙에서 "기관명 + 재직 주장" 뒤에 붙는 "정보 드릴게요/상담해 드려요".
+ * 부탁·질문("알려주세요")은 제외하고 *제공*하는 쪽 표현만 잡는다. 직원 잡담과 갈리는 지점이다.
+ */
+export const OFFER_PATTERN = /(공유\s*(해|합니다|드|할게|해요|중)|알려\s*드|드립니다|드려요|드릴게|도와\s*드|상담\s*(은|받|신청|가능|해\s*드|원하)|문의\s*(는|주|해|바랍|남겨)|추천\s*(해\s*드|드립)|풀어\s*드|말씀\s*드|정보\s*(를|도)?\s*(드|공유|나눠)|댓글\s*(남겨|주|달아)|디엠|dm)/;
 
 /** 정규식 기반 구조 신호 */
 export const PATTERNS: { re: RegExp; cat: Category; label: string; w?: number }[] = [

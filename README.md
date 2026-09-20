@@ -137,7 +137,7 @@ curl -s localhost:3000/api/entities/telegram%3Ademo_room_alpha | jq '.entity.acc
   "기계가 100점 준 계정을 사람이 오탐으로 뒤집었다" 를 세어 `lexicon.ts` 가중치를 보정해야 하므로
   원래 판정이 남아 있어야 한다.
 - **표시 라벨은 `src/lib/labels.ts` 한 곳에서 정한다.** `effectiveStatus(기계라벨, 사람라벨)` 이
-  `SCAM → CONFIRMED`("검토 완료 · 사기 확인"), `NOT_SCAM → CLEARED`("검토 완료 · 오탐"), 그 외는
+  `SCAM → CONFIRMED`("검토 완료 · 사기 확인"), `NOT_SCAM → CLEARED`("검토 완료 · 해당 없음"), 그 외는
   기계 라벨을 그대로 돌려준다. 계정 API·조회 화면·리포트·집계가 모두 이 함수만 쓴다.
 - **오탐으로 닫힌 계정의 리포트**는 맨 위에 "신고 근거로 사용하지 마십시오" 안내가 뜨고 점수 배지가
   회색으로 죽는다. 사람이 아니라고 한 계정의 리포트가 그대로 수사기관에 가면 안 되기 때문이다.

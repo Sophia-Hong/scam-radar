@@ -155,3 +155,91 @@ describe("JSON 안전성", () => {
     for (const x of r.reasons) if (x.evidence) expect(() => JSON.parse(JSON.stringify(x.evidence))).not.toThrow(), expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(x.evidence)).toBe(false);
   });
 });
+
+describe("기관 사칭 (2026-09-20 실데이터 후 재설계)", () => {
+  const burner = { followers: 3, following: 900, createdAt: new Date().toISOString() };
+  it("기관명 + 재직·증빙 주장 + 제안은 텔레그램 없이도 HIGH", () => {
+    const r = scoreText("대신증권 재직중입니다. 사원증 인증 사진 올려요. 요즘 장 흐름이랑 종목 정보 필요하신 분 댓글 남겨주세요, 제가 직접 상담해 드릴게요", burner);
+    expect(r.categories.contact).toBe(0);
+    expect(r.reasons.some((x) => x.code === "impersonate:institution+credential")).toBe(true);
+    expect(r.reasons.some((x) => x.code === "gate:no-contact")).toBe(false);
+    expect(r.label).toBe("HIGH");
+  });
+  it("사칭 구조 + 투자 어휘가 붙으면 추가 결합 가점", () => {
+    const r = scoreText("삼성전자 임직원입니다 (급여명세서 첨부). 회사 내부정보로 반도체 관련주 정보 공유해드립니다. 관심있으신 분 디엠");
+    expect(r.reasons.some((x) => x.code === "impersonate:institution+credential+invest")).toBe(true);
+    expect(r.label).toBe("HIGH");
+  });
+  it("기관명 단독은 LOW (점수 거의 없음)", () => {
+    const r = scoreText("오늘 삼성전자 좀 올랐네요. 키움증권 수수료 이벤트도 하네요");
+    expect(r.label).toBe("LOW");
+    expect(r.score).toBeLessThan(15);
+    expect(r.reasons.some((x) => x.code.startsWith("impersonate:"))).toBe(false);
+  });
+  it("직원 잡담 (기관명 + 재직, 제안 없음) 은 LOW", () => {
+    expect(scoreText("삼성전자 재직 중인데 구내식당 오늘 메뉴 실화냐 ㅋㅋ").label).toBe("LOW");
+    expect(scoreText("SK하이닉스 급여명세서 보고 놀람. 성과급 실화냐").label).toBe("LOW");
+    expect(scoreText("사원증 잃어버려서 재발급 받으러 갑니다 ㅠ 회사에서 한 소리 들음").label).toBe("LOW");
+  });
+  it("정보를 구하는 취준 글 (알려주세요) 은 결합되지 않는다", () => {
+    const r = scoreText("하나증권 최종 면접 봤습니다. 재직 중인 분 계시면 분위기 좀 알려주세요");
+    expect(r.reasons.some((x) => x.code.startsWith("impersonate:"))).toBe(false);
+    expect(r.label).toBe("LOW");
+  });
+});
+
+describe("살포 (clusterAccounts) — 서로 다른 계정의 동일 문구", () => {
+  const noContact = "급등주 종목추천 무료로 공개합니다 🚀🚀 수익인증 320% 원금보장 확정수익 선착순 20명 마감임박 지금 바로";
+  it("계정 3개 이상이 같은 문구를 쓰면 연락채널 없이도 HIGH", () => {
+    const solo = scoreText(noContact);
+    expect(solo.label).not.toBe("HIGH");
+    const spread = scoreText(noContact, { clusterAccounts: 3 });
+    expect(spread.reasons.some((x) => x.code === "spread")).toBe(true);
+    expect(spread.reasons.some((x) => x.code === "gate:no-contact")).toBe(false);
+    expect(spread.label).toBe("HIGH");
+  });
+  it("계정 2개는 가점만, 게이트는 열리지 않는다", () => {
+    const r = scoreText(noContact, { clusterAccounts: 2 });
+    expect(r.reasons.find((x) => x.code === "spread")?.points).toBe(15);
+    expect(r.label).not.toBe("HIGH");
+  });
+  it("가점은 2→15, 3→25, 5→32 로 계단식이고 32 에서 멈춘다", () => {
+    const pts = (n: number) => scoreText("종목 정보 공유", { clusterAccounts: n }).reasons.find((x) => x.code === "spread")?.points ?? 0;
+    expect([pts(1), pts(2), pts(3), pts(4), pts(5), pts(12)]).toEqual([0, 15, 25, 25, 32, 32]);
+  });
+  it("무해한 문구는 여러 계정이 써도 HIGH 가 아니다", () => {
+    const r = scoreText("오늘 점심 뭐 먹지 고민이네요 날씨도 좋고", { clusterAccounts: 8 });
+    expect(r.label).not.toBe("HIGH");
+  });
+  it("같은 계정 반복(clusterSize) 가점 상한은 20", () => {
+    const r = scoreText("종목 정보 공유", { clusterSize: 30 });
+    expect(r.reasons.find((x) => x.code === "cluster")?.points).toBe(20);
+  });
+});
+
+describe("explain — 모든 근거 코드에 설명이 붙는다", () => {
+  it("term/pattern/combo/impersonate/spread/veto/gate 전부 4개 필드가 비어 있지 않다", async () => {
+    const { explainReason, categoryOf } = await import("./explain");
+    const samples = [
+      scoreText("급등주 종목 무료로 공개합니다 🚀🚀 수익인증 300% 선착순 20명 ㅌㄹㄱㄹ @stock_king77", { clusterAccounts: 4, clusterSize: 5, distinctTargets: 6, followers: 2, following: 800, createdAt: new Date().toISOString() }),
+      scoreText("대신증권 재직중입니다. 사원증 인증합니다. 종목 정보 드릴게요. 댓글 남겨주세요"),
+      scoreText("리딩방 사기 당한 후기. 텔레그램 무료방 들어갔다가 300만원 날렸어요. 조심하세요"),
+      scoreText("[광고] 금융투자업 등록번호 제2019-0000호. 상담은 카카오톡 채널로. 투자원금 손실 가능"),
+      scoreText("급등주 종목추천 무료 공개 수익인증 320% 원금보장 확정수익 선착순 마감임박 지금 바로"),
+    ];
+    const codes = new Set(samples.flatMap((s) => s.reasons.map((r) => r.code)));
+    expect(codes.size).toBeGreaterThan(15);
+    for (const c of codes) {
+      const x = explainReason(c, "라벨", "증거");
+      for (const k of ["what", "why", "example", "benign"] as const) expect(x[k].length, `${c}.${k}`).toBeGreaterThan(5);
+    }
+    expect(categoryOf("term:텔레그램")).toBe("contact");
+    expect(categoryOf("term:사원증")).toBe("impersonate");
+    expect(categoryOf("spread")).toBe("account");
+    expect(categoryOf("veto:quote")).toBe("context");
+  });
+  it("UI 설명 문구에 판단 어휘(사기 가능성/의심/주의)를 쓰지 않는다 — 수법 설명 문맥 제외", async () => {
+    const { STATUS_TEXT } = await import("../lib/labels");
+    for (const k of ["HIGH", "REVIEW", "LOW", "UNKNOWN"]) expect(STATUS_TEXT[k]).not.toMatch(/사기|의심|주의|검토 필요/);
+  });
+});

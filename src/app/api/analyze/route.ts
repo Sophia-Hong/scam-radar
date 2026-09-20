@@ -8,7 +8,7 @@ const Schema = z.object({
   text: z.string().min(1).max(10000),
   account: z.object({
     followers: z.number().nullish(), following: z.number().nullish(), createdAt: z.string().nullish(),
-    bio: z.string().nullish(), externalUrl: z.string().nullish(), clusterSize: z.number().nullish(), distinctTargets: z.number().nullish(),
+    bio: z.string().nullish(), externalUrl: z.string().nullish(), clusterSize: z.number().nullish(), clusterAccounts: z.number().nullish(), distinctTargets: z.number().nullish(),
   }).optional(),
 });
 

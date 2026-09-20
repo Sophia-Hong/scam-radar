@@ -1,6 +1,6 @@
 /**
  * 사람의 최종 판단 배너. "최종 판단은 사람이 한다" 는 약속이 화면에서 보이는 자리.
- * 오탐 확정(CLEARED)은 초록, 사기 확정(CONFIRMED)은 붉은 테두리.
+ * 해당 없음 확정(CLEARED)은 초록, 사기 확정(CONFIRMED)은 붉은 테두리.
  */
 export type HumanReview = { label: "SCAM" | "NOT_SCAM"; note: string | null; reviewedAt: string; reviewedBy: string | null } | null;
 
@@ -12,7 +12,7 @@ export function HumanVerdict({ review }: { review: HumanReview }) {
   return (
     <div className={`rounded-lg border p-4 ${cleared ? "border-emerald-300 bg-emerald-50" : "border-red-500 border-2 bg-white"}`}>
       <div className={`flex flex-wrap items-center gap-2 font-semibold ${cleared ? "text-emerald-900" : "text-red-800"}`}>
-        {cleared ? "검토 완료 · 오탐으로 확인됨" : "검토 완료 · 사기 계정으로 확인됨"}
+        {cleared ? "검토 완료 · 해당 없음으로 확인됨" : "검토 완료 · 사기 계정으로 확인됨"}
         <span className="text-xs font-normal text-zinc-600">
           {fmtDate(review.reviewedAt)} · 검토자 {review.reviewedBy ?? "admin"}
         </span>

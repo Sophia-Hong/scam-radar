@@ -61,7 +61,7 @@ export function Lookup() {
       {res && !res.found && (
         <div className="rounded-lg border border-zinc-200 bg-white p-5">
           <ScoreBadge score={0} label="UNKNOWN" size="lg" />
-          <p className="mt-3 text-sm text-zinc-600">{res.message}. 의심 게시물이 있다면 <Link className="underline" href="/analyze">텍스트 분석</Link>에 붙여 넣어 보세요.</p>
+          <p className="mt-3 text-sm text-zinc-600">{res.message}. 확인하고 싶은 게시물이 있다면 <Link className="underline" href="/analyze">텍스트 분석</Link>에 붙여 넣어 보세요.</p>
         </div>
       )}
 
@@ -75,7 +75,7 @@ export function Lookup() {
                 <h2 className="text-2xl font-bold">@{res.account.handle} {res.account.displayName && <span className="text-base font-normal text-zinc-500">{res.account.displayName}</span>}</h2>
                 <a href={res.account.profileUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-700 underline">{res.account.profileUrl}</a>
               </div>
-              <ScoreBadge score={res.account.score} label={res.effectiveStatus} size="lg" muted={res.effectiveStatus === "CLEARED"} />
+              <ScoreBadge score={res.account.score} label={res.effectiveStatus} size="lg" muted={res.effectiveStatus === "CLEARED"} signals={res.account.reasons.filter((r) => r.points > 0).length} />
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
               <dt className="text-zinc-500">수집 게시물</dt><dd className="font-medium">{res.account.postTotal}건</dd>
@@ -87,14 +87,14 @@ export function Lookup() {
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
               <Link href={`/report/${encodeURIComponent(res.account.id)}`} className="rounded-md bg-zinc-900 px-3 py-1.5 font-medium text-white">신고용 리포트 보기</Link>
               <a href={`/api/reports/${encodeURIComponent(res.account.id)}`} className="rounded-md border border-zinc-300 px-3 py-1.5">리포트 JSON</a>
-              <button onClick={() => feedback(true)} className="rounded-md border border-red-300 px-3 py-1.5 text-red-700">나도 피해/의심 제보</button>
-              <button onClick={() => feedback(false)} className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700">오탐 같아요</button>
+              <button onClick={() => feedback(true)} className="rounded-md border border-red-300 px-3 py-1.5 text-red-700">관련 경험 제보</button>
+              <button onClick={() => feedback(false)} className="rounded-md border border-zinc-300 px-3 py-1.5 text-zinc-700">해당 없는 것 같아요</button>
             </div>
             {fb && <p className="mt-2 text-xs text-emerald-700">{fb}</p>}
           </div>
 
           <div>
-            <h3 className="mb-2 font-semibold">판단 근거</h3>
+            <h3 className="mb-2 font-semibold">감지된 신호와 설명</h3>
             <Reasons reasons={res.account.reasons} />
           </div>
 
@@ -128,7 +128,7 @@ export function Lookup() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-1 text-xs text-zinc-500">동일한 연락처를 공유하는 계정은 같은 운영자·조직일 가능성이 높습니다.</p>
+              <p className="mt-1 text-xs text-zinc-500">같은 연락처를 안내하는 계정들은 같은 운영자·조직에서 관리할 가능성이 있습니다.</p>
             </div>
           )}
 

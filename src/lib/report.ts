@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { summarizeAccount } from "./llm";
 import { sharedAccountsOf, type SharedAccount } from "./pipeline";
-import { ENTITY_TYPE_LABEL, isStrongEntity, type Reason, type EntityType } from "@/engine";
+import { ENTITY_TYPE_LABEL, isStrongEntity, explainReasons, type Reason, type EntityType } from "@/engine";
 import { effectiveStatus, type EffectiveStatus } from "./labels";
 
 /** 조사기관 제출용 리포트 — 필드 순서가 곧 신고서 항목 순서 */
@@ -28,8 +28,8 @@ export interface InvestigationReport {
   linkedAccounts: SharedAccount[];
   /** 증거 캡쳐 */
   evidence: { postUrl: string; parentUrl: string | null; kind: string; postedAt: string | null; capturedAt: string; capture: string | null; text: string; score: number; techniques: string[]; clusterId: string | null }[];
-  /** 판단 근거 */
-  rationale: { code: string; label: string; points: number; evidence?: string }[];
+  /** 근거 — 코드·라벨·점수에 더해 사람이 읽을 설명(무엇이/왜/예시/정상 사용) */
+  rationale: { code: string; label: string; points: number; evidence?: string; what: string; why: string; example: string; benign: string }[];
   /** 신고처 안내 — 자동 제출이 아니라 사람이 마지막 단계를 수행 */
   filing: { name: string; url: string; note: string }[];
   disclaimer: string;
@@ -91,7 +91,7 @@ export async function buildReport(accountId: string): Promise<InvestigationRepor
       postUrl: p.postUrl, parentUrl: p.parentUrl, kind: p.kind, postedAt: p.postedAt?.toISOString() ?? null, capturedAt: p.capturedAt.toISOString(),
       capture: p.screenshotUrl, text: p.text, score: p.score, techniques: p.techniques, clusterId: p.clusterId,
     })),
-    rationale: reasons,
+    rationale: explainReasons(reasons),
     filing: FILING_TARGETS,
     disclaimer: "본 리포트는 공개 게시물의 자동 분석 결과이며 법적 판단이 아닙니다. 신고 여부와 최종 판단은 사람이 검토 후 결정합니다.",
   };

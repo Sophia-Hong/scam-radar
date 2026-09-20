@@ -20,15 +20,15 @@ export default async function Home() {
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="text-3xl font-bold tracking-tight">이 계정, 리딩방 유인 계정일까요?</h1>
-        <p className="text-zinc-600">Threads 핸들이나 프로필·게시물 URL을 입력하면 수집된 게시물을 근거로 사기 가능성을 알려드립니다.</p>
+        <h1 className="text-3xl font-bold tracking-tight">이 계정, 어떤 신호가 있을까요?</h1>
+        <p className="text-zinc-600">Threads 핸들이나 프로필·게시물 URL을 입력하면 수집된 게시물에서 어떤 신호가 얼마나 있는지, 왜 그렇게 계산됐는지 보여드립니다. 판단은 보는 분이 합니다.</p>
         <Lookup />
       </section>
 
       {stats && (
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {[
-            ["수집 계정", stats.accounts], ["사기 가능성 높음", stats.high], ["검토 필요", stats.review], ["수집 게시물", stats.posts], ["캠페인(문구 묶음)", stats.clusters],
+            ["수집 계정", stats.accounts], ["강한 신호", stats.high], ["신호 감지", stats.review], ["수집 게시물", stats.posts], ["캠페인(문구 묶음)", stats.clusters],
           ].map(([k, v]) => (
             <div key={k as string} className="rounded-lg border border-zinc-200 bg-white p-3">
               <div className="text-xs text-zinc-500">{k}</div>

@@ -247,12 +247,21 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
   const clusterSizeForAccount = Number(agg?.sameCluster ?? 0) + 1;
   const distinctTargets = Number(agg?.targets ?? 0) + (payload.parentUrl ? 1 : 0);
 
+  // 3b) 살포(spread) — 이 글과 근사 중복인 글을 쓴 **서로 다른 계정** 수 (본 계정 포함).
+  //     클러스터가 이미 있으면 DB 의 클러스터 구성원으로, 아니면 이번에 찾은 근사 중복 후보로 센다.
+  const spreadAccounts = new Set<string>([accountId, ...near.map((c) => c.accountId)]);
+  if (clusterId) {
+    const memberRows = await d.selectDistinct({ accountId: schema.posts.accountId }).from(schema.posts).where(eq(schema.posts.clusterId, clusterId));
+    for (const m of memberRows) spreadAccounts.add(m.accountId);
+  }
+  const clusterAccounts = spreadAccounts.size;
+
   // 4) 룰 스코어
   const r = scoreText(payload.text, {
     bio: payload.author.bio, externalUrl: payload.author.externalUrl,
     followers: payload.author.followers, following: payload.author.following,
     createdAt: payload.author.createdAt,
-    clusterSize: clusterSizeForAccount, distinctTargets,
+    clusterSize: clusterSizeForAccount, clusterAccounts, distinctTargets,
   });
   let score = r.score;
   let label = r.label;
