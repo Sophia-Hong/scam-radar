@@ -46,3 +46,4 @@ collector/inbox/*
 collector/done/*
 !collector/inbox/.gitkeep
 !collector/done/.gitkeep
+logs/
