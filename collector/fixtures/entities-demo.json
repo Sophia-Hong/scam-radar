@@ -1,0 +1,120 @@
+[
+ {
+  "postUrl": "https://www.threads.net/@demo_lead_a/post/E1",
+  "kind": "post",
+  "text": "오늘도 상한가 적중 🎯 단타 급등주 무료 공개합니다. 입장은 프로필 링크 → 선착순 마감임박",
+  "postedAt": "2026-09-15T01:00:00Z",
+  "author": {
+   "handle": "demo_lead_a",
+   "profileUrl": "https://www.threads.net/@demo_lead_a",
+   "displayName": "수익연구소 A",
+   "bio": "실시간 종목 공유 | 문의는 프로필 링크",
+   "externalUrl": "https://t.me/demo_room_alpha",
+   "followers": 31,
+   "following": 902,
+   "createdAt": "2026-09-01T00:00:00Z"
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_lead_a/post/E2",
+  "parentUrl": "https://www.threads.net/@randomuser_x/post/RX1",
+  "kind": "comment",
+  "text": "월 500 수익 인증합니다. 무료 리딩방 자리 3자리 남았어요, 프로필 링크 확인하세요",
+  "postedAt": "2026-09-15T02:30:00Z",
+  "author": {
+   "handle": "demo_lead_a",
+   "profileUrl": "https://www.threads.net/@demo_lead_a",
+   "externalUrl": "https://t.me/demo_room_alpha",
+   "followers": 31
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_lead_b/post/E3",
+  "kind": "post",
+  "text": "코인 선물 자동매매 수익률 320% 인증 🚀 무료 강의방 오픈했습니다. 텔레 아이디 : demo_room_alpha 로 문의 주세요",
+  "postedAt": "2026-09-16T04:10:00Z",
+  "author": {
+   "handle": "demo_lead_b",
+   "profileUrl": "https://www.threads.net/@demo_lead_b",
+   "displayName": "코인멘토 B",
+   "bio": "전업 트레이더 | 무료방 운영",
+   "followers": 44,
+   "following": 1200,
+   "createdAt": "2026-09-05T00:00:00Z"
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_lead_b/post/E4",
+  "parentUrl": "https://www.threads.net/@randomuser_y/post/RY1",
+  "kind": "comment",
+  "text": "이번주 급등 종목 미리 드립니다. ㅌㄹㄱㄹ @demo_room_alpha 선착순 입장",
+  "postedAt": "2026-09-16T05:00:00Z",
+  "author": {
+   "handle": "demo_lead_b",
+   "profileUrl": "https://www.threads.net/@demo_lead_b",
+   "followers": 44
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_lead_c/post/E5",
+  "kind": "post",
+  "text": "국내 주식 단타 기법 무료 공개 💰 오늘만 20명. 입장 t . me / demo_room_alpha 확인 후 바로 오세요",
+  "postedAt": "2026-09-17T06:00:00Z",
+  "author": {
+   "handle": "demo_lead_c",
+   "profileUrl": "https://www.threads.net/@demo_lead_c",
+   "displayName": "급등주 C",
+   "bio": "주식 리딩 | 무료 종목",
+   "followers": 9,
+   "following": 700,
+   "createdAt": "2026-09-10T00:00:00Z"
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_kko_x/post/E6",
+  "kind": "post",
+  "text": "해외선물 수익 인증 🔥 무료 방 열었습니다. 오픈채팅 open.kakao.com/o/demoKakao1 선착순 입장하세요",
+  "postedAt": "2026-09-17T08:00:00Z",
+  "author": {
+   "handle": "demo_kko_x",
+   "profileUrl": "https://www.threads.net/@demo_kko_x",
+   "displayName": "선물마스터 X",
+   "bio": "해외선물 실전방",
+   "followers": 22,
+   "following": 800,
+   "createdAt": "2026-09-08T00:00:00Z"
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_kko_y/post/E7",
+  "parentUrl": "https://www.threads.net/@randomuser_z/post/RZ1",
+  "kind": "comment",
+  "text": "저희 방에서 이번달 수익률 200% 나왔습니다. 무료 입장 원하시면 프로필 링크 보고 오세요 ⏰ 마감임박",
+  "postedAt": "2026-09-18T01:20:00Z",
+  "author": {
+   "handle": "demo_kko_y",
+   "profileUrl": "https://www.threads.net/@demo_kko_y",
+   "displayName": "수익인증 Y",
+   "bio": "실시간 매매 중계 | 오픈채팅 문의",
+   "externalUrl": "https://open.kakao.com/o/demoKaKaO1",
+   "followers": 15,
+   "following": 640,
+   "createdAt": "2026-09-12T00:00:00Z"
+  }
+ },
+ {
+  "postUrl": "https://www.threads.net/@demo_solo_z/post/E8",
+  "kind": "post",
+  "text": "비상장 주식 투자 설명회 안내드립니다. 원금보장 고수익, 상담 문의 010-2222-3333 으로 연락주세요",
+  "postedAt": "2026-09-18T03:00:00Z",
+  "author": {
+   "handle": "demo_solo_z",
+   "profileUrl": "https://www.threads.net/@demo_solo_z",
+   "displayName": "투자상담 Z",
+   "bio": "비상장 전문 상담",
+   "followers": 5,
+   "following": 300,
+   "createdAt": "2026-09-14T00:00:00Z"
+  }
+ }
+]

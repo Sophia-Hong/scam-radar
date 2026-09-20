@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", system-ui, sans-serif; }
+@media print {
+  header, footer, .no-print { display: none !important; }
+  main { max-width: none !important; padding: 0 !important; }
+  body { background: white !important; }
+}

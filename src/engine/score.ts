@@ -1,0 +1,263 @@
+import { normalize, type Normalized } from "./normalize";
+import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
+import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, type Category, type Term } from "./lexicon";
+
+export type Label = "HIGH" | "REVIEW" | "LOW";
+
+export interface AccountFeatures {
+  followers?: number | null;
+  following?: number | null;
+  postCount?: number | null;
+  /** 계정 생성일 ISO. 없으면 무시 */
+  createdAt?: string | null;
+  /** 프로필 bio 텍스트 (있으면 본문과 함께 검사) */
+  bio?: string | null;
+  /** 프로필 외부 링크 */
+  externalUrl?: string | null;
+  /** 이 계정이 남긴 게시물·댓글 중 유사 클러스터 크기 */
+  clusterSize?: number | null;
+  /** 이 계정이 서로 다른 원글 몇 개에 댓글로 같은 내용을 달았는지 */
+  distinctTargets?: number | null;
+}
+
+export interface Reason {
+  code: string;
+  label: string;
+  points: number;
+  evidence?: string;
+}
+
+export interface ScoreResult {
+  score: number;
+  label: Label;
+  reasons: Reason[];
+  matched: { term: string; cat: Category; label: string }[];
+  categories: Record<Category, number>;
+  normalized: Normalized;
+  needsLlmReview: boolean;
+}
+
+const CAT_WEIGHT: Record<Category, number> = {
+  contact: 22,
+  invest: 14,
+  profit: 12,
+  urgency: 6,
+  free: 5,
+  link: 8,
+};
+const CAT_CAP: Record<Category, number> = {
+  contact: 32,
+  invest: 28,
+  profit: 24,
+  urgency: 12,
+  free: 8,
+  link: 10,
+};
+
+/** 연락채널 신호가 없으면 HIGH 를 줄 수 없다 (hard gate) — 이 점수 이상으로 못 올라간다 */
+export const NO_CONTACT_CAP = 69;
+/** 대형 계정은 자동 HIGH 대상에서 제외하고 사람이 본다 */
+export const BIG_ACCOUNT_FOLLOWERS = 20000;
+
+export const THRESHOLD_HIGH = 70;
+export const THRESHOLD_REVIEW = 40;
+
+const TERM_CHOSUNG = TERMS.filter((t) => t.chosung).map((t) => ({ t, cs: choseongSeq(t.term) }));
+
+function findTerms(compact: string): { term: Term; via: "exact" }[] {
+  const out: { term: Term; via: "exact" }[] = [];
+  for (const t of TERMS) {
+    if (compact.includes(t.term)) out.push({ term: t, via: "exact" });
+  }
+  return out;
+}
+
+function findChosungTerms(raw: string): { term: Term; token: string }[] {
+  if (!hasCompatJamo(raw)) return [];
+  const out: { term: Term; token: string }[] = [];
+  for (const tok of jamoMixedTokens(raw)) {
+    const cs = choseongSeq(tok);
+    for (const { t, cs: tcs } of TERM_CHOSUNG) {
+      if (cs.includes(tcs)) out.push({ term: t, token: tok });
+    }
+  }
+  return out;
+}
+
+export function scoreText(rawText: string, account: AccountFeatures = {}): ScoreResult {
+  const bio = account.bio ? `\n${account.bio}` : "";
+  const url = account.externalUrl ? `\n${account.externalUrl}` : "";
+  const raw = rawText + bio + url;
+  const n = normalize(raw);
+
+  const reasons: Reason[] = [];
+  const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0 };
+  const matched: ScoreResult["matched"] = [];
+  const seenLabel = new Set<string>();
+
+  const add = (t: Term, evidence: string, viaLabel?: string) => {
+    const key = t.cat + ":" + t.label;
+    if (seenLabel.has(key)) return;
+    seenLabel.add(key);
+    const pts = CAT_WEIGHT[t.cat] * (t.w ?? 1);
+    categories[t.cat] += pts;
+    matched.push({ term: t.term, cat: t.cat, label: t.label });
+    reasons.push({ code: `term:${t.term}`, label: viaLabel ? `${t.label} (${viaLabel})` : t.label, points: Math.round(pts), evidence });
+  };
+
+  // 1) 정규화 텍스트 어휘 매칭
+  const cps = Array.from(n.compact); // 코드포인트 단위 슬라이스 — 이모지 서로게이트 쌍이 잘리면 JSON 이 깨진다
+  for (const { term } of findTerms(n.compact)) {
+    const idx = Array.from(n.compact.slice(0, n.compact.indexOf(term.term))).length;
+    add(term, cps.slice(Math.max(0, idx - 8), idx + Array.from(term.term).length + 8).join(""));
+  }
+  // 2) 초성 매칭 (원문에 호환 자모가 있을 때만)
+  for (const { term, token } of findChosungTerms(raw)) {
+    add(term, token, "초성 난독화");
+  }
+  // 3) 정규식 구조 신호
+  for (const p of PATTERNS) {
+    const m = n.text.match(p.re);
+    if (m) {
+      const key = p.cat + ":" + p.label;
+      if (seenLabel.has(key)) continue;
+      seenLabel.add(key);
+      const pts = CAT_WEIGHT[p.cat] * (p.w ?? 1) * 0.8;
+      categories[p.cat] += pts;
+      reasons.push({ code: `pattern:${p.label}`, label: p.label, points: Math.round(pts), evidence: m[0] });
+    }
+  }
+
+  // 카테고리 상한 적용
+  let score = 0;
+  for (const c of Object.keys(categories) as Category[]) {
+    categories[c] = Math.min(categories[c], CAT_CAP[c]);
+    score += categories[c];
+  }
+
+  // 3b) 프로필 외부 링크가 메신저·링크모음 — 본문과 무관하게 계정 자체가 유입 장치다.
+  //     연락채널 신호로 친다(결합 규칙·게이트에 그대로 반영).
+  const extUrl = (account.externalUrl ?? "").toLowerCase();
+  if (/t\.me|telegram\.me|open\.kakao|pf\.kakao|linktr\.ee|litt\.ly|bit\.ly|han\.gl|vo\.la|line\.me|wechat/.test(extUrl)) {
+    reasons.push({ code: "acct:lure-link", label: "프로필 외부 링크가 메신저·링크모음", points: 10, evidence: account.externalUrl! });
+    categories.contact = Math.min(CAT_CAP.contact, categories.contact + 10);
+    score += 10;
+  }
+
+  // 4) 결합 규칙: 연락채널 + 투자/수익 조합이 리딩방 유인의 핵심
+  if (categories.contact > 0 && (categories.invest > 0 || categories.profit > 0)) {
+    reasons.push({ code: "combo:contact+invest", label: "메신저 유도 + 투자·수익 언급 결합", points: 15 });
+    score += 15;
+  }
+  // 4b) 채널 + 종목/기법(투자) + 수익 제시가 모두 모이면 유인 구조가 완성된다
+  if (categories.contact > 0 && categories.invest > 0 && categories.profit > 0) {
+    reasons.push({ code: "combo:triple", label: "채널 유도 + 투자 + 수익 제시 3요소 결합", points: 6 });
+    score += 6;
+  }
+
+  // 5) 난독화 가점 — 정상 사용자는 자기 연락처를 난독화하지 않는다 (PIP 논문: 샘플의 59%)
+  if (n.techniques.length > 0 && categories.contact + categories.invest > 0) {
+    const pts = Math.min(15, Math.round(8 + n.obfuscationRatio * 30));
+    reasons.push({ code: "obfuscation", label: `난독화 사용: ${n.techniques.join(", ")}`, points: pts, evidence: `변형률 ${(n.obfuscationRatio * 100).toFixed(0)}%` });
+    score += pts;
+  }
+
+  // 5a) 행동 유도(CTA) — 연락채널 신호와 결합했을 때만. "방이 있다" 가 아니라 "들어와라" 여야 유인이다.
+  if (categories.contact > 0) {
+    let cta = 0;
+    const ctaLabels: string[] = [];
+    for (const c of CTA_PATTERNS) {
+      if (c.re.test(n.text)) { cta += 6 * c.w; ctaLabels.push(c.label); }
+    }
+    if (cta > 0) {
+      const pts = Math.min(14, Math.round(cta));
+      reasons.push({ code: "cta", label: "연락채널 + 행동 유도 문구", points: pts, evidence: ctaLabels.join(", ") });
+      score += pts;
+    }
+  }
+
+  // 5b) 피해자·경고 맥락 감점 — "리딩방 사기 당한 후기" 는 유인글이 아니다
+  let counter = 0;
+  let strongCounters = 0;
+  const hitCounters = COUNTER_TERMS.filter((c) => n.compact.includes(c.term));
+  for (const c of hitCounters) {
+    counter += 12 * c.w;
+    if (c.strong) strongCounters++;
+  }
+  if (counter > 0) {
+    const pts = -Math.min(45, Math.round(counter));
+    reasons.push({ code: "counter", label: "피해 경험·경고 맥락 (유인글 아닐 가능성)", points: pts, evidence: hitCounters.map((c) => c.term).join(", ") });
+    score += pts;
+  }
+
+  // 6) 계정 특성
+  if (account.createdAt) {
+    const days = (Date.now() - Date.parse(account.createdAt)) / 86400000;
+    if (days >= 0 && days < 30) { reasons.push({ code: "acct:new", label: "생성 30일 미만 계정", points: 8, evidence: `${Math.floor(days)}일` }); score += 8; }
+  }
+  if (typeof account.followers === "number" && account.followers < 50 && categories.contact > 0) {
+    reasons.push({ code: "acct:lowfollow", label: "팔로워 50 미만", points: 4, evidence: `${account.followers}` }); score += 4;
+  }
+  if (typeof account.following === "number" && typeof account.followers === "number" && account.followers > 0 && account.following / account.followers > 20) {
+    reasons.push({ code: "acct:ratio", label: "팔로잉/팔로워 비율 비정상", points: 4 }); score += 4;
+  }
+  // 6b) 일회용(버너) 프로필 + 채널 유도 + 투자 언급 — 세 가지가 같이 오면 계정 목적이 유입이다
+  const fresh = account.createdAt ? (Date.now() - Date.parse(account.createdAt)) / 86400000 < 60 : false;
+  const fewFollowers = typeof account.followers === "number" && account.followers < 200;
+  const skewed = typeof account.following === "number" && typeof account.followers === "number" && account.following > account.followers * 3;
+  if (fresh && fewFollowers && skewed && categories.contact > 0 && categories.invest + categories.profit > 0) {
+    reasons.push({ code: "acct:burner", label: "신규·팔로워 없는 일회용 계정이 투자 채널 유도", points: 7 });
+    score += 7;
+  }
+  if ((account.clusterSize ?? 0) >= 3) {
+    const pts = Math.min(15, 5 + (account.clusterSize! - 3) * 3);
+    reasons.push({ code: "cluster", label: "동일·유사 문구 반복 게시", points: pts, evidence: `${account.clusterSize}건` }); score += pts;
+  }
+  if ((account.distinctTargets ?? 0) >= 3) {
+    reasons.push({ code: "spray", label: "무관한 여러 원글에 동일 댓글 살포", points: 10, evidence: `${account.distinctTargets}개 원글` }); score += 10;
+  }
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  // 7) 상한(veto) — 여기부터는 "점수를 깎는" 게 아니라 "HIGH 를 포기한다".
+  //    HIGH 는 신고서에 실리고 명예훼손 리스크가 있으므로, 합법 광고·기사·캠페인·풍자로
+  //    보이는 신호가 하나라도 있으면 자동 판정을 포기하고 사람/LLM 에 넘긴다.
+  const capAt = (cap: number, code: string, label: string, evidence?: string) => {
+    if (score <= cap) return;
+    reasons.push({ code, label: `${label} → ${cap}점으로 상한`, points: cap - score, evidence });
+    score = cap;
+  };
+
+  for (const v of VETO_PATTERNS) {
+    const m = n.text.match(v.re);
+    if (m) capAt(v.cap, `veto:${v.label}`, v.label, m[0]);
+  }
+  // 유인 문구를 따옴표로 *인용* 하는 글 = 풍자·해설·연구. 인용부 밖에 채널 유도가 없으면 유인이 아니다.
+  if (QUOTED_LURE.test(n.text) && (strongCounters > 0 || /ㅋㅋ|ㅎㅎ|밈|풍자|분석|문구/.test(n.text))) {
+    capAt(59, "veto:quote", "유인 문구 인용(풍자·해설 맥락)", n.text.match(QUOTED_LURE)?.[0]);
+  }
+  // 경고·피해 어휘. 하나만 있어도 자동 HIGH 는 포기한다 (유인글이 스스로 "신고하세요" 라고 쓰진 않는다).
+  if (strongCounters >= 2) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호", `강한 신호 ${strongCounters}개`);
+  else if (strongCounters === 1) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
+  // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
+  if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
+    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정 — 자동 HIGH 보류", `팔로워 ${account.followers}`);
+  }
+
+  // 8) HARD GATE — 연락채널 신호가 없으면 HIGH 불가.
+  //    리딩방 유인의 정의상 "어디로 오라" 가 반드시 있다. 그게 없는 글을 HIGH 로 올리면
+  //    (투자 자랑·시황 과장 글 등) 방어할 수 없는 지목이 된다.
+  if (categories.contact <= 0 && score > NO_CONTACT_CAP) {
+    reasons.push({
+      code: "gate:no-contact",
+      label: `연락채널 유도 신호 없음 — HIGH 불가, ${NO_CONTACT_CAP}점으로 상한`,
+      points: NO_CONTACT_CAP - score,
+    });
+    score = NO_CONTACT_CAP;
+  }
+
+  const label: Label = score >= THRESHOLD_HIGH ? "HIGH" : score >= THRESHOLD_REVIEW ? "REVIEW" : "LOW";
+  reasons.sort((a, b) => b.points - a.points);
+
+  return { score, label, reasons, matched, categories, normalized: n, needsLlmReview: label === "REVIEW" };
+}
