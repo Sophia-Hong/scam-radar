@@ -23,7 +23,7 @@ Threads·인스타그램에는 해외에서 만든 계정이 한국인 행세를
 ## 결과
 
 - 합성 평가셋(사칭·살포 유형 포함)에서 HIGH 정밀도·재현율은 `eval/RESULTS.md`에 재현 가능한 명령과 함께 기록.
-- 2026-09-20 Threads 실수집 22개 검색어·250건을 채점해 첫 실전 결과를 `collector/inbox/first/REPORT.md`로 남김. 사전 위주 판정의 오탐(타로 "리딩" + 카카오채널)과 미탐(텔레그램 무료방 유인글이 경계 점수)을 확인했고, 그 결과로 판정 축을 "연락처 유도"에서 "사칭 + 살포"로 재설계했다.
+- 2026-09-20 Threads 실수집 22개 검색어·250건을 채점해 첫 실전 결과를 `reports/2026-09-20-first-collection.md`로 남김. 사전 위주 판정의 오탐(타로 "리딩" + 카카오채널)과 미탐(텔레그램 무료방 유인글이 경계 점수)을 확인했고, 그 결과로 판정 축을 "연락처 유도"에서 "사칭 + 살포"로 재설계했다.
 - 계정 조회 `/`, 텍스트 분석 `/analyze`, 캠페인 묶음 `/clusters`, 신고용 리포트 `/report/:id`, 사람 검토 `/review`, 금융기관·플랫폼 봇이 붙일 수 있는 REST API(`/api/accounts`, `/api/analyze`, `/api/reports`).
 
 ## 링크
@@ -31,4 +31,4 @@ Threads·인스타그램에는 해외에서 만든 계정이 한국인 행세를
 - GitHub: https://github.com/Sophia-Hong/scam-radar
 - 데모: (Vercel 배포 URL)
 - 판정 정확도: https://github.com/Sophia-Hong/scam-radar/blob/main/eval/RESULTS.md
-- 첫 실수집 리포트: https://github.com/Sophia-Hong/scam-radar/blob/main/collector/inbox/first/REPORT.md
+- 첫 실수집 리포트: https://github.com/Sophia-Hong/scam-radar/blob/main/reports/2026-09-20-first-collection.md
