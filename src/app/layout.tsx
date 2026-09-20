@@ -3,8 +3,8 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Scam Radar — AI 리딩방 문구 판독",
-  description: "의심되는 게시물 문구를 붙여넣으면 리딩방 유인 신호와 근거를 실시간으로 확인합니다.",
+  title: "Scam Radar — Threads 리딩방 계정 확인",
+  description: "Threads 계정과 게시물 문구를 확인해 리딩방 유인 신호와 근거를 실시간으로 보여드립니다.",
   robots: { index: false, follow: false },
 };
 
@@ -16,10 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <nav>
             <Link href="/" className="brand"><span className="brand-dot" />SCAM RADAR</Link>
             <div className="nav-links">
-              <Link href="/#check">실시간 판독</Link>
+              <Link href="/#check">계정 확인</Link>
               <Link href="/#criteria">판독 기준</Link>
             </div>
-            <Link className="nav-cta" href="/#check">문구 확인하기</Link>
+            <Link className="nav-cta" href="/#check">계정 확인하기</Link>
           </nav>
         </header>
         <main>{children}</main>

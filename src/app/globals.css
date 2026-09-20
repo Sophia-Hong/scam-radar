@@ -26,6 +26,14 @@ main { overflow:hidden; }
 .analyzer-hero-copy h1 { margin:18px 0 14px; font-size:clamp(34px,4.2vw,54px); line-height:1.08; letter-spacing:-.06em; font-weight:870; word-break:keep-all; }
 .analyzer-hero-copy h1 em { color:var(--acid); font-style:normal; }
 .analyzer-hero-copy p { margin:0; max-width:510px; color:rgba(255,255,255,.7); font-size:15px; line-height:1.65; word-break:keep-all; }
+.account-form { margin-top:24px; }
+.account-form label { display:block; margin-bottom:8px; color:var(--acid); font-size:13px; font-weight:800; }
+.account-form>div { display:flex; min-height:50px; background:white; border:1px solid white; }
+.account-form input { min-width:0; flex:1; border:0; outline:0; padding:0 14px; color:var(--ink); background:white; font-size:15px; }
+.account-form input::placeholder { color:#8e8b83; }
+.account-form button { flex:0 0 auto; border:0; border-left:1px solid var(--ink); padding:0 17px; background:var(--acid); color:var(--ink); font-size:14px; font-weight:850; cursor:pointer; }
+.account-form button:disabled { cursor:wait; opacity:.7; }
+.account-form small { display:block; margin-top:8px; color:rgba(255,255,255,.54); font-size:11px; line-height:1.45; }
 .analyzer-evidence { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; background:#2b2a26; overflow:hidden; }
 .analyzer-evidence-card { position:relative; min-height:300px; margin:0; overflow:hidden; border:4px solid white; background:#ddd; }
 .analyzer-evidence-card img { object-fit:cover; }
@@ -34,6 +42,15 @@ main { overflow:hidden; }
 .analyzer-evidence-note { position:absolute; left:50%; bottom:24px; z-index:2; transform:translateX(-50%); display:flex; align-items:center; gap:10px; min-width:max-content; padding:10px 14px; background:var(--acid); color:var(--ink); box-shadow:5px 5px 0 var(--ink); font-size:12px; }
 .analyzer-evidence-note b { letter-spacing:.08em; }
 .analyzer-evidence-note span { font-weight:750; }
+.account-status { min-height:72px; padding:15px 26px; display:flex; align-items:center; justify-content:space-between; gap:24px; border-bottom:1px solid var(--ink); background:#f7f6f1; }
+.account-status>div { min-width:0; display:flex; align-items:center; gap:16px; }
+.account-status b { white-space:nowrap; font-size:17px; }
+.account-status span { color:#625f58; font-size:14px; line-height:1.45; }
+.account-status strong { flex:0 0 auto; color:var(--signal); font-size:28px; }
+.account-status a { flex:0 0 auto; padding:9px 13px; border:1px solid var(--ink); font-size:13px; font-weight:750; }
+.account-status-paste { background:var(--acid); }
+.account-status-paste span { color:#34332f; }
+.account-status-error { color:#a22515; background:#fff1ec; font-weight:700; }
 .analyzer-body { display:grid; grid-template-columns:1.02fr .98fr; }
 .analyzer-input, .analyzer-result { min-height:520px; padding:48px; }
 .analyzer-input { border-right:1px solid var(--ink); }
@@ -109,9 +126,15 @@ main { overflow:hidden; }
   .analyzer-shell { margin:18px 12px 90px; box-shadow:7px 7px 0 var(--ink); }
   .analyzer-hero-copy { padding:32px 22px; }
   .analyzer-hero-copy h1 { font-size:36px; }
+  .account-form>div { min-height:48px; }
+  .account-form button { padding:0 12px; }
   .analyzer-evidence { min-height:260px; padding:8px; gap:6px; }
   .analyzer-evidence-card { min-height:240px; border-width:3px; }
   .analyzer-evidence-note { bottom:16px; padding:8px 10px; font-size:10px; }
+  .account-status { align-items:flex-start; padding:15px 18px; }
+  .account-status>div { display:block; }
+  .account-status b, .account-status span { display:block; }
+  .account-status span { margin-top:5px; }
   .analyzer-input, .analyzer-result { min-height:460px; padding:30px 22px; }
   .analyzer-input h2 { font-size:27px; }
   .empty-result { grid-template-columns:1fr; }

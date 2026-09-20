@@ -29,7 +29,7 @@ export default function Home() {
 
       <section className="closing-note">
         <p>AI는 단서를 찾고, 최종 판단은 사람이 합니다.</p>
-        <a href="#check">다른 문구 판독하기 ↑</a>
+        <a href="#check">다른 계정 확인하기 ↑</a>
       </section>
     </>
   );
