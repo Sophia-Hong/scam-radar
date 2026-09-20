@@ -1,5 +1,4 @@
 import { LiveAnalyzer } from "@/components/LiveAnalyzer";
-import Image from "next/image";
 
 const SIGNALS = [
   ["01", "밖으로 데려가요", "텔레그램·오픈채팅·DM·프로필 링크로 이동을 재촉하는지 봅니다."],
@@ -10,28 +9,6 @@ const SIGNALS = [
 export default function Home() {
   return (
     <>
-      <section className="hero">
-        <div className="hero-copy">
-          <div className="hero-label">SCAM RADAR · AI 리딩방 문구 판독</div>
-          <h1>사원증까지 위조하는,<br /><em>AI 리딩방 사기</em> —<br />꼭 한번 확인해보아요</h1>
-          <p>그럴듯한 경력과 사진에 속기 전에, 의심되는 게시물 문구를 붙여넣어 보세요. 리딩방 유인 신호와 근거를 바로 보여드립니다.</p>
-          <a href="#check" className="hero-cta">지금 문구 확인하기 <span aria-hidden="true">↘</span></a>
-        </div>
-
-        <div className="evidence-stack" aria-label="서로 다른 사원 정보에 같은 얼굴 사진이 쓰인 게시물 사례">
-          <figure className="evidence-card evidence-one">
-            <Image src="/evidence-dark.jpeg" alt="삼성전자 사원증을 내세운 Threads 게시물 캡처" width={1290} height={1146} priority sizes="(max-width: 900px) 72vw, 35vw" />
-          </figure>
-          <figure className="evidence-card evidence-two">
-            <Image src="/evidence-light.jpeg" alt="다른 직무와 부서가 적힌 삼성전자 사원증 게시물 캡처" width={1290} height={2172} priority sizes="(max-width: 900px) 68vw, 33vw" />
-          </figure>
-          <div className="evidence-note">
-            <span>CASE 01</span>
-            <p>같은 얼굴, 다른 부서·직무.<br />신분 사진도 증거가 아닐 수 있어요.</p>
-          </div>
-        </div>
-      </section>
-
       <LiveAnalyzer />
 
       <section id="criteria" className="criteria" aria-labelledby="criteria-title">
