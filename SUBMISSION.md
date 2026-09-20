@@ -32,3 +32,5 @@ Threads·인스타그램에는 해외에서 만든 계정이 한국인 행세를
 - 데모: https://scam-radar-sooty.vercel.app
 - 판정 정확도: https://github.com/Sophia-Hong/scam-radar/blob/main/eval/RESULTS.md
 - 첫 실수집 리포트: https://github.com/Sophia-Hong/scam-radar/blob/main/reports/2026-09-20-first-collection.md
+- 독립 감수(기획 vs 구현 갭): https://github.com/Sophia-Hong/scam-radar/blob/main/reviews/2026-09-20-review.md
+- 3분 시연 대본: https://github.com/Sophia-Hong/scam-radar/blob/main/reviews/DEMO-SCRIPT.md
