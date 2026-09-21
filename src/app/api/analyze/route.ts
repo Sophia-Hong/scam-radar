@@ -23,14 +23,15 @@ export async function POST(req: Request) {
   let label = r.label;
   const reasons = [...r.reasons];
   const modelReview = r.needsLlmReview
-    ? await reviewPost(parsed.data.text, r.reasons.map((reason) => reason.label))
+    ? await reviewPost(parsed.data.text, r.reasons.map((reason) => reason.label), parsed.data.account ?? {})
     : null;
+  const hasCoordinationEvidence = r.reasons.some((reason) => /^(cluster|spread|spray|shared-contact)/.test(reason.code) && reason.points > 0);
 
   if (modelReview?.verdict === "scam" && modelReview.confidence >= 0.6) {
     score = Math.min(100, score + 20);
     reasons.unshift({ code: "llm:scam", label: `AI 재판정: 유인 정황 (${modelReview.rationale})`, points: 20 });
   }
-  if (modelReview?.verdict === "benign" && modelReview.confidence >= 0.6) {
+  if (modelReview?.verdict === "benign" && modelReview.confidence >= 0.6 && !hasCoordinationEvidence) {
     score = Math.max(0, score - 20);
     reasons.unshift({ code: "llm:benign", label: `AI 재판정: 정상 맥락 (${modelReview.rationale})`, points: -20 });
   }

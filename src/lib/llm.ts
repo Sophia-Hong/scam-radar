@@ -71,14 +71,27 @@ export interface ReviewVerdict {
   costUsd?: number;
 }
 
+export interface ReviewContext {
+  bio?: string | null;
+  followers?: number | null;
+  following?: number | null;
+  createdAt?: string | null;
+  externalUrl?: string | null;
+  clusterSize?: number | null;
+  clusterAccounts?: number | null;
+  distinctTargets?: number | null;
+  profileCountry?: string | null;
+  countrySource?: string | null;
+}
+
 const ReviewSchema = z.object({
   verdict: z.enum(["scam", "benign", "unsure"]),
   confidence: z.number().min(0).max(1),
   rationale: z.string().max(300),
 });
 
-export async function reviewPost(text: string, reasonLabels: string[]): Promise<ReviewVerdict> {
-  const key = fnv1a64(text);
+export async function reviewPost(text: string, reasonLabels: string[], context: ReviewContext = {}): Promise<ReviewVerdict> {
+  const key = fnv1a64(`${text}|${reasonLabels.join("|")}|${JSON.stringify(context)}`);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, rationale: "보조 모델 미설정 — 룰 점수 유지", model: "template" };
   if (!(await hasDailyBudget())) return { verdict: "unsure", confidence: 0, rationale: "무료 AI 일일 한도 보호 — 룰 점수 유지", model: "quota-rule" };
   try {
@@ -88,7 +101,7 @@ export async function reviewPost(text: string, reasonLabels: string[]): Promise<
         maxOutputTokens: 180,
         output: Output.object({ schema: ReviewSchema }),
         system: "한국 SNS의 주식·코인 리딩방 유인 사기 검수자다. 외부 메신저 이동, 투자 수익 미끼, 한국 기관 재직·퇴직 사칭, 페이크 증빙 제시, 유사 서사의 반복 살포를 함께 본다. 피해 후기·뉴스·경고·정상 직장인 글은 benign으로 구분한다. 관측되지 않은 사실은 추측하지 말고 애매하면 unsure로 답한다.",
-        prompt: `룰 엔진 근거: ${reasonLabels.join(", ") || "없음"}\n\n게시물:\n\"\"\"\n${text.slice(0, 1800)}\n\"\"\"`,
+        prompt: `룰 엔진 근거: ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n게시물:\n\"\"\"\n${text.slice(0, 1800)}\n\"\"\"`,
       });
       return { ...result.output, model: MODEL_NAME, costUsd: gatewayCost(result.providerMetadata) };
     });
