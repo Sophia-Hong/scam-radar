@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { scoreText } from "@/engine";
 import { json } from "@/lib/auth";
+import { reviewPost } from "@/lib/llm";
 
-export const runtime = "nodejs"; // 순수 TS 엔진 — DB 없음
+export const runtime = "nodejs";
 
 const Schema = z.object({
   text: z.string().min(1).max(10000),
@@ -13,14 +14,31 @@ const Schema = z.object({
   }).optional(),
 });
 
-/** POST /api/analyze — 무상태 텍스트 판정 (저장 안 함) */
+/** POST /api/analyze — 원문은 저장하지 않고, 경계 사례만 Gemini로 재검토한다. */
 export async function POST(req: Request) {
   const parsed = Schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
   const r = scoreText(parsed.data.text, parsed.data.account ?? {});
+  let score = r.score;
+  let label = r.label;
+  const reasons = [...r.reasons];
+  const modelReview = r.needsLlmReview
+    ? await reviewPost(parsed.data.text, r.reasons.map((reason) => reason.label))
+    : null;
+
+  if (modelReview?.verdict === "scam" && modelReview.confidence >= 0.6) {
+    score = Math.min(100, score + 20);
+    reasons.unshift({ code: "llm:scam", label: `AI 재판정: 유인 정황 (${modelReview.rationale})`, points: 20 });
+  }
+  if (modelReview?.verdict === "benign" && modelReview.confidence >= 0.6) {
+    score = Math.max(0, score - 20);
+    reasons.unshift({ code: "llm:benign", label: `AI 재판정: 정상 맥락 (${modelReview.rationale})`, points: -20 });
+  }
+  label = score >= 70 ? "HIGH" : score >= 40 ? "REVIEW" : "LOW";
+
   return json({
-    score: r.score, label: r.label, reasons: r.reasons, matched: r.matched, categories: r.categories,
+    score, label, reasons, matched: r.matched, categories: r.categories,
     normalized: { text: r.normalized.text, compact: r.normalized.compact, techniques: r.normalized.techniques, obfuscationRatio: r.normalized.obfuscationRatio },
-    needsLlmReview: r.needsLlmReview, signalGroups: r.signalGroups,
+    needsLlmReview: r.needsLlmReview, signalGroups: r.signalGroups, modelReview,
   });
 }

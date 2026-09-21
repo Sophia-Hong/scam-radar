@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, gte, sql } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { fnv1a64 } from "@/engine";
 
@@ -13,12 +13,13 @@ import { fnv1a64 } from "@/engine";
  * Google API 키가 있으면 보유 크레딧을 쓰는 직접 호출을 우선한다.
  * 키가 없으면 Gateway를 사용하고, 호출 실패 시 룰/템플릿으로 즉시 폴백한다.
  */
-const GOOGLE_MODEL = (process.env.AI_REVIEW_MODEL ?? "gemini-2.5-flash-lite").replace(/^google\//, "");
+const GOOGLE_MODEL = (process.env.AI_REVIEW_MODEL ?? "gemini-3.1-flash-lite").replace(/^google\//, "");
 const GATEWAY_MODEL = `google/${GOOGLE_MODEL}`;
 const FALLBACK_MODEL = process.env.AI_REVIEW_FALLBACK_MODEL ?? "deepseek/deepseek-v4.1-flash";
 const useDirectGoogle = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 const MODEL_NAME = useDirectGoogle ? `google-direct/${GOOGLE_MODEL}` : GATEWAY_MODEL;
 export const llmEnabled = !!(useDirectGoogle || process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL);
+const DAILY_LLM_BUDGET = Number(process.env.AI_DAILY_REQUEST_BUDGET ?? 450);
 
 function modelConfig(tags: string[]) {
   if (useDirectGoogle) return { model: google(GOOGLE_MODEL) };
@@ -47,6 +48,21 @@ async function cached<T>(kind: string, key: string, fn: () => Promise<T>): Promi
   return result;
 }
 
+/** 무료 티어 500 RPD 중 운영·이미지 검토용 여유 50회를 남긴다. */
+async function hasDailyBudget(): Promise<boolean> {
+  if (!hasDb || !Number.isFinite(DAILY_LLM_BUDGET) || DAILY_LLM_BUDGET <= 0) return true;
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await db()
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.llmCache)
+      .where(gte(schema.llmCache.createdAt, since));
+    return Number(rows[0]?.count ?? 0) < DAILY_LLM_BUDGET;
+  } catch {
+    return true;
+  }
+}
+
 export interface ReviewVerdict {
   verdict: "scam" | "benign" | "unsure";
   confidence: number;
@@ -64,6 +80,7 @@ const ReviewSchema = z.object({
 export async function reviewPost(text: string, reasonLabels: string[]): Promise<ReviewVerdict> {
   const key = fnv1a64(text);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, rationale: "보조 모델 미설정 — 룰 점수 유지", model: "template" };
+  if (!(await hasDailyBudget())) return { verdict: "unsure", confidence: 0, rationale: "무료 AI 일일 한도 보호 — 룰 점수 유지", model: "quota-rule" };
   try {
     return await cached<ReviewVerdict>("review", key, async () => {
       const result = await generateText({

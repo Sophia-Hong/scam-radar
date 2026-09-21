@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { scoreText, type Label, type Reason, type SignalGroup } from "@/engine";
 
@@ -19,6 +19,14 @@ type AccountLookup =
   | { status: "paste"; handle: string; profileUrl: string }
   | { status: "error"; message: string };
 
+type LiveResult = {
+  score: number;
+  label: Label;
+  reasons: Reason[];
+  signalGroups: SignalGroup[];
+  modelReview?: { verdict: "scam" | "benign" | "unsure"; confidence: number; rationale: string; model: string } | null;
+};
+
 function accountHandle(value: string) {
   const trimmed = value.trim();
   const urlMatch = trimmed.match(/threads\.(?:com|net)\/@([a-zA-Z0-9._]+)/i);
@@ -32,9 +40,43 @@ export function LiveAnalyzer() {
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
   const [manualOverride, setManualOverride] = useState(false);
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
+  const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
+  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle");
+
+  useEffect(() => {
+    if (!textResult || !textResult.needsLlmReview || (account.status === "known" && !manualOverride)) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setAiStatus("checking");
+      try {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error("analysis failed");
+        setServerResult({ input: text, result: data as LiveResult });
+        setAiStatus("applied");
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") setAiStatus("error");
+      }
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [text, textResult, account.status, manualOverride]);
+
+  const currentServerResult = serverResult?.input === text ? serverResult.result : null;
   const result = account.status === "known" && !manualOverride
     ? { score: account.score, label: account.label, reasons: account.reasons, signalGroups: groupsFromReasons(account.reasons) }
-    : textResult;
+    : (currentServerResult ?? textResult);
   const level = result ? LEVEL[result.label] : null;
   const reasons = result?.reasons.filter((reason) => reason.points > 0).slice(0, 4) ?? [];
 
@@ -135,11 +177,11 @@ export function LiveAnalyzer() {
         <div className="analyzer-input">
           <div className="section-kicker"><span /> 2단계 · 실시간 문구 판독</div>
           <h2 id="analyzer-title">의심되는 글을 붙여넣으세요.</h2>
-          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 입력하는 즉시 이 브라우저 안에서만 분석합니다."}</p>
+          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 규칙 엔진이 즉시 분석하고, 경계 사례만 AI가 한 번 더 검토합니다."}</p>
           <div className="textarea-wrap">
             <textarea
               value={text}
-              onChange={(event) => { setText(event.target.value); setManualOverride(true); }}
+              onChange={(event) => { setText(event.target.value); setManualOverride(true); setServerResult(null); setAiStatus("idle"); }}
               placeholder={"Threads 게시물, 댓글, DM 문구를 여기에 붙여넣으세요.\n\n예) 무료 종목 공개, 수익 보장, 텔레그램 입장…"}
               aria-label="분석할 게시물 문구"
               rows={9}
@@ -147,12 +189,12 @@ export function LiveAnalyzer() {
             <div className="textarea-meta">
               <span>{text.length.toLocaleString()}자</span>
               <div>
-                <button type="button" onClick={() => { setText(SAMPLE); setManualOverride(true); }}>예시 넣기</button>
-                {text && <button type="button" onClick={() => { setText(""); setManualOverride(true); }}>지우기</button>}
+                <button type="button" onClick={() => { setText(SAMPLE); setManualOverride(true); setServerResult(null); setAiStatus("idle"); }}>예시 넣기</button>
+                {text && <button type="button" onClick={() => { setText(""); setManualOverride(true); setServerResult(null); setAiStatus("idle"); }}>지우기</button>}
               </div>
             </div>
           </div>
-          <p className="privacy-note"><span aria-hidden="true">✓</span> 입력 내용은 저장하거나 서버로 보내지 않습니다.</p>
+          <p className="privacy-note"><span aria-hidden="true">✓</span> 원문은 저장하지 않습니다. 기본 판독은 브라우저에서 처리하고, 경계 사례만 Gemini에 전송됩니다. 무료 티어 입력은 Google의 제품 개선에 사용될 수 있습니다.</p>
         </div>
 
         <div className={`analyzer-result ${level?.tone ?? "risk-empty"}`} aria-live="polite">
@@ -166,7 +208,7 @@ export function LiveAnalyzer() {
             </div>
           ) : (
             <>
-              <div className="result-topline"><span>{level.eyebrow}</span><span>실시간 분석</span></div>
+              <div className="result-topline"><span>{level.eyebrow}</span><span>{aiStatus === "checking" ? "AI 재검토 중…" : aiStatus === "applied" ? "Gemini 보조 판독" : aiStatus === "error" ? "규칙 판독 · AI 재시도 필요" : "실시간 규칙 분석"}</span></div>
               <div className="result-score-row">
                 <div><strong>{level.title}</strong><p>리딩방 유인 신호 점수</p></div>
                 <div className="score-orb"><b>{result.score}</b><span>/ 100</span></div>
