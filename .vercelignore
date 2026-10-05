@@ -1,10 +1,12 @@
+# 배포에서 뺄 것. 앞에 `/` 가 없는 이름(`reports`)은 어느 깊이의 폴더에도 걸린다 — 10-05 라이브에서 `src/app/api/reports/`
+# (리포트 JSON API)가 통째로 빠져 플랫폼 HTML 404 가 난 원인으로 보인다. 루트 폴더만 겨냥하도록 `/` 로 고정했다.
 .env
 .env.*
 !.env.example
-collector/inbox
-collector/done
-logs
-reviews
-reports
-.vercel
-node_modules
+/collector/inbox
+/collector/done
+/logs
+/reviews
+/reports
+/.vercel
+/node_modules
