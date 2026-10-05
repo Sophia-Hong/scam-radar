@@ -26,7 +26,8 @@ export function Reasons({ reasons }: { reasons: Reason[] }) {
         {reasons.map((r, i) => {
           const head = (
             <div className="flex items-start gap-3">
-              <span className={`w-10 shrink-0 text-right font-mono ${r.points < 0 ? "text-emerald-600" : "text-red-600"}`}>{r.points > 0 ? "+" : ""}{r.points}</span>
+              {/* 항목별 가점·감점 숫자는 보여 주지 않는다 — 신호의 이름·종류와 총점·신호 개수만 (소현 10-05, 테오). 감점 항목은 "완화"로만 표시 */}
+              <span className={`w-10 shrink-0 text-right text-xs ${r.points < 0 ? "text-emerald-700" : "text-red-600"}`} aria-hidden="true">{r.points < 0 ? "완화" : "●"}</span>
               <div className="min-w-0">
                 <div className="font-medium">{r.label}</div>
                 {r.evidence && <div className="break-words text-xs text-zinc-500">“{r.evidence}”</div>}

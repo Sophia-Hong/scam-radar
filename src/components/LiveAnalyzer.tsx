@@ -260,7 +260,7 @@ export function LiveAnalyzer() {
                   <ul>
                     {reasons.map((reason) => (
                       <li key={reason.code}>
-                        <span>+{reason.points}</span>
+                        <span aria-hidden="true">●</span>
                         <div><strong>{reason.label}</strong>{reason.evidence && <small>“{reason.evidence}”</small>}</div>
                       </li>
                     ))}
