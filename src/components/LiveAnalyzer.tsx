@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { scoreText, type Label, type Reason, type SignalGroup } from "@/engine";
+import { DATA_NOTICE, DEMO_HANDLE, SUPPORT_SCOPE } from "@/lib/copy";
+import { HeroSample } from "./HeroSample";
 
 const SAMPLE = "급등주 종목 무료로 공개합니다. 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
 
@@ -17,6 +18,7 @@ type AccountLookup =
   | { status: "loading"; handle: string }
   | { status: "known"; handle: string; profileUrl: string; score: number; label: Label; reasons: Reason[]; postCount: number; profileCountry?: string | null; sharedAccounts: number }
   | { status: "paste"; handle: string; profileUrl: string }
+  | { status: "unsupported" }
   | { status: "error"; message: string };
 
 type LiveResult = {
@@ -27,11 +29,21 @@ type LiveResult = {
   modelReview?: { verdict: "scam" | "benign" | "unsure"; confidence: number; rationale: string; model: string } | null;
 };
 
-function accountHandle(value: string) {
+const TLDS = "com|net|org|kr|co|io|me|shop|store|site|online|xyz|top|vip|app|dev|ai|info|biz|cc|tv|ly|link|click|club|live|page";
+
+/** 입력 분류: Threads 계정(@핸들 · 프로필 주소) / 지원 범위 밖(다른 주소) / 읽을 수 없음. 핸들에는 점이 들어갈 수 있어(john.doe) 주소 판단은 글자 모양으로만 한다 */
+export function classifyInput(value: string): { kind: "handle"; handle: string } | { kind: "unsupported" } | { kind: "invalid" } {
   const trimmed = value.trim();
-  const urlMatch = trimmed.match(/threads\.(?:com|net)\/@([a-zA-Z0-9._]+)/i);
-  const raw = urlMatch?.[1] ?? trimmed.replace(/^@/, "").split(/[/?#]/)[0];
-  return /^[a-zA-Z0-9._]{1,64}$/.test(raw) ? raw : "";
+  if (!trimmed) return { kind: "invalid" };
+  const urlLike = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) || /^www\./i.test(trimmed)
+    || /^[^\s@/]+\.[^\s@/]+\//.test(trimmed)
+    || (!trimmed.startsWith("@") && new RegExp(`^[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.(?:${TLDS})$`, "i").test(trimmed));
+  if (urlLike) {
+    const m = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?threads\.(?:com|net)\/@([a-zA-Z0-9._]{1,64})(?:[/?#]|$)/i);
+    return m ? { kind: "handle", handle: m[1] } : { kind: "unsupported" };
+  }
+  const raw = trimmed.replace(/^@/, "").split(/[/?#]/)[0];
+  return /^[a-zA-Z0-9._]{1,64}$/.test(raw) ? { kind: "handle", handle: raw } : { kind: "invalid" };
 }
 
 export function LiveAnalyzer() {
@@ -82,12 +94,30 @@ export function LiveAnalyzer() {
 
   async function checkAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const handle = accountHandle(accountQuery);
-    if (!handle) {
+    const input = classifyInput(accountQuery);
+    if (input.kind === "unsupported") {
+      setAccount({ status: "unsupported" });
+      return;
+    }
+    if (input.kind === "invalid") {
       setAccount({ status: "error", message: "@계정명이나 Threads 프로필 주소를 확인해 주세요." });
       return;
     }
+    await lookup(input.handle);
+  }
 
+  /** 합성 데모 계정을 한 번에 연다. 조회가 안 되면(DB 불통 등) 예시 문구로 대신 보여 준다 */
+  async function showDemo() {
+    setAccountQuery(`@${DEMO_HANDLE}`);
+    const ok = await lookup(DEMO_HANDLE);
+    if (!ok) {
+      setText(SAMPLE);
+      setManualOverride(true);
+      setAccount({ status: "error", message: "합성 데모 계정을 지금 불러오지 못해 예시 문구로 대신 보여드려요." });
+    }
+  }
+
+  async function lookup(handle: string): Promise<boolean> {
     setAccount({ status: "loading", handle });
     setManualOverride(false);
     try {
@@ -109,12 +139,13 @@ export function LiveAnalyzer() {
           profileCountry: data.account.profileCountry,
           sharedAccounts: Array.isArray(data.sharedWith) ? data.sharedWith.length : 0,
         });
-        return;
+        return true;
       }
       setAccount({ status: "paste", handle, profileUrl: `https://www.threads.com/@${handle}` });
     } catch {
       setAccount({ status: "paste", handle, profileUrl: `https://www.threads.com/@${handle}` });
     }
+    return false;
   }
 
   return (
@@ -123,9 +154,9 @@ export function LiveAnalyzer() {
         <div className="analyzer-hero-copy">
           <div className="hero-label">SCAM RADAR · AI 리딩방 문구 판독</div>
           <h1>사원증까지 위조하는,<br /><em>AI 리딩방 사기</em> —<br />꼭 한번 확인해보아요</h1>
-          <p>사진과 경력이 그럴듯해도 안심할 수 없어요. 먼저 확인할 Threads 계정을 넣어보세요.</p>
+          <p>사진과 경력이 그럴듯해도 안심할 수 없어요. 먼저 확인할 Threads 계정을 넣어보세요. 처음이라면 합성 사례부터 볼 수 있어요.</p>
           <form className="account-form" onSubmit={checkAccount}>
-            <label htmlFor="account-query">Threads 계정 확인</label>
+            <label htmlFor="account-query">Threads 계정 확인 (Threads 전용)</label>
             <div>
               <input
                 id="account-query"
@@ -138,18 +169,11 @@ export function LiveAnalyzer() {
                 {account.status === "loading" ? "확인 중…" : "계정 확인"}
               </button>
             </div>
-            <small>로그인 없이 공개된 정보만 확인하며, 계정명만으로 사기를 단정하지 않습니다.</small>
+            <small>{SUPPORT_SCOPE} 계정명만으로 사기를 단정하지 않습니다.</small>
+            <button type="button" className="demo-link" onClick={showDemo} disabled={account.status === "loading"}>합성 사례 보기 →</button>
           </form>
         </div>
-        <div className="analyzer-evidence" aria-label="페이크 사원증 이미지로 신뢰를 위조하고 유사한 사칭 내용을 반복 게시한 사례">
-          <figure className="analyzer-evidence-card evidence-dark">
-            <Image src="/evidence-dark.jpeg" alt="삼성전자 사원증을 내세운 Threads 게시물 캡처" fill priority sizes="(max-width: 900px) 50vw, 28vw" />
-          </figure>
-          <figure className="analyzer-evidence-card evidence-light">
-            <Image src="/evidence-light.jpeg" alt="다른 직무와 부서가 적힌 삼성전자 사원증 게시물 캡처" fill priority sizes="(max-width: 900px) 50vw, 28vw" />
-          </figure>
-          <div className="analyzer-evidence-note"><b>CASE 01</b><span>페이크 증빙 이미지 · 유사 사칭글 반복 살포</span></div>
-        </div>
+        <HeroSample />
       </header>
 
       {account.status !== "idle" && account.status !== "loading" && (
@@ -157,16 +181,32 @@ export function LiveAnalyzer() {
           {account.status === "known" && (
             <>
               <div><b>@{account.handle}</b><span>게시물 {account.postCount}건 · 연결 계정 {account.sharedAccounts}개{account.profileCountry ? ` · 프로필 국가 ${account.profileCountry}` : ""}의 종합 근거를 불러왔어요.</span></div>
-              <strong>{account.score}점</strong>
+              <div className="status-actions"><a href={`/report/${encodeURIComponent(`threads:${account.handle.toLowerCase()}`)}`}>리포트 보기 →</a><strong>{account.score}점</strong></div>
             </>
           )}
           {account.status === "paste" && (
             <>
               <div>
                 <b>@{account.handle}</b>
-                <span>Threads가 임의 계정의 게시물을 외부에서 자동으로 읽는 것을 제한하고 있어요. 최근 글을 복사해 아래에 붙여넣으면 즉시 판독합니다.</span>
+                <div>
+                  <span>수집된 기록이 없어요 — 안전하다는 뜻은 아니에요. {DATA_NOTICE.account}</span>
+                  <ol>
+                    <li>아래 “계정 열기”로 이 계정의 최근 글을 열어 문구를 복사하세요.</li>
+                    <li>“의심되는 글을 붙여넣으세요” 칸에 붙여넣으면 바로 판독합니다.</li>
+                    <li>글을 구하기 어렵다면 “합성 사례 보기”로 판독이 어떻게 보이는지 먼저 확인해 보세요.</li>
+                  </ol>
+                </div>
               </div>
-              <a href={account.profileUrl} target="_blank" rel="noreferrer">계정 열기 ↗</a>
+              <div className="status-actions">
+                <a href={account.profileUrl} target="_blank" rel="noreferrer">계정 열기 ↗</a>
+                <button type="button" onClick={showDemo}>합성 사례 보기</button>
+              </div>
+            </>
+          )}
+          {account.status === "unsupported" && (
+            <>
+              <div><b>지원 범위 밖</b><span>{SUPPORT_SCOPE} 의심되는 글이 있다면 그 문구를 아래에 붙여넣어 보세요.</span></div>
+              <div className="status-actions"><button type="button" onClick={showDemo}>합성 사례 보기</button></div>
             </>
           )}
           {account.status === "error" && <span>{account.message}</span>}
@@ -175,9 +215,9 @@ export function LiveAnalyzer() {
 
       <div className="analyzer-body">
         <div className="analyzer-input">
-          <div className="section-kicker"><span /> 2단계 · 실시간 문구 판독</div>
+          <div className="section-kicker"><span /> 2단계 · 문구 판독</div>
           <h2 id="analyzer-title">의심되는 글을 붙여넣으세요.</h2>
-          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 규칙 엔진이 즉시 분석하고, 경계 사례만 AI가 한 번 더 검토합니다."}</p>
+          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 규칙 엔진이 바로 분석하고, 애매한 경우에만 AI가 한 번 더 검토합니다."}</p>
           <div className="textarea-wrap">
             <textarea
               value={text}
@@ -194,7 +234,7 @@ export function LiveAnalyzer() {
               </div>
             </div>
           </div>
-          <p className="privacy-note"><span aria-hidden="true">✓</span> 원문은 저장하지 않습니다. 기본 판독은 브라우저에서 처리하고, 경계 사례만 Gemini에 전송됩니다. 무료 티어 입력은 Google의 제품 개선에 사용될 수 있습니다.</p>
+          <p className="privacy-note"><span aria-hidden="true">✓</span> {DATA_NOTICE.home}</p>
         </div>
 
         <div className={`analyzer-result ${level?.tone ?? "risk-empty"}`} aria-live="polite">
@@ -208,7 +248,7 @@ export function LiveAnalyzer() {
             </div>
           ) : (
             <>
-              <div className="result-topline"><span>{level.eyebrow}</span><span>{aiStatus === "checking" ? "AI 재검토 중…" : aiStatus === "applied" ? "Gemini 보조 판독" : aiStatus === "error" ? "규칙 판독 · AI 재시도 필요" : "실시간 규칙 분석"}</span></div>
+              <div className="result-topline"><span>{level.eyebrow}</span><span>{aiStatus === "checking" ? "AI 재검토 중…" : aiStatus === "applied" ? "Gemini 보조 판독" : aiStatus === "error" ? "규칙 판독 · AI 재시도 필요" : "규칙 분석(브라우저)"}</span></div>
               <div className="result-score-row">
                 <div><strong>{level.title}</strong><p>리딩방 유인 신호 점수</p></div>
                 <div className="score-orb"><b>{result.score}</b><span>/ 100</span></div>

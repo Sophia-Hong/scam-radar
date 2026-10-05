@@ -217,3 +217,22 @@ main { overflow:hidden; }
   .site-footer p { margin-top:10px; line-height:1.5; }
 }
 @media print { .site-header,.site-footer { display:none!important; } }
+
+/* 합성 예시 카드 (HeroSample) — 실제 캡처 대신 쓰는 가짜 게시물 */
+.synthetic-card { background:#1d1c19; color:#f3f1ea; }
+.synthetic-card.evidence-light { background:#f7f6f1; color:#1d1c19; }
+.synthetic-post { height:100%; min-height:300px; padding:18px 16px 56px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.45; }
+.synthetic-head { display:flex; align-items:center; gap:8px; font-size:13px; }
+.synthetic-head i { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#8e8b83,#4a4842); flex:0 0 auto; }
+.synthetic-head span { opacity:.55; font-size:12px; }
+.synthetic-post p { margin:0; font-weight:700; font-size:15px; }
+.synthetic-badge { flex:1; min-height:110px; border:2px dashed currentColor; border-radius:10px; display:grid; place-items:center; opacity:.45; font-size:12px; letter-spacing:.04em; }
+.synthetic-foot { opacity:.7; font-size:12px; }
+@media (max-width:640px) { .synthetic-post { min-height:240px; padding:12px 10px 44px; font-size:12px; } .synthetic-post p { font-size:13px; } }
+
+/* 계정 확인 — 합성 사례 버튼, 지원 범위 안내, 다음 행동 */
+.account-form .demo-link { display:inline-block; margin-top:10px; padding:0; border:0; background:none; color:var(--acid); font-size:13px; font-weight:800; text-decoration:underline; cursor:pointer; }
+.account-status-unsupported { background:#f3efe2; }
+.account-status ol { margin:6px 0 0; padding-left:18px; color:#4a4842; font-size:13px; line-height:1.55; }
+.account-status .status-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.account-status .status-actions button { border:1px solid var(--ink); background:white; padding:7px 11px; font-size:13px; font-weight:800; cursor:pointer; }
