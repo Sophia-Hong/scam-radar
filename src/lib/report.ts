@@ -4,6 +4,7 @@ import { summarizeAccount } from "./llm";
 import { sharedAccountsOf, type SharedAccount } from "./pipeline";
 import { ENTITY_TYPE_LABEL, isStrongEntity, explainReasons, type Reason, type EntityType } from "@/engine";
 import { effectiveStatus, type EffectiveStatus } from "./labels";
+import { onlyVisible, redactSharedContact } from "./visibility";
 
 /** 조사기관 제출용 리포트 — 필드 순서가 곧 신고서 항목 순서 */
 export interface InvestigationReport {
@@ -42,13 +43,30 @@ export const FILING_TARGETS = [
   { name: "Meta(Threads) 게시물 신고", url: "https://help.instagram.com/2922067214679225", note: "플랫폼 내 신고. 제3자 신고 API 없음 → 수동" },
 ];
 
-export async function buildReport(accountId: string): Promise<InvestigationReport | null> {
+/**
+ * 공개 열람용 리포트 — 공개 범위 밖(실계정) 연결 계정을 걸러낸다. 걸러진 것이 있으면 요약문(연결 계정 id 가 적힐 수 있다)도 가린다.
+ * 관리자에게는 그대로.
+ */
+export function publicView(report: InvestigationReport, admin: boolean): InvestigationReport {
+  if (admin) return report;
+  const linked = onlyVisible(report.linkedAccounts, (s) => s.accountId, false);
+  const trimmed = linked.length !== report.linkedAccounts.length;
+  return {
+    ...report,
+    linkedAccounts: linked,
+    summary: trimmed ? { text: "이 계정과 같은 연락처를 쓰는 계정 중 공개 범위 밖의 계정이 있어 요약문을 공개 화면에서 생략했습니다.", generatedBy: "withheld" } : report.summary,
+  };
+}
+
+/** admin 을 주지 않으면 공개용으로 만든다 — 근거 문장(설명문 포함)에 적힌 공개 범위 밖 계정 id 가 처음부터 들어가지 않게 */
+export async function buildReport(accountId: string, opts: { admin?: boolean } = {}): Promise<InvestigationReport | null> {
   const d = db();
   const [acc] = await d.select().from(schema.accounts).where(eq(schema.accounts.id, accountId)).limit(1);
   if (!acc) return null;
   const rows = await d.select().from(schema.posts).where(eq(schema.posts.accountId, accountId)).orderBy(desc(schema.posts.score), desc(schema.posts.capturedAt)).limit(50);
 
-  const reasons = (acc.reasons as Reason[]) ?? [];
+  const storedReasons = (acc.reasons as Reason[]) ?? [];
+  const reasons = opts.admin ? storedReasons : redactSharedContact(storedReasons);
   const { entities, sharedWith } = await sharedAccountsOf(acc.id);
   const contacts = entities.map((e) => ({
     id: e.id, type: e.type, typeLabel: ENTITY_TYPE_LABEL[e.type as EntityType] ?? e.type,

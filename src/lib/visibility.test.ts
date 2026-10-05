@@ -1,0 +1,104 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { adminValueOk } from "./auth";
+import { canView, decodeParam, isSyntheticAccountId, isSyntheticHandle, onlyVisible, redactSharedContact, reportApiHref, SYNTHETIC_ID_SQL } from "./visibility";
+
+describe("공개 경계 — 합성 데모 계정만 공개", () => {
+  it("합성 핸들만 공개로 본다", () => {
+    for (const h of ["sample_vipstock77", "demo_lead_a", "syn_001", "SAMPLE_x", "@demo_kko_x"]) expect(isSyntheticHandle(h), h).toBe(true);
+    for (const h of ["vipstock77", "samplefoo", "my_sample_x", "demo", "sample", "syn", "demo-x", "xsample_a", "", null, undefined]) expect(isSyntheticHandle(h as string), String(h)).toBe(false);
+  });
+
+  it("계정 id(platform:handle)도 같은 규칙", () => {
+    expect(isSyntheticAccountId("threads:sample_vipstock77")).toBe(true);
+    expect(isSyntheticAccountId("instagram:demo_lead_a")).toBe(true);
+    expect(isSyntheticAccountId("threads:real_user")).toBe(false);
+    expect(isSyntheticAccountId("threads:")).toBe(false);
+    expect(isSyntheticAccountId("sample_vipstock77")).toBe(false);              // id 모양이 아니면 id 로는 공개 아님
+    expect(isSyntheticAccountId("evil:threads:sample_x")).toBe(false);           // 접두를 속여도 첫 구간 뒤가 핸들
+    expect(isSyntheticAccountId(null)).toBe(false);
+  });
+
+  it("SQL 정규식과 JS 규칙이 같은 id 를 공개로 본다", () => {
+    const re = new RegExp(SYNTHETIC_ID_SQL, "i");
+    for (const id of ["threads:sample_a", "threads:demo_b", "instagram:syn_c", "threads:real_d", "threads:xsample_e", "x:samplef"]) {
+      expect(re.test(id), id).toBe(isSyntheticAccountId(id));
+    }
+  });
+
+  it("열람 가능 여부: 관리자는 전부, 공개는 합성만", () => {
+    expect(canView("threads:real_user", false)).toBe(false);
+    expect(canView("real_user", false)).toBe(false);
+    expect(canView("threads:sample_x", false)).toBe(true);
+    expect(canView("demo_x", false)).toBe(true);
+    expect(canView("threads:real_user", true)).toBe(true);
+  });
+
+  it("목록 걸러내기", () => {
+    const rows = [{ id: "threads:sample_a" }, { id: "threads:real_b" }, { id: "threads:demo_c" }];
+    expect(onlyVisible(rows, (r) => r.id, false).map((r) => r.id)).toEqual(["threads:sample_a", "threads:demo_c"]);
+    expect(onlyVisible(rows, (r) => r.id, true)).toHaveLength(3);
+  });
+});
+
+describe("근거 문장 속 실계정 가리기 (shared-contact)", () => {
+  const reason = (evidence: string, label = "다른 계정 3개와 동일 연락처 사용") => ({ code: "shared-contact", label, points: 16, evidence });
+
+  it("실계정 id 와 개수를 걸러낸다", () => {
+    const [r] = redactSharedContact([reason("텔레그램 vip → threads:real_a, threads:sample_b, threads:demo_c")]);
+    expect(r.evidence).toBe("텔레그램 vip → threads:sample_b, threads:demo_c");
+    expect(r.label).toBe("다른 계정 2개와 동일 연락처 사용");
+    expect(JSON.stringify(r)).not.toContain("real_a");
+  });
+
+  it("보이는 계정이 하나도 없으면 연락처 이름만 남기고 실계정은 개수도 말하지 않는다", () => {
+    const [r] = redactSharedContact([reason("텔레그램 vip → threads:real_a, threads:real_b")]);
+    expect(r.evidence).toBe("텔레그램 vip");
+    expect(r.label).toBe("공개 범위 밖 계정과 동일 연락처 사용");
+    expect(JSON.stringify(r)).not.toMatch(/real_|2개/);
+  });
+
+  it("전부 합성이거나 다른 근거면 그대로", () => {
+    const same = reason("텔레그램 vip → threads:sample_a, threads:demo_b");
+    expect(redactSharedContact([same])[0]).toBe(same);
+    const other = { code: "combo:contact+invest", label: "x", points: 1, evidence: "threads:real_z" };
+    expect(redactSharedContact([other])[0]).toBe(other);
+  });
+});
+
+describe("리포트 JSON 링크", () => {
+  it("이미 디코딩된 id 를 한 번만 인코딩한다 (이중 인코딩 %253A 금지)", () => {
+    expect(reportApiHref("threads:sample_vipstock77")).toBe("/api/reports/threads%3Asample_vipstock77");
+    expect(reportApiHref("threads:sample_vipstock77")).not.toContain("%25");
+  });
+
+  it("경로 파라미터는 한 번·두 번 인코딩돼 와도, 이미 풀려 있어도 같은 id", () => {
+    for (const raw of ["threads:sample_x", "threads%3Asample_x", "threads%253Asample_x"]) expect(decodeParam(raw), raw).toBe("threads:sample_x");
+    expect(decodeParam("  threads:sample_x ")).toBe("threads:sample_x");
+    expect(decodeParam("100%")).toBe("100%");                                     // 잘못된 인코딩도 던지지 않는다
+  });
+});
+
+describe("관리자 값 검사", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const saved = { token: env.ADMIN_TOKEN, node: env.NODE_ENV };
+  afterEach(() => { env.ADMIN_TOKEN = saved.token; env.NODE_ENV = saved.node; });
+
+  it("프로덕션에서 토큰이 비어 있으면 누구도 관리자가 아니다 (잠김)", () => {
+    delete env.ADMIN_TOKEN; env.NODE_ENV = "production";
+    expect(adminValueOk("anything")).toBe(false);
+    expect(adminValueOk(undefined)).toBe(false);
+  });
+
+  it("토큰이 있으면 값이 정확히 같아야 한다", () => {
+    env.ADMIN_TOKEN = "s3cret"; env.NODE_ENV = "production";
+    expect(adminValueOk("s3cret")).toBe(true);
+    expect(adminValueOk("s3cre")).toBe(false);
+    expect(adminValueOk("")).toBe(false);
+    expect(adminValueOk(null)).toBe(false);
+  });
+
+  it("비프로덕션 + 토큰 없음은 로컬 개발이라 통과", () => {
+    delete env.ADMIN_TOKEN; env.NODE_ENV = "development";
+    expect(adminValueOk(undefined)).toBe(true);
+  });
+});

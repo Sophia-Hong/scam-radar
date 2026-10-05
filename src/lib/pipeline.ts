@@ -59,7 +59,7 @@ async function uploadShot(kind: "post" | "profile", id: string, data?: string | 
   const b64 = m?.[2] ?? data;
   const buf = Buffer.from(b64, "base64");
   const ext = mime.split("/")[1] === "jpeg" ? "jpg" : mime.split("/")[1];
-  const blob = await put(`shots/${kind}/${id}.${ext}`, buf, { access: "public", contentType: mime, addRandomSuffix: false });
+  const blob = await put(`shots/${kind}/${id}.${ext}`, buf, { access: "public", contentType: mime, addRandomSuffix: true }); // 핸들로 URL 을 추측하지 못하게 (공개 경계: 캡처 파일 주소는 조회 API 를 거쳐야만 알 수 있다)
   return blob.url;
 }
 

@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
-import { buildReport } from "@/lib/report";
+import { buildReport, publicView } from "@/lib/report";
+import { isAdminPage } from "@/lib/auth";
+import { canView, decodeParam, reportApiHref } from "@/lib/visibility";
+import { PrintButton } from "@/components/PrintButton";
 import { hasDb } from "@/db";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Reasons } from "@/components/Reasons";
@@ -15,8 +18,13 @@ const sourceLabel = (s: string) => s.split(",").map((x) => SOURCE_LABEL[x] ?? x)
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   if (!hasDb) return <p className="text-sm text-zinc-600">데이터베이스가 연결되지 않았습니다.</p>;
   const { id } = await params;
-  const r = await buildReport(decodeURIComponent(id));
-  if (!r) notFound();
+  const accountId = decodeParam(id);
+  const admin = await isAdminPage();
+  // 공개 열람자에게는 합성 데모 계정의 리포트만 — 실계정은 "없음"과 같은 응답
+  if (!canView(accountId, admin)) notFound();
+  const built = await buildReport(accountId, { admin });
+  if (!built) notFound();
+  const r = publicView(built, admin);
   return (
     <article className="mx-auto max-w-3xl space-y-8 rounded-lg border border-zinc-200 bg-white p-8 print:border-0 print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 pb-4">
@@ -29,8 +37,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           {/* 오탐 확정이면 점수 배지를 흐리게 — 사람의 판단이 기계 점수보다 앞선다 */}
           <ScoreBadge score={r.score} label={r.effectiveStatus} size="lg" muted={r.effectiveStatus === "CLEARED"} signals={r.rationale.filter((x) => x.points > 0).length} />
           <div className="no-print flex gap-2 text-xs">
-            <a className="rounded border border-zinc-300 px-2 py-1" href={`/api/reports/${encodeURIComponent(id)}`}>JSON</a>
-            <a className="rounded border border-zinc-300 px-2 py-1" href="javascript:window.print()">인쇄/PDF</a>
+            <a className="rounded border border-zinc-300 px-2 py-1" href={reportApiHref(accountId)}>JSON</a>
+            <PrintButton className="rounded border border-zinc-300 px-2 py-1" />
           </div>
         </div>
       </header>
