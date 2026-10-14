@@ -570,8 +570,9 @@ function TodoList({ level }: { level: keyof typeof TONE }) {
   const f = t.result.firmCheck;
   return (
     <ol>
-      {t.result.todo[level].map((line) => <li key={line}><label><input type="checkbox" /> <span>{line}</span></label></li>)}
-      {level !== "HIGH" && <li><label><input type="checkbox" /> <span>{f.text}</span></label> <a className="firm-link" href={f.url} target="_blank" rel="noreferrer">{f.link} ↗</a></li>}
+      {/* 처음부터 ✓가 표시된 정적 목록 — 누르는 체크박스 아님(소현 1791988054, 테오 1791988058) */}
+      {t.result.todo[level].map((line) => <li key={line}><span className="tick" aria-hidden="true">✓</span><span>{line}</span></li>)}
+      {level !== "HIGH" && <li><span className="tick" aria-hidden="true">✓</span><span>{f.text} <a className="firm-link" href={f.url} target="_blank" rel="noreferrer">{f.link} ↗</a></span></li>}
     </ol>
   );
 }

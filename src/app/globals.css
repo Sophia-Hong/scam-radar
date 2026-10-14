@@ -581,3 +581,6 @@ h1, h2, h3 { letter-spacing:normal; }
 .stop-list li b { display:block; font-weight:700; color:#111111; }
 .stop-list li span { display:block; color:#374151; }
 .result-card .result-actions .act-share { background:#111111 !important; color:#ffffff !important; border:0 !important; border-radius:10px; min-height:52px; font-size:17px; font-weight:600; }
+.result-todo li { display:flex; gap:8px; align-items:flex-start; }
+.result-todo .tick { flex:0 0 auto; width:18px; color:#111111; font-weight:700; }
+.result-todo .firm-link { margin-left:0; }
