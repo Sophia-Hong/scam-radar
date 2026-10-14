@@ -38,7 +38,7 @@ const ko = {
     scope: "투자 권유 글, 메신저 링크, Threads 계정을 확인할 수 있어요.",
   },
   notice: {
-    home: "넣은 글은 저장하지 않습니다. 확인은 이 브라우저 안에서 먼저 이루어지고, 일부 글은 보조 AI가 다시 볼 수 있습니다. 이때 글이 서버를 거쳐 Google Gemini API로 전송될 수 있습니다(무료 티어 입력은 Google의 제품 개선에 사용될 수 있습니다). AI 재검토 결과(판정과 한 줄 근거)는 같은 글의 재요청을 줄이려고 저장될 수 있습니다.",
+    home: "넣은 글은 저장하지 않습니다. 확인은 이 브라우저 안에서 먼저 이루어지고, 일부 글은 보조 AI가 다시 볼 수 있습니다. 이때 글이 서버를 거쳐 AI 서비스(Anthropic Claude — 장애 때는 Google Gemini 등 대체 모델)로 전송될 수 있습니다(대체 모델이 무료 티어면 입력이 그 회사의 제품 개선에 쓰일 수 있습니다). AI 재검토 결과(판정과 한 줄 근거)는 같은 글의 재요청을 줄이려고 저장될 수 있습니다.",
   },
   status: {
     known: (h: string, posts: number) => `@${h} 계정의 글 ${posts}건을 확인했어요.`,
@@ -152,7 +152,7 @@ const ko = {
   analyze: {
     title: "텍스트 분석",
     lead: "게시물·댓글을 붙여 넣으면 어떤 신호가 있는지 바로 계산합니다.",
-    notice: "이 페이지는 AI 재검토를 쓰지 않고, 입력한 문구는 브라우저 밖으로 나가지 않습니다. (홈 화면의 판독에서는 일부 글을 보조 AI가 다시 볼 수 있으며, 이때 문구가 서버를 거쳐 Google Gemini API로 전송될 수 있습니다.)",
+    notice: "이 페이지는 AI 재검토를 쓰지 않고, 입력한 문구는 브라우저 밖으로 나가지 않습니다. (홈 화면의 판독에서는 일부 글을 보조 AI가 다시 볼 수 있으며, 이때 문구가 서버를 거쳐 AI 서비스(Anthropic Claude — 장애 때는 Google Gemini 등 대체 모델)로 전송될 수 있습니다.)",
     followers: "팔로워 수(선택)", cluster: "동일 문구 반복 수(선택)", spread: "같은 문구 쓴 계정 수(선택)",
     sample: (i: number) => `샘플 ${i}`,
     normalized: "정규화 결과", noObf: "난독화 없음", ratio: (n: number) => `변형률 ${n}%`,
@@ -211,7 +211,7 @@ const en: Strings = {
     scope: "Works with investment messages, messenger links and Threads accounts.",
   },
   notice: {
-    home: "We do not store what you paste. It is checked in your browser first, and some messages may get a second look from an AI assistant; in that case the text is sent through our server to the Google Gemini API (free-tier input may be used by Google to improve its products). That AI result (a verdict and one-line reason) may be cached to avoid repeat requests.",
+    home: "We do not store what you paste. It is checked in your browser first, and some messages may get a second look from an AI assistant; in that case the text is sent through our server to an AI service (Anthropic Claude — or a backup model such as Google Gemini if it is unavailable) (if a backup model's free tier is used, the input may be used to improve that company's products). That AI result (a verdict and one-line reason) may be cached to avoid repeat requests.",
   },
   status: {
     known: (h: string, posts: number) => `Checked ${posts} posts from @${h}.`,
@@ -328,7 +328,7 @@ const en: Strings = {
   analyze: {
     title: "Text analysis",
     lead: "Paste a post or comment and see which signals it has, instantly.",
-    notice: "This page does not use the AI second look, and the text you type never leaves your browser. (On the home page, some messages may get a second look from an AI assistant; in that case the text is sent through our server to the Google Gemini API.)",
+    notice: "This page does not use the AI second look, and the text you type never leaves your browser. (On the home page, some messages may get a second look from an AI assistant; in that case the text is sent through our server to an AI service (Anthropic Claude — or a backup model such as Google Gemini if it is unavailable).)",
     followers: "Followers (optional)", cluster: "Times the same text repeats (optional)", spread: "Accounts using the same text (optional)",
     sample: (i: number) => `Sample ${i}`,
     normalized: "Normalized text", noObf: "No disguised text", ratio: (n: number) => `${n}% altered`,

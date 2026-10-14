@@ -133,8 +133,12 @@ export function countsVisible(level: EngineLevel | null | undefined): boolean {
 }
 
 /** 화면용 조회 — 숨김 규칙(서로 다른 신고자 3명 미만)을 적용한 값만 돌려준다 */
-export async function check(keys: string[], sig: number[] | null, level: EngineLevel | null = null): Promise<CheckResult> {
-  if (!countsVisible(level)) return { counts: {}, similar: 0, gated: true };   // DB 를 읽기 전에 — 낮음이면 숫자 자체를 만들지 않는다
+export async function check(keys: string[], sig: number[] | null, level: EngineLevel | null = null, keyLevels: Record<string, EngineLevel> = {}): Promise<CheckResult> {
+  // 키마다 판정 자격: 서버가 아는 판정(keyLevels — 공개 합성 계정의 DB 판정)이 있으면 그 키에만, 없으면 요청의 판정. 한 키의 판정이 다른 키에 번지지 않는다(카이 392ac60)
+  const levelOf = (k: string) => keyLevels[k] ?? level;
+  keys = keys.filter((k) => countsVisible(levelOf(k)));
+  if (!countsVisible(level)) sig = null;
+  if (!keys.length && !sig) return { counts: {}, similar: 0, gated: true };   // DB 를 읽기 전에 — 낮음이면 숫자 자체를 만들지 않는다
   const [raw, similar] = await Promise.all([rawCounts(keys), sig ? similarReporters(sig) : Promise.resolve(0)]);
   const counts: Record<string, number> = {};
   for (const [k, n] of Object.entries(raw)) if (n !== null && shown(n)) counts[k] = shown(n);   // null = 몰림 보류
@@ -161,6 +165,38 @@ export async function release(reporter: string, bucket: string, k: number): Prom
   await db().execute(sql`UPDATE community_quota SET n = GREATEST(n - ${k}, 0) WHERE reporter = ${reporter} AND bucket = ${bucket}`);
 }
 
+/**
+ * 글 서명 등록 = 밴드 16개 하루 할당 + 서명 행 삽입을 *SQL 한 문장*으로(테오 1791950099 · 카이 392ac60).
+ * 밴드는 모두 +1(행 잠금) → 하나라도 상한을 넘거나 서명 행이 이미 있으면(중복) 문장 끝의 검사가 오류를 내서 문장 전체가 되돌아간다
+ * — 실패한 밴드의 할당량이 남거나 잘못 빠지는 일이 없다. 반환: "ok" | "limited" | "duplicate".
+ */
+export async function insertTextAtomically(reporter: string, textId: string, sig: number[], day: string, now: Date): Promise<"ok" | "limited" | "duplicate"> {
+  const bands = bandKeys(sig);
+  const bandReporters = bands.map((b) => `band:${b}`);
+  try {
+    await db().execute(sql`
+      WITH up AS (
+        INSERT INTO community_quota (reporter, bucket, n)
+        SELECT r, ${`d:${day}`}, 1 FROM unnest(${textArray(bandReporters)}) AS r
+        ON CONFLICT (reporter, bucket) DO UPDATE SET n = community_quota.n + 1
+        RETURNING n),
+      ins AS (
+        INSERT INTO community_texts (id, reporter, sig, bands, created_at)
+        VALUES (${textId}, ${reporter}, ${JSON.stringify(sig)}::jsonb, ${textArray(bands)}, ${now})
+        ON CONFLICT (id) DO NOTHING
+        RETURNING id)
+      -- 오류는 *실행 시점 값*으로만 나게 한다(상수 캐스트·1/0 은 계획 단계에서 미리 계산돼 늘 실패한다)
+      SELECT (1 / CASE WHEN (SELECT max(n) FROM up) > ${KEY_DAILY_LIMIT} THEN 0 ELSE 1 END)
+           + (CASE WHEN (SELECT count(*) FROM ins) = 0 THEN 'duplicate' ELSE '0' END)::int AS result`);
+    return "ok";
+  } catch (e) {
+    const msg = String((e as { message?: string })?.message ?? e) + String((e as { cause?: { message?: string } })?.cause?.message ?? "");
+    if (/division by zero/i.test(msg)) return "limited";
+    if (/invalid input syntax for type integer/i.test(msg)) return "duplicate";
+    throw e;
+  }
+}
+
 export type RegisterResult = { ok: true; added: number } | { ok: false; reason: "limited" };
 
 export async function register(keys: string[], sig: number[] | null, reporter: string, now = new Date()): Promise<RegisterResult> {
@@ -174,26 +210,23 @@ export async function register(keys: string[], sig: number[] | null, reporter: s
   const adding = fresh.length + (textIsNew ? 1 : 0);
   if (adding) {
     // 시간·하루 상한을 원자적 카운터로 먼저 잡는다 — 동시 요청이 같은 옛 건수를 보고 함께 넘는 일이 없다(카이 ④ 검수 5)
-    if (!(await reserve(reporter, `h:${now.toISOString().slice(0, 13)}`, adding, HOURLY_LIMIT))) return { ok: false, reason: "limited" };
-    if (!(await reserve(reporter, `d:${now.toISOString().slice(0, 10)}`, adding, DAILY_LIMIT))) return { ok: false, reason: "limited" };
-    // 키별 하루 상한 — 넘은 키는 이번 등록에서 빼고(나머지는 받음), 전부 넘었으면 limited
+    const hour = now.toISOString().slice(0, 13);
     const day = now.toISOString().slice(0, 10);
+    if (!(await reserve(reporter, `h:${hour}`, adding, HOURLY_LIMIT))) return { ok: false, reason: "limited" };
+    if (!(await reserve(reporter, `d:${day}`, adding, DAILY_LIMIT))) { await release(reporter, `h:${hour}`, adding); return { ok: false, reason: "limited" }; }
+    // 키별 하루 상한 — 넘은 키는 이번 등록에서 뺀다(예약에 성공한 키만 allowed)
     const allowed: string[] = [];
     for (const key of fresh) if (await reserve(`key:${key}`, `d:${day}`, 1, KEY_DAILY_LIMIT)) allowed.push(key);
-    // 글 서명도 같은 하루 상한 — 비슷한 글은 밴드 하나 이상을 공유하므로, 밴드마다 하루 KEY_DAILY_LIMIT 를 넘으면 그 글은 받지 않는다(카이 912e045)
-    let textOk = textIsNew;
-    if (textIsNew && sig) for (const b of bandKeys(sig)) if (!(await reserve(`band:${b}`, `d:${day}`, 1, KEY_DAILY_LIMIT))) textOk = false;
-    if (!allowed.length && !textOk) return { ok: false, reason: "limited" };
+    // 글 서명: 밴드 할당·삽입을 한 문장으로(원자적). 상한·중복이면 아무것도 남기지 않는다
+    const textResult = textIsNew && sig && textId ? await insertTextAtomically(reporter, textId, sig, day, now) : null;
     // 실제로 들어간 행만 센다 — 동시 중복 요청에서 added 가 부풀지 않게, 할당량도 실제 등록 수만큼만 남긴다(카이 912e045, 테오 1791948618)
     const insKeys = allowed.length ? await db().insert(r).values(allowed.map((key) => ({ key, reporter, createdAt: now }))).onConflictDoNothing().returning({ key: r.key }) : [];
-    const insText = textOk && sig && textId ? await db().insert(tx).values({ id: textId, reporter, sig, bands: bandKeys(sig), createdAt: now }).onConflictDoNothing().returning({ id: tx.id }) : [];
-    const added = insKeys.length + insText.length;
-    const hour = now.toISOString().slice(0, 13);
+    const added = insKeys.length + (textResult === "ok" ? 1 : 0);
     await release(reporter, `h:${hour}`, adding - added);
     await release(reporter, `d:${day}`, adding - added);
     const inserted = new Set(insKeys.map((x) => x.key));
-    for (const key of fresh) if (!inserted.has(key)) await release(`key:${key}`, `d:${day}`, 1);   // 상한에 걸렸거나 중복이던 키
-    if (textIsNew && sig && !insText.length) for (const b of bandKeys(sig)) await release(`band:${b}`, `d:${day}`, 1);
+    for (const key of allowed) if (!inserted.has(key)) await release(`key:${key}`, `d:${day}`, 1);   // 예약했지만 중복이던 키만(예약 실패한 키는 더한 적 없음)
+    if (!added && (textResult === "limited" || allowed.length < fresh.length)) return { ok: false, reason: "limited" };
     return { ok: true, added };
   }
   return { ok: true, added: 0 };

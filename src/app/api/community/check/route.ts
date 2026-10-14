@@ -36,13 +36,13 @@ export async function POST(req: Request) {
   if (limited(clientIp(req))) return json({ error: "too many requests", retryAfterSec: 60 }, 429);
   try {
     // 공개 합성 계정을 조회한 경우는 그 계정의 현재 엔진 판정(DB)을 쓴다. 실계정 판정은 읽지 않는다(보유 여부·판정이 새지 않게)
-    let level: EngineLevel | null = p.data.level ?? null;
-    const acct = keys.find((k) => k.startsWith("threads:") && isSyntheticAccountId(k));
-    if (acct) {
+    // 그 판정은 *그 계정 키에만* 적용한다 — 다른 키(연락처·실계정)는 요청의 판정으로 따로(카이 392ac60)
+    const keyLevels: Record<string, EngineLevel> = {};
+    for (const acct of keys.filter((k) => k.startsWith("threads:") && isSyntheticAccountId(k))) {
       const [row] = await db().select({ label: schema.accounts.label }).from(schema.accounts).where(eq(schema.accounts.id, acct)).limit(1);
-      if (row && ["HIGH", "REVIEW", "LOW"].includes(row.label)) level = row.label as EngineLevel;
+      if (row && ["HIGH", "REVIEW", "LOW"].includes(row.label)) keyLevels[acct] = row.label as EngineLevel;
     }
-    return json(await check(keys, sig, level));
+    return json(await check(keys, sig, p.data.level ?? null, keyLevels));
   } catch {
     return json(UNAVAILABLE);
   }
