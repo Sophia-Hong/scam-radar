@@ -15,8 +15,8 @@ const SAMPLE = "급등주 종목 무료로 공개합니다. 원금보장 수익 
 
 /** 페이지 아래 "이런 글은 이렇게 나와요" — 합성 예시만(실제 계정·번호 없음, 테오 1791986598). 같은 엔진으로 판정해 실제 결과 화면과 같은 모양 */
 export const EXAMPLE_SCAM = {
-  ko: "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명만 리딩방 초대. 텔레그램으로 연락 주세요.",
-  en: "Free stock picks! Guaranteed returns, 300% profit proof, only 20 spots in our VIP signal group. Contact us on Telegram now.",
+  ko: "급등주 종목 무료로 공개합니다. ㅇㅇ전자 출신으로 향후 대형 거래가 예정된 곳들을 알고 있어요. 선착순 20명께만 공유드릴께요. https://t.me/********",   // 소현 원문 1791989043(가린 주소, 실제 채널 아님)
+  en: "Free hot stock picks. I used to work at a major electronics company, and I know which companies have big deals coming up. Sharing only with the first 20 people. https://t.me/********",
 } as const;
 /** Google 판정 줄의 출처·자세히 링크(율 1791986341: 속이는 사이트 → antiphishing.org, 악성코드 → Google Search Central) */
 const ADVISORY_URL = "https://cloud.google.com/web-risk/docs/advisory";

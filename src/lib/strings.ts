@@ -50,12 +50,12 @@ const ko = {
     demo: "예시 계정 보기",
     scope: "받은 메시지, 텔레그램 같은 메신저 링크, SNS 글을 확인할 수 있어요.",
   },
-  example: { title: "검토는 이렇게 나와요", tag: "" },   // 소현 1791988806(테오 1791988814): 제목 변경, 예시 표시 삭제
+  example: { title: "검토 예시", tag: "" },   // 소현 1791988806(테오 1791988814): 제목 변경, 예시 표시 삭제
   // 웹사이트 확인(소현 1791985819, 테오 1791985835·1791986262). Google 문구는 단정하지 않는다 + Google 판정 줄에만 출처 표시(율 1791986341, Web Risk user-warnings)
   website: {
     checking: "웹사이트를 확인하는 중이에요…",
     title: (d: string) => `웹사이트 확인: ${d}`,
-    google: { SOCIAL_ENGINEERING: "Google 정보로는 속이는 사이트일 수 있어요.", MALWARE: "기기에 해를 줄 수 있는 사이트일 수 있어요.", UNWANTED_SOFTWARE: "기기에 해를 줄 수 있는 사이트일 수 있어요." },
+    google: { SOCIAL_ENGINEERING: "Google은 이 사이트를 위험한 사이트로 분류했어요", MALWARE: "Google은 이 사이트를 위험한 사이트로 분류했어요", UNWANTED_SOFTWARE: "Google은 이 사이트를 위험한 사이트로 분류했어요" },   // 소현 원문(테오 1791989043) — Google의 분류를 전하는 꼴, 사이트를 단정하지 않음
     advisory: "Advisory provided by Google",
     more: "자세히",
     age: (n: number) => n < 30 ? `만든 지 ${n}일 된 주소예요. 새로 만든 주소는 사기에 자주 쓰여요.` : `만든 지 ${n}일(약 ${Math.round(n / 30)}개월) 된 주소예요. 아직 새 주소예요.`,
@@ -291,11 +291,11 @@ const en: Strings = {
     demo: "See an example account",
     scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
   },
-  example: { title: "Here's what a check looks like", tag: "" },
+  example: { title: "Example check", tag: "" },
   website: {
     checking: "Checking the website…",
     title: (d: string) => `Website check: ${d}`,
-    google: { SOCIAL_ENGINEERING: "Google says this site may be deceptive.", MALWARE: "This site may harm your device.", UNWANTED_SOFTWARE: "This site may harm your device." },
+    google: { SOCIAL_ENGINEERING: "Google has classified this site as dangerous.", MALWARE: "Google has classified this site as dangerous.", UNWANTED_SOFTWARE: "Google has classified this site as dangerous." },
     advisory: "Advisory provided by Google",
     more: "Details",
     age: (n: number) => n < 30 ? `This address was created ${n} days ago. New addresses are often used for scams.` : `This address was created ${n} days ago (about ${Math.round(n / 30)} months). It is still new.`,
