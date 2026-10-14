@@ -2,5 +2,8 @@ frames-v/
 frames-h/
 preview/
 *.wav
-poster-h.png
+poster-h*.png
+timing*.json
 out/
+frames-*/
+keys-*.wav

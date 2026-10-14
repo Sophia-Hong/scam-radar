@@ -6,9 +6,9 @@ const { chromium } = require("/opt/homebrew/lib/node_modules/playwright");
   const [W, H] = ar === "v" ? [1080, 1920] : [1920, 1080];
   const b = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" });
   const pg = await b.newPage({ viewport: { width: W, height: H } });
-  await pg.goto("file://" + path.join(__dirname, "stage.html") + "?ar=" + ar);
+  await pg.goto("file://" + path.join(__dirname, "stage.html") + "?ar=" + ar + "&lang=" + (process.argv[4] || "en"));
   await pg.evaluate(() => document.fonts.ready);
   fs.mkdirSync(path.join(__dirname, "preview"), { recursive: true });
-  for (const t of ts) { await pg.evaluate((t) => window.render(t), t); await pg.waitForTimeout(60); await pg.screenshot({ path: path.join(__dirname, "preview", `${ar}-${t}.png`) }); }
+  for (const t of ts) { await pg.evaluate((t) => window.render(t), t); await pg.waitForTimeout(60); await pg.screenshot({ path: path.join(__dirname, "preview", `${ar}-${process.argv[4] || "en"}-${t}.png`) }); }
   await b.close(); console.log("ok", ts.length);
 })();

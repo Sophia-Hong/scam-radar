@@ -2,7 +2,8 @@
 import json, math, random, struct, wave, sys
 from pathlib import Path
 HERE = Path(__file__).parent
-t = json.loads((HERE / "timing.json").read_text())
+LANG = sys.argv[1] if len(sys.argv) > 1 else "en"
+t = json.loads((HERE / f"timing-{LANG}.json").read_text())
 SR = 44100
 N = int(SR * t["T"])
 buf = [0.0] * N
@@ -39,7 +40,7 @@ for at in t["POPS"]:
     add(at, pop(0.28))
 peak = max(1e-9, max(abs(s) for s in buf))
 g = 0.8 / peak if peak > 0.8 else 1.0
-with wave.open(str(HERE / "keys.wav"), "wb") as w:
+with wave.open(str(HERE / f"keys-{LANG}.wav"), "wb") as w:
     w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
     w.writeframes(b"".join(struct.pack("<h", int(max(-1, min(1, s * g)) * 32767)) for s in buf))
-print("keys.wav", len(t["KEYS"]), "keys", len(t["POPS"]), "pops", f"{N/SR:.1f}s")
+print(f"keys-{LANG}.wav", len(t["KEYS"]), "keys", len(t["POPS"]), "pops", f"{N/SR:.1f}s")
