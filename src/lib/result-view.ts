@@ -26,7 +26,7 @@ function catOf(code: string): string {
 /**
  * 쉬운 말 징후 — 문장마다 그 문장을 말할 수 있는 *실제 신호*를 묶는다(율: 징후 = 그 글에서 찾은 사실, 카이·테오 1791947403).
  * reasons = 엔진 근거(내부 코드 포함, 서버·브라우저 안에서만), entityTypes = 글에서 뽑은 연락처 종류. 최대 3개.
- * 높음·중간인데 아무 문장도 해당하지 않으면 일반 문장 하나. 낮음은 찾은 것만(없으면 비움).
+ * 높음·중간인데 아무 문장도 해당하지 않으면 일반 문장 하나. 낮음은 징후 칸 자체가 없다(빈 목록, 테오 1791948314).
  */
 export function signIds(level: Level, reasons: { code?: string; points: number }[], entityTypes: string[]): SignId[] {
   const pos = reasons.filter((r) => r.points > 0 && r.code).map((r) => r.code as string);
@@ -45,8 +45,9 @@ export function signIds(level: Level, reasons: { code?: string; points: number }
     identity: has((c) => c.startsWith("identity:")),
     fallback: false,
   };
+  if (level === "LOW") return [];
   const out = SIGN_ORDER.filter((id) => found[id]).slice(0, 3);
-  return out.length || level === "LOW" ? out : ["fallback"];
+  return out.length ? out : ["fallback"];
 }
 
 export const signTexts = (ids: SignId[], t: Strings["result"]): [string, string][] => ids.map((id) => t.signs[id]);

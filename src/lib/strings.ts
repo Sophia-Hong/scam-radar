@@ -56,6 +56,7 @@ const ko = {
     } as Record<Level, { title: string; sub: string }>,
     engine: { checking: "AI가 한 번 더 보는 중…", applied: "AI 재검토 반영", error: "AI 재검토 실패 · 규칙 결과", rule: "자동 분석" },
     signsTitle: "이런 점이 이상해요",
+    noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
       guarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
@@ -123,7 +124,7 @@ const ko = {
     limited: "잠시 후 다시 시도해 주세요. 신고는 시간당 횟수가 정해져 있어요.",
     failed: "지금은 신고할 수 없어요. 잠시 후 다시 시도해 주세요.",
     textKey: "받은 글(서명만)",
-    kind: { threads: "Threads 계정", telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널", phone: "전화번호", handle: "아이디", url: "링크", line: "라인", wechat: "위챗", whatsapp: "왓츠앱", signal: "시그널" } as Record<string, string>,
+    kind: { threads: "Threads 계정", telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널", phone: "전화번호", handle: "아이디", url: "링크", line: "라인", wechat: "위챗", whatsapp: "왓츠앱", signal: "시그널", email: "이메일" } as Record<string, string>,
   },
   report: {
     kicker: "투자 유인 신호 · 참고 리포트",
@@ -228,6 +229,7 @@ const en: Strings = {
     },
     engine: { checking: "AI taking a second look…", applied: "AI second look applied", error: "AI unavailable · rule result", rule: "Automated check" },
     signsTitle: "What looks wrong",
+    noSigns: "No clear warning signs found.",
     signs: {
       guarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
       conversion: ["It offers big profits or free tips and tells you to act now.", "Rushing you leaves no time to think."],
@@ -293,7 +295,7 @@ const en: Strings = {
     limited: "Please try again later — reports are limited per hour.",
     failed: "We couldn't send the report right now. Please try again shortly.",
     textKey: "The message (signature only)",
-    kind: { threads: "Threads account", telegram: "Telegram", kakao_open: "KakaoTalk open chat", kakao_channel: "KakaoTalk channel", phone: "Phone", handle: "Username", url: "Link", line: "LINE", wechat: "WeChat", whatsapp: "WhatsApp", signal: "Signal" },
+    kind: { threads: "Threads account", telegram: "Telegram", kakao_open: "KakaoTalk open chat", kakao_channel: "KakaoTalk channel", phone: "Phone", handle: "Username", url: "Link", line: "LINE", wechat: "WeChat", whatsapp: "WhatsApp", signal: "Signal", email: "Email" },
   },
   report: {
     kicker: "Investment-lure signals · reference report",

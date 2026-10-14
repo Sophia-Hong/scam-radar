@@ -96,7 +96,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           <ul className="flex flex-wrap gap-2 text-sm">
             {r.contacts.map((c) => (
               <li key={c.id} className="rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1 text-zinc-700">
-                <span className="text-xs text-zinc-500">{c.typeLabel}</span>{" "}
+                <span className="text-xs text-zinc-500">{L.community.kind[c.type] ?? c.typeLabel}</span>{" "}
                 <span className="font-mono break-all">{c.value}</span>
                 <span className="ml-1 text-xs text-zinc-500">({sourceLabel(c.source)})</span>
               </li>
