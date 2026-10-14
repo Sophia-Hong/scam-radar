@@ -185,19 +185,20 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
 
 /**
  * 캡처 업로드 판정(소현 "소넷 하나로만" 1791958257·1791958334, 테오 1791958372). Sonnet 한 번이 글과 캡처를 같이 본다 — 체크리스트 같음, 대체 모델 없음.
- * 이미지 속 글자(imageText)는 이 요청 안에서만 규칙 징후에 쓰고 *어디에도 저장하지 않는다*: 캐시에는 이미지 해시 키 + 판정(verdict·confidence·checks·model)만.
+ * 이미지 속 글자(image_text)는 호출 직후 derive() 로 *개인정보 없는 파생값*(규칙 단계·점수·징후 id·반복 근거 여부)만 만들고 버린다 — 응답·DB·로그·캐시 어디에도
+ * 글자는 남지 않는다. 캐시 = 이미지 해시 키 + 판정 + 파생값이라, 같은 캡처를 다시 올려도 결과가 같다(카이 01fa686 HOLD 1·2).
  * 하루 상한·IP 20회는 1 + 장수만큼 센다.
  */
 const ReviewImageSchema = ReviewSchema.extend({ image_text: z.string().max(2000) });
-export type ImageReview = ReviewVerdict & { imageText?: string };
-export async function reviewPostWithImages(text: string, images: string[], reasonLabels: string[]): Promise<ImageReview> {
+export interface ImageDerived { ruleLabel: "HIGH" | "REVIEW" | "LOW"; ruleScore: number; signs: string[]; coordination: boolean }
+export type ImageReview = ReviewVerdict & { derived?: ImageDerived };
+export async function reviewPostWithImages(text: string, images: string[], reasonLabels: string[], derive: (imageText: string) => ImageDerived): Promise<ImageReview> {
   const { createHash } = await import("crypto");
   const imageKey = images.map((img) => createHash("sha256").update(img).digest("hex")).join(",");
   const key = fnv1a64(`review-img-v2|${text}|${imageKey}|${reasonLabels.join("|")}`);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, checks: [], model: "template" };
-  let imageText: string | undefined;   // 이번 요청에서만 — 캐시에 넣지 않는다
   try {
-    const v = await cached<ReviewVerdict>("review-img", key, async () => {
+    return await cached<ImageReview>("review-img", key, async () => {
       const result = await generateText({
         ...modelConfig(["feature:scam-review-image", "tier:mvp"]),
         maxOutputTokens: 900,
@@ -212,12 +213,11 @@ export async function reviewPostWithImages(text: string, images: string[], reaso
         }],
       });
       const { image_text, ...out } = result.output;
-      imageText = image_text?.slice(0, 1500) || undefined;
+      const derived = derive((image_text ?? "").slice(0, 1500));   // 글자는 여기서 쓰고 버린다
       const model = servedModel(result);
-      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: gatewayCost(result.providerMetadata) };
-      return { ...out, model, costUsd: gatewayCost(result.providerMetadata) };
+      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: gatewayCost(result.providerMetadata), derived };
+      return { ...out, model, costUsd: gatewayCost(result.providerMetadata), derived };
     }, 1 + images.length);
-    return { ...v, imageText };
   } catch (e) {
     return { verdict: "unsure", confidence: 0, checks: [], model: e instanceof AiBudgetExhausted ? "quota-rule" : "fallback" };
   }

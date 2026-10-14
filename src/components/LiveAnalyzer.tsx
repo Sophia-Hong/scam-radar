@@ -48,14 +48,22 @@ async function shareOrCopy(title: string, text: string, url: string): Promise<"s
  */
 export const MAX_SHOTS = 3;
 export const MAX_SHOT_BYTES = 5 * 1024 * 1024;
+/** 서버 합계 한도(MAX_IMAGES_TOTAL_CHARS 4,000,000)보다 작게 — 한 장 1.2M 글자 이하가 되도록 더 줄인다(카이 01fa686 HOLD 3) */
+export const MAX_SHOT_CHARS = 1_200_000;
 async function shrinkImage(file: File): Promise<string> {
   const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-  const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
-  canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  let out = "";
+  for (const [side, q] of [[1600, 0.82], [1280, 0.72], [1024, 0.62], [800, 0.55]] as const) {
+    const scale = Math.min(1, side / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    out = canvas.toDataURL("image/jpeg", q);
+    if (out.length <= MAX_SHOT_CHARS) break;
+  }
   bmp.close();
-  return canvas.toDataURL("image/jpeg", 0.82);
+  if (out.length > MAX_SHOT_CHARS) throw new Error("too big");
+  return out;
 }
 
 /** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
@@ -204,7 +212,7 @@ export function LiveAnalyzer() {
       if (next.length >= MAX_SHOTS) { setUploadMsg(t.hero.uploadTooMany); break; }
       if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { setUploadMsg(t.hero.uploadBad); continue; }
       if (f.size > MAX_SHOT_BYTES) { setUploadMsg(t.hero.uploadTooBig); continue; }
-      try { next.push({ name: f.name, data: await shrinkImage(f) }); } catch { setUploadMsg(t.hero.uploadBad); }
+      try { next.push({ name: f.name, data: await shrinkImage(f) }); } catch { setUploadMsg(t.hero.uploadTooBig); }
     }
     setPending(next);
   }

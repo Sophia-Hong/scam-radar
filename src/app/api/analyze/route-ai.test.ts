@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 // AI 판정을 흉내 내 서버 결합 경로를 끝까지 본다(실제 모델 호출 없음)
 const fake = vi.hoisted(() => ({ verdict: { verdict: "scam", confidence: 0.9, checks: ["giver", "move_chat"], model: "anthropic/claude-sonnet-5.5" } as { verdict: string; confidence: number; checks: string[]; model: string } }));
 const fakeImg = vi.hoisted(() => ({ v: { verdict: "scam", confidence: 0.9, checks: ["guarantee"], model: "anthropic/claude-sonnet-5.5", imageText: "원금보장 확정수익 텔레그램 t.me/vip_room_qq 지금 입장" } as Record<string, unknown> }));
-vi.mock("@/lib/llm", async (orig) => ({ ...(await orig<typeof import("@/lib/llm")>()), reviewPost: vi.fn(async () => fake.verdict), reviewPostWithImages: vi.fn(async () => fakeImg.v) }));
+// 가짜 reviewPostWithImages: 실제처럼 derive() 로 파생값만 만들어 돌려준다(글자 자체는 돌려주지 않음)
+vi.mock("@/lib/llm", async (orig) => ({ ...(await orig<typeof import("@/lib/llm")>()), reviewPost: vi.fn(async () => fake.verdict), reviewPostWithImages: vi.fn(async (_t: string, _i: string[], _l: string[], derive: (s: string) => unknown) => { const { imageText, ...v } = fakeImg.v as { imageText?: string; model?: string }; return { ...v, ...(v.model === "anthropic/claude-sonnet-5.5" ? { derived: derive(imageText ?? "") } : {}) }; }) }));
 import { POST } from "./route";
 import { scoreText } from "@/engine";
 

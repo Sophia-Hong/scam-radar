@@ -14,8 +14,9 @@ async function main() {
   if (!hasDb) { console.error("POSTGRES_URL / DATABASE_URL 이 없습니다"); process.exit(2); }
   const d = db();
   const rows = (r: unknown) => ((r as { rows?: unknown[] }).rows ?? (r as unknown[])) as Record<string, unknown>[];
-  const since = new Date(Date.now() - 7 * 864e5);
-  const days = Array.from({ length: 8 }, (_, i) => `d:${new Date(Date.now() - i * 864e5).toISOString().slice(0, 10)}`);
+  // 7일 = 오늘 포함 UTC 날짜 7개. 상한 카운터 버킷(UTC 날짜)과 캐시 행 기간을 같은 경계로(카이 01fa686: 8개를 합산하던 것)
+  const days = Array.from({ length: 7 }, (_, i) => `d:${new Date(Date.now() - i * 864e5).toISOString().slice(0, 10)}`);
+  const since = new Date(`${days[6].slice(2)}T00:00:00Z`);
   const attempted = rows(await d.execute(sql`SELECT bucket, n FROM community_quota WHERE reporter = 'ai-call' AND bucket = ANY(${`{${days.join(",")}}`}::text[]) ORDER BY bucket`));
   const cache = rows(await d.execute(sql`
     SELECT kind,
