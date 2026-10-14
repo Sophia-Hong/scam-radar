@@ -81,9 +81,9 @@ async function main() {
     const results = await send(chunk.map((c) => c.it));
     results.forEach((r, j) => {
       if (!chunk[j]) return;
-      const label = r.error ? `REJECTED ${JSON.stringify(r.error).slice(0, 120)}` : `${r.duplicate ? "dup " : ""}${r.label} ${r.score} → account ${r.accountId} ${r.accountLabel}`;
+      const label = r.status !== "accepted" || r.error ? `REJECTED ${JSON.stringify(r.error ?? r.status ?? "no status").slice(0, 120)}` : `${r.duplicate ? "dup " : ""}${r.label} ${r.score} → account ${r.accountId} ${r.accountLabel}`;
       console.log(`  ${chunk[j].it.author.handle.padEnd(24)} ${label}`);
-      if (!r.error) { ok++; if (r.duplicate) dup++; if (r.accountLabel === "HIGH") high++; }
+      if (r.status === "accepted" && !r.error) { ok++; if (r.duplicate) dup++; if (r.accountLabel === "HIGH") high++; }
     });
     for (const x of partition(chunk, results).rejected) rejected.push({ file: x.item.file, item: x.item.it, error: x.error });
   }

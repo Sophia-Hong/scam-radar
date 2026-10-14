@@ -90,6 +90,7 @@ export function LiveAnalyzer() {
   }, []);
   function toggleAiOff(on: boolean) {
     setAiOff(on); setServerResult(null); setAiStatus("idle");
+    if (on) { setCommunity({ counts: {}, similar: 0 }); setRegistry(NO_REGISTRY); }   // 이전에 받은 신고 수·열린 신고 패널도 지운다
     try { if (on) localStorage.setItem("sr-ai-off", "1"); else localStorage.removeItem("sr-ai-off"); } catch { /* 저장소 없음 */ }
   }
   // 대상이 바뀌면 세대를 올린다 — 이전 대상의 신고 요청 응답이 늦게 와도 새 화면에 "신고했어요"가 뜨지 않게(카이 5808c65)
@@ -132,7 +133,7 @@ export function LiveAnalyzer() {
 
   // 이용자 신고 수·비슷한 신고 글·검토 중 여부 — 입력이 정해질 때마다 한 번
   useEffect(() => {
-    if (!checkBody || (aiOff && !known)) return;   // AI 없이 확인: 글에서 뽑은 연락처·서명을 보내지 않는다(계정 조회는 사용자가 넣은 계정명만)
+    if (!checkBody || aiOff) return;   // AI 없이 확인: 연락처·서명·계정 키 어떤 것도 보내지 않고 신고 수도 묻지 않는다(카이 2257ada)
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
@@ -237,6 +238,8 @@ export function LiveAnalyzer() {
   }
 
   async function submitRegistry(picked: string[], withText: boolean) {
+    // AI 없이 확인 중이면 보내기 전에 한 번 묻는다 — 그 모드의 "브라우저 밖으로 나가지 않아요"가 사실이도록(테오 1791951462)
+    if (aiOff && !window.confirm(t.community.aiOffConfirm)) return;
     const mine = gen.current;
     setRegistry({ status: "sending", picked, withText });
     try {
@@ -316,7 +319,7 @@ export function LiveAnalyzer() {
             )}
             <p className="result-disclaimer">{t.result.disclaimer}</p>
 
-            {!community.unavailable && (reported.length > 0 || community.similar > 0) && (
+            {!aiOff && !community.unavailable && (reported.length > 0 || community.similar > 0) && (
               <div className="community-warn" role="alert">
                 <ul>
                   {reported.slice(0, 3).map((k) => <li key={k}><b>⚠ {t.community.warn(community.counts[k], k.slice(0, k.indexOf(":")))}</b><span>{keyLabel(k, t.community.kind)}</span></li>)}

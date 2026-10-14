@@ -5,8 +5,9 @@
  */
 export type IngestItemResult = { status?: "accepted" | "rejected"; error?: unknown; duplicate?: boolean; accountId?: string; score?: number; label?: string; accountLabel?: string };
 
+/** 성공은 *명시적* status "accepted" 이고 오류가 없을 때뿐 — {} 나 모르는 status 는 거부로(카이 2257ada) */
 export function isRejected(r: IngestItemResult): boolean {
-  return r.status === "rejected" || r.error !== undefined;
+  return r.status !== "accepted" || r.error !== undefined;
 }
 
 export function partition<T>(items: T[], results: IngestItemResult[]): { accepted: T[]; rejected: { item: T; error: unknown }[] } {
