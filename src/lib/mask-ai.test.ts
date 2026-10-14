@@ -18,6 +18,16 @@ describe("AI 로 보내기 전 가림 ⑦", () => {
     expect(m).toContain("계좌 ***-****-6789");
     for (const kept of ["t.me/vip_room", "2024-09-08", "300만원"]) expect(m).toContain(kept);
   });
+  it("일반 전화·대표번호도 가린다(율 (가)안) — 금액·날짜·연도·소수는 그대로", () => {
+    const t = "서울 02-123-4567, 경기 (031) 1234-5678, 인터넷 070 1234 5678, 고객센터 1588-1234, 1644 5678. 수수료 1,500,000원, 15,880원, 2024-09-08, 3.1415, 1800년대";
+    const m = maskForAi(t);
+    for (const raw of ["123-4567", "1234-5678", "1234 5678", "1588-1234", "1644 5678"]) expect(m).not.toContain(raw);
+    for (const kept of ["0**-****-4567", "0**-****-5678", "****-1234", "****-5678", "1,500,000원", "15,880원", "2024-09-08", "3.1415", "1800년대"]) expect(m).toContain(kept);
+  });
+  it("고지 '보내는 것' = 율 OK 문구(1791956132), 코드와 같은 커밋", () => {
+    expect(STRINGS.ko.notice.details[0]).toEqual(["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요."]);
+    expect(STRINGS.en.notice.details[0][1]).toBe("The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught.");
+  });
   it("재검 프롬프트에 원값이 들어가지 않는다", () => {
     const p = reviewPrompt(RAW, ["행동 유도 문구"]);
     expect(p).not.toMatch(/1234-5678|kim\.lee@gmail\.com|110123456789|123456-01-234567/);

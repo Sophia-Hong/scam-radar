@@ -46,7 +46,7 @@ const ko = {
     aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요(AI 재검·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
     aiOffUndo: "AI 재검 다시 켜기",
     details: [
-      ["보내는 것", "다시 확인할 글 원문 (글 안의 이름·연락처 포함)"],
+      ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
       ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com)"],
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사, AI Gateway · privacy@vercel.com)"],
@@ -247,7 +247,7 @@ const en: Strings = {
     aiOffOn: "Checking without AI — what you paste stays in your browser (no AI second look, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
     aiOffUndo: "Turn the AI second look back on",
     details: [
-      ["What is sent", "The text of the message being re-checked (including any names or contacts in it)"],
+      ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught."],
       ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com)"],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company, AI Gateway · privacy@vercel.com)"],

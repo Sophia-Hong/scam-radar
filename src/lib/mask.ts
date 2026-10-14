@@ -114,10 +114,20 @@ export function maskAccountNumbers(text: string): string {
 }
 
 /**
- * AI 로 보내기 전 가림(율 국내 배포 점검 ⑦, 테오 1791955154 → 1791955875): 글 속 전화번호·계좌번호·이메일.
+ * AI 로 보내기 전 가림(율 국내 배포 점검 ⑦, 테오 1791955154 → 1791955875): 글 속 전화번호(휴대·050·일반·대표)·계좌번호·이메일.
  * 판정에 필요한 건 "번호가 있다"는 사실이지 번호 자체가 아니다 — 꼴(010-****-5678, ***-****-1234, a***@g***.com)은 남긴다.
  * 전화는 공개 화면과 같은 규칙(contactPairs + maskPhonesAnywhere). 메신저 아이디·링크는 판정 신호라 그대로.
  */
+/**
+ * 일반 전화(지역번호 02·031~064, 인터넷전화 070)와 대표번호(15xx·16xx·18xx) — AI 전송용(율 (가)안, 테오 1791956124). 끝 4자리만 남긴다.
+ * 숫자나 '숫자 사이의 쉼표·점'(금액 1,500 · 소수 3.14)에 붙은 경우는 건드리지 않는다. 문장 끝 쉼표·마침표는 괜찮다.
+ */
+const LANDLINE = /(?<!\d)(?<!\d[,.])\(?0(?:2|[3-6][1-5]|70)\)?[\s.\-]*\d{3,4}[\s.\-]*(\d{4})(?!\d)(?![,.]\d)/g;
+const REPRESENTATIVE = /(?<!\d)(?<!\d[,.])1[568]\d{2}[\s.\-]?(\d{4})(?!\d)(?![,.]\d)/g;
+export function maskLandlines(text: string): string {
+  return text.replace(LANDLINE, (_m, last: string) => `0**-****-${last}`).replace(REPRESENTATIVE, (_m, last: string) => `****-${last}`);
+}
+
 export function maskForAi(text: string): string {
   const ents = extractEntities(text);
   const pairs: MaskPair[] = [
@@ -126,5 +136,6 @@ export function maskForAi(text: string): string {
   ];
   // 순서: 계좌(라벨 붙은 것 먼저, 휴대전화 꼴 제외) → 뽑은 전화·이메일 → 남은 휴대전화 꼴.
   // 계좌를 먼저 덮어야 '계좌 110123456789'가 엔티티 추출에서 전화번호로 잡혀 010-… 꼴로 바뀌지 않는다
-  return maskPhonesAnywhere(maskText(maskAccountNumbers(text), pairs));
+  // 마지막에 일반·대표번호 — 휴대전화(01x)·050 은 앞에서 이미 가려져 * 가 섞여 있어 여기 걸리지 않는다
+  return maskLandlines(maskPhonesAnywhere(maskText(maskAccountNumbers(text), pairs)));
 }
