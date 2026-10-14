@@ -489,7 +489,7 @@ export function LiveAnalyzer() {
               </div>
             )}
 
-            {level && <p className="ai-proof-note">{t.result.aiProofNote}</p>}
+            {/* 수익 인증 일반 안내 블록은 뺀다 — 징후 카드의 소현 문장과 겹침(테오 1791987640) */}
 
 
             <div className="stop-box">
