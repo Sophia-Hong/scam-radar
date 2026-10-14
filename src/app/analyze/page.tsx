@@ -4,7 +4,8 @@ import { scoreText } from "@/engine";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Reasons } from "@/components/Reasons";
 import { PlainSigns } from "@/components/PlainSigns";
-import { communityKeys, foundTelegram, plainSigns } from "@/lib/result-view";
+import { signIds, signTexts } from "@/lib/result-view";
+import { extractEntities } from "@/engine/entities";
 import { useLang } from "@/lib/i18n";
 
 
@@ -42,7 +43,7 @@ export default function AnalyzePage() {
       <div className="space-y-4">
         <ScoreBadge score={r.score} label={r.label} size="lg" signals={r.reasons.filter((x) => x.points > 0).length} lang={lang} />
         {lang === "ko" ? <Reasons reasons={r.reasons} /> : (
-          <PlainSigns signs={plainSigns(r.label, r.signalGroups, r.reasons, foundTelegram(communityKeys(null, text), r.reasons), L.result)} note={L.report.enSignsNote} />
+          <PlainSigns signs={signTexts(signIds(r.label, r.reasons, extractEntities(text).map((e) => e.type)), L.result)} note={L.report.enSignsNote} />
         )}
         <div className="rounded-lg border border-zinc-200 bg-white p-3 text-xs">
           <div className="mb-1 font-semibold text-zinc-700">{t.normalized}</div>

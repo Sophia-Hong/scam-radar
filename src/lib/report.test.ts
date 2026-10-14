@@ -19,3 +19,24 @@ describe("publicView", () => {
   });
   it("관리자는 그대로", () => expect(publicView(r, true)).toBe(r));
 });
+
+describe("publicView 연락처·다른 계정 (율 1791947465)", () => {
+  const r = {
+    status: "HIGH", effectiveStatus: "HIGH", humanReview: null, reportId: "SR-x",
+    account: { platform: "threads", handle: "sample_me", url: "https://www.threads.net/@sample_me", bio: "문의 t.me/vip_stock_room77", externalUrl: "https://t.me/vip_stock_room77" },
+    rationale: [{ code: "shared-contact", label: "다른 계정 1개와 동일 연락처 사용", points: 8, evidence: "telegram:vip_stock_room77 → threads:sample_other", what: "w", why: "y", example: "e", benign: "b" }],
+    contacts: [{ id: "telegram:vip_stock_room77", type: "telegram", typeLabel: "텔레그램", value: "vip_stock_room77", source: "text", strong: true }],
+    linkedAccounts: [{ accountId: "threads:sample_other", handle: "sample_other", score: 90, label: "HIGH", via: "telegram:vip_stock_room77" }],
+    evidence: [{ text: "텔레그램 vip_stock_room77 로 오세요 @sample_other" }],
+    summary: { text: "4) 유도 수단: 텔레그램 vip_stock_room77 / 동일 연락처를 쓰는 다른 계정 1개: threads:sample_other", generatedBy: "template" },
+  } as unknown as InvestigationReport;
+  it("연락처 원값·다른 계정 핸들 0, 연결은 수만", () => {
+    const s = JSON.stringify(publicView(r, false));
+    expect(s).not.toMatch(/vip_stock_room77|sample_other/);
+    expect(s).toContain("vi***77");
+    const p = publicView(r, false);
+    expect(p.linkedAccounts).toEqual([]);
+    expect(p.linkedCount).toBe(1);
+    expect(p.account.handle).toBe("sample_me");
+  });
+});

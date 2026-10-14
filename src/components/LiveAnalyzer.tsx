@@ -6,7 +6,8 @@ import { minhash } from "@/engine/minhash";
 import type { ShownReason } from "./Reasons";
 import { DEMO_HANDLE } from "@/lib/copy";
 import { useLang } from "@/lib/i18n";
-import { communityKeys, foundTelegram, keyLabel, plainSigns, shareUrl } from "@/lib/result-view";
+import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "@/lib/result-view";
+import { extractEntities } from "@/engine/entities";
 
 const SAMPLE = "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
 
@@ -16,7 +17,7 @@ const STEP = { LOW: 1, REVIEW: 2, HIGH: 3 } as const;
 type AccountLookup =
   | { status: "idle" }
   | { status: "loading"; handle: string }
-  | { status: "known"; handle: string; label: Label; reasons: ShownReason[]; signalGroups: SignalGroup[]; postCount: number }
+  | { status: "known"; handle: string; label: Label; reasons: ShownReason[]; signalGroups: SignalGroup[]; signs: SignId[]; postCount: number }
   | { status: "paste"; handle: string; profileUrl: string }
   | { status: "demoFail" };
 
@@ -107,9 +108,10 @@ export function LiveAnalyzer() {
 
   const handle = account.status === "known" || account.status === "paste" ? account.handle : null;
   const keys = useMemo(() => {
-    const own = communityKeys(handle, text);
+    // 계정 조회의 글은 공개 응답에서 연락처가 가려져 있다 — 신고·조회 키는 확인한 계정만(가린 값을 키로 쓰지 않게)
+    const own = communityKeys(handle, known ? "" : text);
     return [...own, ...sharedKeys.filter((k) => !own.includes(k))].slice(0, 6);
-  }, [handle, text, sharedKeys]);
+  }, [handle, text, sharedKeys, known]);
   // 비슷한 신고 글 대조용 서명 — 브라우저에서 계산하고 원문은 보내지 않는다. 계정 조회(여러 글을 이은 것)는 대조하지 않는다
   const sig = useMemo(() => (text.trim() && !known ? minhash(text) : null), [text, known]);
   const checkBody = useMemo(() => (keys.length || sig ? JSON.stringify({ keys, sig: sig ?? undefined }) : ""), [keys, sig]);
@@ -138,7 +140,8 @@ export function LiveAnalyzer() {
   const level = result ? (result.label as keyof typeof TONE) : null;
   const positive = result?.reasons.filter((reason) => reason.points > 0) ?? [];
   const reported = keys.filter((k) => (community.counts[k] ?? 0) > 0).sort((a, b) => (community.counts[b] ?? 0) - (community.counts[a] ?? 0));
-  const signs = level ? plainSigns(level, result!.signalGroups, positive, foundTelegram(keys, positive), t.result) : [];
+  // 계정 조회는 서버가 고른 문장 id(내부 코드 없이), 붙여넣은 글은 브라우저가 같은 함수로 고른다
+  const signs = !level ? [] : signTexts(account.status === "known" ? account.signs : signIds(level, positive, extractEntities(text).map((e) => e.type)), t.result);
   const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0 || sharedKeys.length > 0;
 
   function reset() {
@@ -184,6 +187,7 @@ export function LiveAnalyzer() {
           label: (["LOW", "REVIEW", "HIGH"].includes(data.account.label) ? data.account.label : "LOW") as Label,
           reasons: Array.isArray(data.account.reasons) ? data.account.reasons : [],
           signalGroups: Array.isArray(data.account.signalGroups) ? data.account.signalGroups : [],
+          signs: Array.isArray(data.account.signs) ? data.account.signs : [],
           postCount: Number(data.account.postTotal ?? data.posts?.length ?? 0),
         });
         return true;

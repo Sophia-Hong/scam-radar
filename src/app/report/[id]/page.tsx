@@ -7,8 +7,7 @@ import { hasDb } from "@/db";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Reasons } from "@/components/Reasons";
 import { PlainSigns } from "@/components/PlainSigns";
-import { foundTelegram, plainSigns } from "@/lib/result-view";
-import { signalGroupsFromReasons } from "@/lib/visibility";
+import { signIds, signTexts } from "@/lib/result-view";
 import { HumanVerdict } from "@/components/HumanVerdict";
 import { serverLang } from "@/lib/lang-server";
 import { STRINGS } from "@/lib/strings";
@@ -33,7 +32,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const r = publicView(built, admin);
   // 영어 화면: 엔진 원문(한국어) 라벨 대신 쉬운 말 징후 — 내부 코드로 서버에서 계산하고 문장만 내보낸다
   const level = (["HIGH", "REVIEW", "LOW"].includes(built.status) ? built.status : "LOW") as "HIGH" | "REVIEW" | "LOW";
-  const enSigns = plainSigns(level, signalGroupsFromReasons(built.rationale.map((x) => ({ code: x.code ?? "", points: x.points }))), built.rationale, foundTelegram(built.contacts.map((c) => c.id), built.rationale), L.result);
+  const enSigns = signTexts(signIds(level, built.rationale, built.contacts.map((c) => c.type)), L.result);
   return (
     <article className="mx-auto max-w-3xl space-y-8 rounded-lg border border-zinc-200 bg-white p-8 print:border-0 print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 pb-4">
@@ -104,9 +103,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             ))}
           </ul>
         )}
-        <h3 className="mt-4 mb-1 text-sm font-semibold">{t.linked(r.linkedAccounts.length)}</h3>
+        {/* 공개: 다른 계정의 이름·핸들·링크는 보이지 않고 수만 (율 1791947465 조건 1). 관리자는 목록 */}
+        <h3 className="mt-4 mb-1 text-sm font-semibold">{t.linked(r.linkedCount ?? r.linkedAccounts.length)}</h3>
         {r.linkedAccounts.length === 0 ? (
-          <p className="text-sm text-zinc-500">{t.noLinked}</p>
+          (r.linkedCount ?? 0) === 0 && <p className="text-sm text-zinc-500">{t.noLinked}</p>
         ) : (
           <ul className="space-y-1 text-sm">
             {r.linkedAccounts.map((s) => (

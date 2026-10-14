@@ -4,6 +4,7 @@ import { isCurrentSummary, summarizeAccount, SUMMARY_VERSION, summaryModelLabel 
 import { sharedAccountsOf, type SharedAccount } from "./pipeline";
 import { ENTITY_TYPE_LABEL, isStrongEntity, explainReasons, type Reason, type EntityType } from "@/engine";
 import { effectiveStatus, type EffectiveStatus } from "./labels";
+import { contactPairs, maskContact, maskDeep } from "./mask";
 import { onlyVisible, redactSharedContact } from "./visibility";
 
 /** 조사기관 제출용 리포트 — 필드 순서가 곧 신고서 항목 순서 */
@@ -27,6 +28,8 @@ export interface InvestigationReport {
   contacts: { id: string; type: string; typeLabel: string; value: string; source: string; strong?: boolean }[];
   /** 같은 연락처를 쓰는 다른 계정 (동일 운영자·조직 정황) */
   linkedAccounts: SharedAccount[];
+  /** 공개 화면: 연결 계정 목록 대신 수만 (다른 계정의 이름·핸들·링크를 보이지 않음, 율 1791947465 조건 1) */
+  linkedCount?: number;
   /** 증거 캡쳐 */
   evidence: { postUrl: string; parentUrl: string | null; kind: string; postedAt: string | null; capturedAt: string; capture: string | null; text: string; score: number; techniques: string[]; clusterId: string | null }[];
   /** 근거 — 코드·라벨·점수에 더해 사람이 읽을 설명(무엇이/왜/예시/정상 사용) */
@@ -51,17 +54,26 @@ export function publicView(report: InvestigationReport, admin: boolean): Investi
   if (admin) return report;
   const linked = onlyVisible(report.linkedAccounts, (s) => s.accountId, false);
   const trimmed = linked.length !== report.linkedAccounts.length;
-  return {
+  // 공개 화면 연락처 가림·다른 계정 이름 숨김 (율 1791947465 조건 1·2): 연락처 원값 → 가린 값, 연결 계정 id·핸들 → "다른 계정"
+  const otherLabel = "(다른 계정)";
+  const pairs: [string, string][] = [
+    ...contactPairs(report.contacts),
+    ...report.linkedAccounts.flatMap((s) => [[s.accountId, otherLabel], [`@${s.handle}`, otherLabel], [s.handle, otherLabel]] as [string, string][]),
+  ];
+  const view: InvestigationReport = {
     ...report,
     // 공개: 사람 검토 결과·검토자 정보는 싣지 않는다 — 공개 화면에 "사람 검토"·"확정" 표현을 두지 않기로 (소현 10-14, 카이 ④ 검수 3)
     humanReview: null,
     effectiveStatus: report.status,
     // 공개 JSON: 신호 방향만, 크기(가점·감점) 비공개 (소현 10-05). 내부 규칙 코드·연락처 강도 구분도 싣지 않는다 (카이 GASA 검수, 테오 10-14)
     rationale: report.rationale.map(({ code: _code, ...r }, i) => ({ ...r, id: `s${i + 1}`, points: Math.sign(r.points) })),
-    contacts: report.contacts.map(({ strong: _strong, ...c }) => c).sort((a, b) => a.type.localeCompare(b.type) || a.value.localeCompare(b.value)),
-    linkedAccounts: linked,
+    contacts: report.contacts.map(({ strong: _strong, ...c }) => ({ ...c, id: `${c.type}:${maskContact(c.type, c.value)}` })).sort((a, b) => a.type.localeCompare(b.type) || a.value.localeCompare(b.value)),
+    linkedAccounts: [],
+    linkedCount: linked.length,
     summary: trimmed ? { text: "이 계정과 같은 연락처를 쓰는 계정 중 공개 범위 밖의 계정이 있어 요약문을 공개 화면에서 생략했습니다.", generatedBy: "withheld" } : report.summary,
-  };
+  } as InvestigationReport;
+  // 대상 계정 자신(account·reportId)은 가리지 않는다 — 가리는 것은 연락처와 다른 계정
+  return maskDeep(view, pairs, ["handle", "url", "platform", "reportId", "generatedAt", "filing", "id", "type", "source"]);
 }
 
 /** admin 을 주지 않으면 공개용으로 만든다 — 근거 문장(설명문 포함)에 적힌 공개 범위 밖 계정 id 가 처음부터 들어가지 않게 */

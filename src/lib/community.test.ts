@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
 import { accountFromInput } from "@/components/LiveAnalyzer";
 import { minhash } from "@/engine/minhash";
-import { communityKeys, foundTelegram, keyLabel, plainSigns, shareUrl } from "./result-view";
+import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "./result-view";
 import { STRINGS } from "./strings";
 
 describe("신고 장부 키", () => {
@@ -28,22 +28,40 @@ describe("신고 장부 키", () => {
 
 describe("결과 첫 화면", () => {
   const t = STRINGS.en.result;
-  it("쉬운 징후 = 두 줄, 찾은 것만, 최대 3개", () => {
-    const groups = [{ code: "impersonation", active: true }, { code: "evidence", active: false }, { code: "infrastructure", active: true }, { code: "coordination", active: true }];
-    expect(plainSigns("HIGH", groups, [], true, t)).toEqual([t.signs.impersonation, t.signs.infrastructure, t.signs.coordination]);
-    expect(plainSigns("HIGH", groups, [], false, t)[1]).toEqual(t.signChatRoom);          // 텔레그램을 못 찾았으면 "모르는 채팅방"
-    expect(plainSigns("HIGH", groups, [{ code: "term:원금보장", points: 3 }], true, t)[0]).toEqual(t.signGuarantee);
-    expect(plainSigns("LOW", [], [], false, t)).toEqual([]);
-    expect(plainSigns("LOW", groups, [], true, t)).toHaveLength(3);                       // 낮음이어도 찾은 것은 보인다
-    expect(plainSigns("REVIEW", [], [], false, t)).toEqual([t.signFallback]);
-    for (const s of plainSigns("HIGH", groups, [], true, t)) expect(s).toHaveLength(2);
-    expect(foundTelegram(["telegram:vip"], [])).toBe(true);
-    expect(foundTelegram([], [{ code: "term:텔레그램", points: 2 }])).toBe(true);
-    expect(foundTelegram(["kakao_open:abc"], [{ code: "term:카카오", points: 2 }])).toBe(false);
+  // 신호 → 문장 매핑 표 (테오·카이 1791947403, 율 1791947465). 문장은 그 글에서 찾은 사실이 있을 때만
+  const P = (code: string) => ({ code, points: 5 });
+  const CASES: [string, Parameters<typeof signIds>[0], { code?: string; points: number }[], string[], SignId[]][] = [
+    ["보장 어휘", "HIGH", [P("term:원금보장")], [], ["guarantee"]],
+    ["영어 보장", "HIGH", [P("term:en:profit:guaranteed")], [], ["guarantee"]],
+    ["수익 + 서두름", "HIGH", [P("term:급등주"), P("term:선착순")], [], ["conversion"]],
+    ["수익 + 행동 유도", "HIGH", [P("term:무료"), P("cta")], [], ["conversion"]],
+    ["수익만(서두름·행동 유도 없음)은 문장 없음 → 일반", "REVIEW", [P("term:급등주")], [], ["fallback"]],
+    ["텔레그램 링크", "HIGH", [], ["telegram"], ["telegram"]],
+    ["오픈채팅 링크", "HIGH", [], ["kakao_open"], ["chatRoom"]],
+    ["왓츠앱", "HIGH", [], ["whatsapp"], ["chatRoom"]],
+    ["텔레그램 *단어*만(링크·아이디 없음)은 채팅방 문장 없음", "REVIEW", [P("term:텔레그램")], [], ["fallback"]],
+    ["일반 링크·프로필 링크는 문장 없음", "REVIEW", [P("acct:lure-link"), P("pattern:외부 링크")], ["url", "handle"], ["fallback"]],
+    ["서로 다른 계정 근사 중복", "HIGH", [P("spread")], [], ["spreadAccounts"]],
+    ["연락처 공유만", "HIGH", [P("shared-contact")], [], ["sharedContact"]],
+    ["같은 계정 반복", "HIGH", [P("cluster")], [], ["repeatSelf"]],
+    ["같은 댓글 살포", "HIGH", [P("spray")], [], ["repeatSelf"]],
+    ["사칭 구조", "HIGH", [P("impersonate:institution+credential")], [], ["impersonation"]],
+    ["증빙", "HIGH", [P("term:사원증")], [], ["evidence"]],
+    ["난독화", "HIGH", [P("obfuscation")], [], ["normalization"]],
+    ["신원 불일치", "HIGH", [P("identity:country-mismatch")], [], ["identity"]],
+    ["감점 근거는 무시", "LOW", [{ code: "term:원금보장", points: -3 }], [], []],
+    ["낮음 + 아무것도 없음", "LOW", [], [], []],
+    ["순서·최대 3", "HIGH", [P("obfuscation"), P("spread"), P("term:원금보장"), P("cta"), P("term:무료")], ["telegram"], ["guarantee", "conversion", "telegram"]],
+    ["쇼츠 예시(영어)", "HIGH", [P("term:en:profit:guaranteed"), P("term:en:urgency:spots"), P("term:en:contact:tme")], ["telegram"], ["guarantee", "conversion", "telegram"]],
+  ];
+  for (const [name, level, reasons, ents, want] of CASES) it(`매핑: ${name}`, () => expect(signIds(level, reasons, ents)).toEqual(want));
+  it("문장은 모두 두 줄", () => {
+    for (const L of [STRINGS.ko, STRINGS.en]) for (const v of Object.values(L.result.signs)) expect(v).toHaveLength(2);
+    expect(signTexts(["guarantee"], t)[0]).toEqual(t.signs.guarantee);
   });
   it("단정·사람 평가 표현 없음 (율 1791943087)", () => {
     for (const L of [STRINGS.ko, STRINGS.en]) {
-      const shownText = JSON.stringify([L.result.level, L.result.banner, L.result.signs, L.result.signGuarantee, L.result.signFallback, L.community.warn(5, "threads"), L.community.warn(5, "url"), L.result.similar(5), L.result.stop, L.result.disclaimer, L.meta.description]);
+      const shownText = JSON.stringify([L.result.level, L.result.banner, L.result.signs, L.community.warn(5, "threads"), L.community.warn(5, "url"), L.result.similar(5), L.result.stop, L.result.disclaimer, L.meta.description]);
       expect(shownText).not.toMatch(/사기입니다|사기꾼|사기 계정|is a scam\b|scammer\b|fraudster/i);
     }
     expect(STRINGS.ko.meta.title.replace("Scam Radar", "")).not.toMatch(/사기|scam/i);
@@ -66,7 +84,8 @@ describe("결과 첫 화면", () => {
   });
   it("키 라벨", () => {
     expect(keyLabel("threads:sample_vip", STRINGS.ko.community.kind)).toBe("Threads 계정 @sample_vip");
-    expect(keyLabel("telegram:vip", STRINGS.en.community.kind)).toBe("Telegram vip");
+    expect(keyLabel("telegram:vip_room77", STRINGS.en.community.kind)).toBe("Telegram vi***77");
+    expect(keyLabel("phone:01012345678", STRINGS.ko.community.kind)).toBe("전화번호 010-****-5678");
   });
 });
 

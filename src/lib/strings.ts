@@ -9,6 +9,7 @@
 export type Lang = "ko" | "en";
 export type Level = "HIGH" | "REVIEW" | "LOW";
 export type GroupCode = "normalization" | "impersonation" | "evidence" | "conversion" | "infrastructure" | "coordination" | "identity";
+import type { SignId } from "./result-view";
 
 export function langFrom(cookie: string | undefined, acceptLanguage: string | null | undefined): Lang {
   if (cookie === "ko" || cookie === "en") return cookie;
@@ -55,19 +56,21 @@ const ko = {
     } as Record<Level, { title: string; sub: string }>,
     engine: { checking: "AI가 한 번 더 보는 중…", applied: "AI 재검토 반영", error: "AI 재검토 실패 · 규칙 결과", rule: "자동 분석" },
     signsTitle: "이런 점이 이상해요",
-    signFallback: ["사기 글에서 자주 보이는 말이 여러 개 있어요.", "돈 이야기가 나오면 한 번 더 확인하세요."] as [string, string],
-    signGuarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."] as [string, string],
+    // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
-      infrastructure: ["텔레그램 같은 채팅방으로 오라고 해요.", "사기는 이렇게 모르는 방으로 데려가는 일이 많아요."],
+      guarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
       conversion: ["큰 수익이나 공짜 정보를 주겠다며 지금 하라고 해요.", "서두르게 하는 말은 생각할 시간을 빼앗아요."],
+      telegram: ["텔레그램 같은 채팅방으로 오라고 해요.", "사기는 이렇게 모르는 방으로 데려가는 일이 많아요."],
+      chatRoom: ["모르는 채팅방으로 오라고 해요.", "사기는 이렇게 다른 방으로 데려가서 돈 얘기를 해요."],
       impersonation: ["증권사나 큰 회사 직원이라고 소개해요.", "진짜 직원이 SNS에서 모르는 사람에게 투자 정보를 주는 일은 거의 없어요."],
       evidence: ["사원증이나 월급명세서 같은 ‘증거’를 보여 줘요.", "이런 사진은 쉽게 꾸며 만들 수 있어요."],
+      spreadAccounts: ["똑같은 글이 여러 계정에 올라와 있어요.", "사기 글은 이렇게 여러 계정에 뿌려지는 일이 많아요."],
+      sharedContact: ["같은 연락처를 쓰는 다른 계정이 있어요.", "사기에서는 여러 계정을 만들어 한 연락처로 사람을 모으기도 해요."],
+      repeatSelf: ["같은 글을 여러 번 되풀이해 올렸어요.", "사기 글은 이렇게 반복해서 뿌려지는 일이 많아요."],
       normalization: ["글자를 일부러 이상하게 바꿔 썼어요.", "검사를 피하려고 이렇게 쓰는 일이 많아요."],
-      coordination: ["똑같은 글이 여러 계정에 올라와 있어요.", "사기 글은 이렇게 여러 계정에 뿌려지는 일이 많아요."],
       identity: ["글의 자기소개와 계정 정보가 서로 달라요.", "사는 곳이나 하는 일을 꾸며 낸 경우가 있어요."],
-    } as Record<GroupCode, [string, string]>,
-    // 다른 채팅방 이동 — 텔레그램을 실제로 찾았으면 signs.infrastructure, 아니면 이 문장 (율 #compliance 1791944215)
-    signChatRoom: ["모르는 채팅방으로 오라고 해요.", "사기는 이렇게 다른 방으로 데려가서 돈 얘기를 해요."] as [string, string],
+      fallback: ["사기 글에서 자주 보이는 말이 여러 개 있어요.", "돈 이야기가 나오면 한 번 더 확인하세요."],
+    } as Record<SignId, [string, string]>,
     similar: (n: number) => `비슷한 글을 조심하라는 신고 ${n}건`,
     // 모든 결과 화면에 위험도와 상관없이 똑같이 — 계정 이야기가 아니라 일반 안내 (율 1791944215). 출처 표기는 금감원 원문 대조 뒤
     stopTitle: "이런 말을 들으면 멈추세요",
@@ -225,18 +228,20 @@ const en: Strings = {
     },
     engine: { checking: "AI taking a second look…", applied: "AI second look applied", error: "AI unavailable · rule result", rule: "Automated check" },
     signsTitle: "What looks wrong",
-    signFallback: ["It uses several phrases common in scam messages.", "Double-check before any money is involved."],
-    signGuarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
     signs: {
-      infrastructure: ["It asks you to move to a chat app like Telegram.", "Scams often pull you into a private chat."],
+      guarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
       conversion: ["It offers big profits or free tips and tells you to act now.", "Rushing you leaves no time to think."],
+      telegram: ["It asks you to move to a chat app like Telegram.", "Scams often pull you into a private chat."],
+      chatRoom: ["It asks you to join a chat room you don't know.", "Scams often move you to another chat to talk about money."],
       impersonation: ["It says the writer works at a brokerage or big company.", "Real employees rarely give investment tips to strangers online."],
       evidence: ["It shows “proof” like a staff ID or pay slip.", "Pictures like these are easy to fake."],
+      spreadAccounts: ["The same text appears on many accounts.", "Scam posts are often spread this way."],
+      sharedContact: ["Another account uses the same contact.", "In scams, several accounts sometimes gather people through one contact."],
+      repeatSelf: ["This account posted the same message many times.", "Scam posts are often spread like this, over and over."],
       normalization: ["Some letters are changed on purpose.", "This is often done to slip past filters."],
-      coordination: ["The same text appears on many accounts.", "Scam posts are often spread this way."],
       identity: ["The self-introduction doesn't match the account details.", "Where someone lives or works is sometimes made up."],
+      fallback: ["It uses several phrases common in scam messages.", "Double-check before any money is involved."],
     },
-    signChatRoom: ["It asks you to join a chat room you don't know.", "Scams often move you to another chat to talk about money."],
     similar: (n: number) => `${n} reports about messages like this`,
     stopTitle: "Stop if you hear this",
     stop: [

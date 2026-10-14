@@ -15,6 +15,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
   const entityId = decodeParam(id).toLowerCase();
   const admin = checkAdmin(req);
+  // 연락처 하나에 묶인 계정 목록 = 다른 계정의 이름·핸들 + 연락처 원값 — 공개 화면에 두지 않는다(율 1791947465 조건 1·2). 관리자만
+  if (!admin) return json({ found: false, id: entityId, message: "해당 연락처로 수집된 기록 없음" }, 404);
   const d = db();
   const [ent] = await d.select().from(schema.entities).where(eq(schema.entities.id, entityId)).limit(1);
   if (!ent) return json({ found: false, id: entityId, message: "해당 연락처로 수집된 기록 없음" }, 404);
