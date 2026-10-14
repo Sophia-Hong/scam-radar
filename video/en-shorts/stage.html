@@ -1,0 +1,190 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Scam Radar 영어 쇼츠 (문구 = 제품 on/gasa-screen 4e09811 · 율 최종) (테오 ⑤ 10-14, 문안 = theo-workspace reports/scam-radar/2026-10-14-gasa-english-v2.md).
+     Merlex v3.1 틀 재사용: render(t) 하나가 시각 t(초)의 화면 전부를 정한다 → record.js 가 30fps 로 한 장씩.
+     ?ar=v (1080×1920 쇼츠) | ?ar=h (1920×1080 사이트용, 무음).
+     화면 문구는 제품(on/gasa-screen 180b67e)과 같은 문장. 예시 글은 합성이며, 영어 엔진(theo/en-engine 1f7824b)에서 실제로 HIGH(95) —
+     징후 3개(보장 문구·수익 미끼+행동 요구·다른 채팅방 이동)도 그 결과의 신호군 그대로. 신고 수 "3"은 합성 시연 값. -->
+<style>
+@font-face{font-family:P;src:url(fonts/Pretendard-Regular.woff2);font-weight:400}
+@font-face{font-family:P;src:url(fonts/Pretendard-SemiBold.woff2);font-weight:600}
+@font-face{font-family:P;src:url(fonts/Pretendard-Bold.woff2);font-weight:700}
+@font-face{font-family:P;src:url(fonts/Pretendard-ExtraBold.woff2);font-weight:800}
+:root{--paper:#f4f2ec;--ink:#11110f;--sub:#66645d;--line:#d8d6cf;--go:#f04428;--red:#c8260f;--acid:#d8ff3e;--pink:#fff1ec}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);font-family:P;color:var(--ink);overflow:hidden;letter-spacing:-.02em}
+#v{position:relative;overflow:hidden;background:var(--paper)}
+.abs{position:absolute}
+.label{position:absolute;left:0;right:0;text-align:center;font-weight:600;color:#8e8b83}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.03em}
+.ring{border:5px solid var(--ink);border-radius:50%;box-shadow:9px 0 0 -4px var(--go)}
+.cap{font-weight:800;letter-spacing:-.045em;line-height:1.12}
+.cap em{font-style:normal;background:var(--acid);padding:0 .12em}
+.card{background:#fff;border:2px solid var(--ink);box-shadow:14px 14px 0 var(--ink)}
+.post{padding:30px 32px;line-height:1.45}
+.post .who{display:flex;align-items:center;gap:14px;font-weight:700}
+.post .av{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#8e8b83,#4a4842)}
+.post .badge{margin-top:18px;border:3px dashed #b9b7b0;border-radius:14px;display:grid;place-items:center;color:#9b9992;font-weight:600}
+.syn{display:inline-block;background:var(--acid);color:var(--ink);font-weight:800;letter-spacing:.06em;padding:4px 10px}
+.input{padding:26px 30px;line-height:1.5;font-weight:500;background:#faf9f6}
+.caret{display:inline-block;width:3px;background:var(--ink);margin-left:2px;vertical-align:-4px}
+.go{display:flex;align-items:center;justify-content:center;background:var(--go);color:#fff;font-weight:800}
+.banner{background:var(--red);color:#fff;padding:30px 32px}
+.banner b{display:block;font-weight:800;letter-spacing:-.045em;line-height:1.05}
+.banner span{display:block;font-weight:700;line-height:1.3;margin-top:12px}
+.sign{position:relative;background:var(--pink);font-weight:700;line-height:1.35}
+.sign i{position:absolute;border-radius:50%;background:var(--red);color:#fff;font-style:normal;font-weight:800;display:grid;place-items:center}
+.warn{border:2px solid #e3a395;background:var(--pink);color:#8a1f10;font-weight:800}
+.btn{display:flex;align-items:center;justify-content:center;font-weight:800;border:3px solid var(--ink)}
+.sheet{background:#fff;border-radius:34px 34px 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.18)}
+.app{display:flex;flex-direction:column;align-items:center;gap:10px;font-weight:600;color:var(--sub)}
+.app i{display:block;border-radius:22px}
+.cursor{position:absolute;width:34px;height:44px;z-index:50}
+.tap{position:absolute;border-radius:50%;border:4px solid var(--ink);z-index:49}
+</style>
+<body><div id="v"></div>
+<script>
+const AR = new URLSearchParams(location.search).get("ar") || "v";
+const W = AR === "v" ? 1080 : 1920, H = AR === "v" ? 1920 : 1080, V = AR === "v";
+const S = V ? 1.22 : 0.86;
+const v = document.getElementById("v"); v.style.width = W + "px"; v.style.height = H + "px";
+const T = 38.0;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const p = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => 1 - Math.pow(1 - x, 3);
+const inout = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const px = (n) => Math.round(n * S) + "px";
+
+const MSG = "I'm a senior analyst at a big brokerage. Guaranteed returns, no risk. Limited spots — join our free Telegram group t.me/alpha_signals77 now";
+const TYPE_A = 10.0, TYPE_B = 14.0;
+const SIGNS = [["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
+               ["It offers big profits or free tips and tells you to act now.", "Rushing you leaves no time to think."],
+               ["It asks you to move to a chat app like Telegram.", "Scams often pull you into a private chat."]];
+window.KEYS = [];
+for (let i = 0; i < MSG.length; i += 2) if (MSG[i] !== " ") window.KEYS.push(+(TYPE_A + (TYPE_B - TYPE_A) * i / MSG.length).toFixed(3));
+window.POPS = [5.6, 9.2, 14.6, 15.4, 17.6, 18.3, 19.0, 25.6, 26.4, 30.6, 34.4];
+window.T = T;
+
+const cursorSVG = `<svg viewBox="0 0 34 44"><path d="M2,2 L2,36 L11,28 L17,42 L23,39 L17,26 L30,26 Z" fill="#11110f" stroke="#fff" stroke-width="2.5"/></svg>`;
+
+function caption(t, a, b, html, y) {
+  const k = p(t, a, a + .35) * (1 - p(t, b - .3, b));
+  if (k <= 0) return "";
+  return `<div class="abs cap" style="left:${px(V ? 70 : 110)};right:${px(V ? 70 : 1000)};top:${y}px;font-size:${px(V ? 70 : 68)};opacity:${k};transform:translateY(${(1 - ease(p(t, a, a + .35))) * 24}px)">${html}</div>`;
+}
+function tapAt(t, a, x, y) {
+  const k = p(t, a, a + .45);
+  if (k <= 0 || k >= 1) return "";
+  const r = 20 + 70 * ease(k);
+  return `<div class="tap" style="left:${x - r}px;top:${y - r}px;width:${2 * r}px;height:${2 * r}px;opacity:${1 - k}"></div>`;
+}
+function post(x, y, w, extra = "") {
+  return `<div class="abs card post" style="left:${x}px;top:${y}px;width:${w}px;font-size:${px(V ? 36 : 32)};${extra}">
+    <div class="who" style="font-size:${px(V ? 30 : 26)}"><span class="av"></span>alpha_desk_kr <span style="color:#9b9992;font-weight:500">· 2h</span></div>
+    <div style="margin-top:${px(16)}">${MSG}</div>
+    <div class="badge" style="height:${px(V ? 200 : 150)};font-size:${px(24)}">staff ID photo</div></div>`;
+}
+
+function render(t) {
+  let h = "";
+  const top = V ? 250 : 200;
+  const ox = V ? 70 : 980, cw = V ? W - 140 : 840;
+  const cy = V ? 560 : 150;
+  h += `<div class="label" style="top:${px(V ? 64 : 34)};font-size:${px(24)}"><span class="syn" style="font-size:${px(20)}">SYNTHETIC EXAMPLE</span> &nbsp;not a real account · product screen recreated</div>`;
+  h += `<div class="abs brand" style="left:${px(V ? 70 : 110)};top:${px(V ? 130 : 96)};font-size:${px(38)}"><span class="ring" style="width:${px(22)};height:${px(22)}"></span>SCAM RADAR</div>`;
+
+  // ① 그럴듯한 사람
+  if (t < 9.4) {
+    h += caption(t, -1, 5.6, `He says he works at<br>a <em>big brokerage</em>.`, top);
+    h += caption(t, 5.8, 9.2, `Then posts it from<br><em>dozens of accounts</em>.`, top);
+    const k = ease(p(t, 0, .5)), out = ease(p(t, 8.8, 9.4));
+    const n = Math.floor(1 + 7 * ease(p(t, 5.8, 8.4)));
+    for (let i = n - 1; i >= 1; i--) {
+      const dx = (i % 2 ? 1 : -1) * (22 + i * 9), dy = i * (V ? 54 : 30), rot = (i % 2 ? 1 : -1) * (1.5 + i * .7);
+      h += post(ox + dx, cy + dy, cw, `opacity:${(1 - out) * .9};transform:rotate(${rot}deg) scale(${1 - i * .03});filter:saturate(.6)`);
+    }
+    h += post(ox, cy + (1 - k) * 60, cw, `opacity:${k * (1 - out)}`);
+  }
+  // ② 붙여넣기 — 타이핑 → 확인하기
+  if (t >= 9.0 && t < 15.6) {
+    h += caption(t, 9.2, 15.4, `Before you send money,<br><em>paste it here</em>.`, top);
+    const k = ease(p(t, 9.0, 9.6)), out = ease(p(t, 15.0, 15.6));
+    const n = Math.floor(MSG.length * p(t, TYPE_A, TYPE_B));
+    const blink = (Math.floor(t * 2) % 2 === 0) || (t > TYPE_A && t < TYPE_B);
+    const by = cy + (V ? 560 : 470);
+    h += `<div class="abs" style="left:${ox}px;top:${cy + (1 - k) * 60}px;width:${cw}px;opacity:${k * (1 - out)}">
+      <div class="card" style="padding:${px(28)}">
+        <div style="font-weight:800;font-size:${px(V ? 40 : 34)};line-height:1.2;margin-bottom:${px(18)}">Before you send money, paste what you received here</div>
+        <div class="input" style="border:3px solid var(--ink);font-size:${px(V ? 36 : 30)};min-height:${px(V ? 300 : 250)}">${MSG.slice(0, n)}<span class="caret" style="height:${px(V ? 40 : 34)};opacity:${blink ? 1 : 0}"></span></div>
+        <div class="go" style="margin-top:${px(16)};height:${px(V ? 96 : 80)};font-size:${px(V ? 40 : 34)};transform:scale(${1 - .05 * Math.sin(Math.PI * p(t, 14.55, 14.85))})">Check</div>
+      </div></div>`;
+    if (t > 13.6) {
+      const m = inout(p(t, 13.6, 14.5)), cx0 = ox + cw * .85, cy0 = by + 300, cx1 = ox + cw * .55, cy1 = by + (V ? 30 : 20);
+      h += `<div class="cursor" style="left:${cx0 + (cx1 - cx0) * m}px;top:${cy0 + (cy1 - cy0) * m}px;opacity:${1 - out}">${cursorSVG}</div>`;
+      h += tapAt(t, 14.55, cx1 + 6, cy1 + 6);
+    }
+  }
+  // ③ 결과 — 배너 · 쉬운 징후
+  if (t >= 15.2 && t < 25.0) {
+    h += caption(t, 15.4, 20.6, `A plain answer.<br>No jargon.`, top);
+    h += caption(t, 20.8, 24.8, `Signs anyone<br><em>can understand</em>.`, top);
+    const k = ease(p(t, 15.2, 15.8)), out = ease(p(t, 24.4, 25.0));
+    let signs = "";
+    SIGNS.forEach((s, i) => {
+      const sk = ease(p(t, 17.6 + i * .7, 18.1 + i * .7));
+      signs += `<div class="sign" style="margin-top:${px(14)};padding:${px(18)} ${px(20)} ${px(18)} ${px(70)};font-size:${px(V ? 32 : 27)};opacity:${sk};transform:translateX(${(1 - sk) * 40}px)"><i style="left:${px(18)};top:${px(18)};width:${px(36)};height:${px(36)};font-size:${px(22)}">!</i><b style="display:block">${s[0]}</b><span style="display:block;font-weight:500;color:#45433d;font-size:.84em;margin-top:4px">${s[1]}</span></div>`;
+    });
+    h += `<div class="abs card" style="left:${ox}px;top:${cy - 40 + (1 - k) * 60}px;width:${cw}px;padding:${px(26)};opacity:${k * (1 - out)}">
+      <div style="font-weight:800;font-size:${px(26)};display:flex;gap:12px;align-items:center">Warning signs: high <span style="display:inline-flex;gap:5px">${`<i style="display:inline-block;width:${px(24)};height:${px(11)};background:var(--ink)"></i>`.repeat(3)}</span></div>
+      <div class="banner" style="margin-top:${px(14)};transform:scale(${.96 + .04 * k})"><b style="font-size:${px(V ? 64 : 54)}">This could be a scam.</b><span style="font-size:${px(V ? 32 : 27)}">Before you send money, ask your family or your bank first.</span></div>
+      <div style="margin-top:${px(10)};font-size:${px(V ? 21 : 18)};color:var(--sub);line-height:1.45">A computer checked these posts automatically. This does not mean this person committed fraud.</div>
+      <div style="margin-top:${px(16)};font-weight:800;font-size:${px(V ? 30 : 26)}">What looks wrong</div>${signs}</div>`;
+  }
+  // ④ 피해자가 다음 사람을 지킨다
+  if (t >= 24.6 && t < 30.4) {
+    h += caption(t, 24.8, 30.2, `If you were scammed,<br><em>warn the next person</em>.`, top);
+    const k = ease(p(t, 24.6, 25.2)), out = ease(p(t, 29.8, 30.4));
+    const reported = t > 26.4;
+    const by = cy + (V ? 40 : 30);
+    h += `<div class="abs" style="left:${ox}px;top:${by + (1 - k) * 60}px;width:${cw}px;opacity:${k * (1 - out)}">
+      <div class="btn" style="height:${px(V ? 96 : 80)};font-size:${px(V ? 36 : 30)};background:${reported ? "var(--ink)" : "#fff"};color:${reported ? "#fff" : "var(--ink)"};transform:scale(${1 - .05 * Math.sin(Math.PI * p(t, 25.6, 25.9))})">${reported ? "Reported ✓" : "I was scammed · report it"}</div>
+      <div style="margin-top:${px(16)};font-size:${px(V ? 26 : 22)};color:var(--sub);line-height:1.45;opacity:${ease(p(t, 26.4, 26.9))}">Account, link or contact — and a similarity signature of the message, never the text itself.</div></div>`;
+    const wk = ease(p(t, 27.2, 27.8));
+    if (wk > 0) {
+      h += `<div class="abs" style="left:${ox}px;top:${by + (V ? 420 : 330) + (1 - wk) * 40}px;width:${cw}px;opacity:${wk * (1 - out)}">
+        <div style="font-weight:700;color:var(--sub);font-size:${px(V ? 26 : 22)};margin-bottom:${px(10)}">The next person who checks it sees:</div>
+        <div class="warn" style="padding:${px(22)} ${px(24)};font-size:${px(V ? 34 : 28)}">⚠ 3 people reported a message like this<div style="font-weight:600;font-size:${px(V ? 22 : 19)};margin-top:${px(6)}">(we have not checked these reports)</div></div></div>`;
+    }
+    if (t < 26.0) {
+      const m = inout(p(t, 24.9, 25.6)), cx0 = ox + cw * .8, cy0 = by + 380, cx1 = ox + cw * .5, cy1 = by + (V ? 50 : 40);
+      h += `<div class="cursor" style="left:${cx0 + (cx1 - cx0) * m}px;top:${cy0 + (cy1 - cy0) * m}px">${cursorSVG}</div>`;
+    }
+    h += tapAt(t, 25.6, ox + cw * .5 + 6, by + (V ? 56 : 46));
+  }
+  // ⑤ 부모님께 한 번에
+  if (t >= 30.0 && t < 34.6) {
+    h += caption(t, 30.2, 34.4, `Share it with someone<br>you <em>care about</em>.`, top);
+    const k = ease(p(t, 30.0, 30.6)), out = ease(p(t, 34.0, 34.6)), sk = ease(p(t, 30.7, 31.3));
+    const pw = V ? 640 : 520, ph = V ? 1080 : 760, pxx = V ? (W - pw) / 2 : 1130, pyy = V ? 600 : 230;
+    const apps = [["Messages", "#34c759"], ["KakaoTalk", "#fee500"], ["WhatsApp", "#25d366"], ["Copy link", "#d8d6cf"]];
+    h += `<div class="abs" style="left:${pxx}px;top:${pyy + (1 - k) * 60}px;width:${pw}px;height:${ph}px;border:10px solid var(--ink);border-radius:64px;background:var(--paper);overflow:hidden;opacity:${k * (1 - out)}">
+      <div style="margin:${px(70)} ${px(26)} 0;background:var(--acid);border:2px solid var(--ink);padding:${px(18)};font-weight:800;font-size:${px(V ? 24 : 21)};line-height:1.35">Anyone can get a strange investment offer. Send this page to someone you care about.
+        <div style="margin-top:${px(12)};background:var(--ink);color:#fff;width:max-content;padding:${px(10)} ${px(16)}">Share with someone you care about</div></div>
+      <div class="abs sheet" style="left:0;right:0;bottom:0;height:${ph * .52}px;transform:translateY(${(1 - sk) * 100}%);padding:${px(28)}">
+        <div style="font-size:${px(V ? 23 : 20)};font-weight:600;line-height:1.4;padding:${px(16)};background:#f4f2ec;border-radius:18px">Got a strange investment tip or link? Check it here first.<div style="color:#2d5bd7;margin-top:${px(6)}">scam-radar-sooty.vercel.app</div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:${px(28)}">${apps.map(([n, c]) => `<div class="app" style="font-size:${px(V ? 18 : 16)}"><i style="width:${px(V ? 92 : 78)};height:${px(V ? 92 : 78)};background:${c}"></i>${n}</div>`).join("")}</div></div></div>`;
+  }
+  // ⑥ 끝 카드
+  if (t >= 34.2) {
+    const k = ease(p(t, 34.2, 34.9));
+    h += `<div class="abs" style="left:${px(V ? 70 : 110)};right:${px(V ? 70 : 110)};top:${V ? 620 : 300}px;opacity:${k};transform:translateY(${(1 - k) * 30}px)">
+      <div class="brand" style="font-size:${px(V ? 92 : 84)}"><span class="ring" style="width:${px(54)};height:${px(54)};border-width:9px"></span>SCAM RADAR</div>
+      <div class="cap" style="font-size:${px(V ? 64 : 60)};margin-top:${px(30)}">Check before<br>you <em>send money</em>.</div>
+      <div style="margin-top:${px(34)};font-size:${px(V ? 30 : 28)};font-weight:700;color:var(--sub)">Free · by LegalFriend</div></div>
+      <div class="abs" style="left:${px(V ? 70 : 110)};right:${px(V ? 70 : 110)};bottom:${px(V ? 110 : 60)};font-size:${px(20)};color:#8e8b83;line-height:1.45;opacity:${k}">A computer checks posts automatically. A result does not mean any person committed fraud.</div>`;
+  }
+  v.innerHTML = h;
+}
+window.render = render;
+render(+(new URLSearchParams(location.search).get("t") || 0));
+</script>
