@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeKey, normalizeKeys, reporterId } from "./community";
-import { communityKeys, keyLabel, oneLineReason, shareUrl } from "./result-view";
+import { MIN_DISPLAY, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
+import { accountFromInput } from "@/components/LiveAnalyzer";
+import { minhash } from "@/engine/minhash";
+import { communityKeys, keyLabel, plainSigns, shareUrl } from "./result-view";
 import { STRINGS } from "./strings";
 
 describe("신고 장부 키", () => {
@@ -26,11 +28,20 @@ describe("신고 장부 키", () => {
 
 describe("결과 첫 화면", () => {
   const t = STRINGS.en.result;
-  it("이유 한 줄 = 켜진 신호군 최대 2개", () => {
+  it("쉬운 징후 = 게시물 사실, 최대 3개, 낮음은 없음", () => {
     const groups = [{ code: "impersonation", active: true }, { code: "evidence", active: false }, { code: "infrastructure", active: true }, { code: "coordination", active: true }];
-    expect(oneLineReason("HIGH", groups, true, t)).toBe(`${t.groups.impersonation} · ${t.groups.infrastructure}`);
-    expect(oneLineReason("LOW", [], false, t)).toBe(t.whyNone);
-    expect(oneLineReason("REVIEW", [], true, t)).toBe(t.whyFallback);
+    expect(plainSigns("HIGH", groups, [], t)).toEqual([t.signs.impersonation, t.signs.infrastructure, t.signs.coordination]);
+    expect(plainSigns("HIGH", groups, [{ code: "term:원금보장", points: 3 }], t)[0]).toBe(t.signGuarantee);
+    expect(plainSigns("LOW", groups, [], t)).toEqual([]);
+    expect(plainSigns("REVIEW", [], [], t)).toEqual([t.signFallback]);
+  });
+  it("단정·사람 평가 표현 없음 (율 1791943087)", () => {
+    for (const L of [STRINGS.ko, STRINGS.en]) {
+      const shownText = JSON.stringify([L.result.level, L.result.banner, L.result.signs, L.result.signGuarantee, L.result.signFallback, L.community.warn(5), L.result.similar(5), L.meta.description]);
+      expect(shownText).not.toMatch(/사기입니다|사기꾼|사기 계정|is a scam\b|scammer\b|fraudster/i);
+    }
+    expect(STRINGS.ko.meta.title.replace("Scam Radar", "")).not.toMatch(/사기|scam/i);
+    expect(STRINGS.en.meta.title.replace("Scam Radar", "")).not.toMatch(/사기|scam/i);
   });
   it("조회 키 = 계정 + 글 속 연락처, 원문 없음", () => {
     const text = "급등주 무료 공개 텔레그램 t.me/vip_room77 문의 010-1234-5678";
@@ -50,5 +61,25 @@ describe("결과 첫 화면", () => {
   it("키 라벨", () => {
     expect(keyLabel("threads:sample_vip", STRINGS.ko.community.kind)).toBe("Threads 계정 @sample_vip");
     expect(keyLabel("telegram:vip", STRINGS.en.community.kind)).toBe("Telegram vip");
+  });
+});
+
+describe("신고 표시 조건", () => {
+  it("서로 다른 신고자 3명 미만은 숫자를 내보내지 않음", () => {
+    expect(MIN_DISPLAY).toBe(3);
+    expect([0, 1, 2, 3, 7].map(shown)).toEqual([0, 0, 0, 3, 7]);
+  });
+  it("서명 형식 — 브라우저 minhash 그대로만", () => {
+    expect(validSig(minhash("텔레그램 무료 리딩방 입장"))).not.toBeNull();
+    expect(validSig([1, 2, 3])).toBeNull();
+    expect(validSig(new Array(128).fill(-1))).toBeNull();
+    expect(validSig(new Array(128).fill(1.5))).toBeNull();
+  });
+  it("한 칸 입력: @핸들·Threads 주소만 계정, 나머지는 글", () => {
+    expect(accountFromInput("@sample_vip")).toBe("sample_vip");
+    expect(accountFromInput("https://www.threads.com/@sample_vip")).toBe("sample_vip");
+    expect(accountFromInput("sample_vip")).toBeNull();
+    expect(accountFromInput("t.me/vip_room")).toBeNull();
+    expect(accountFromInput("@a 텔레그램으로 오세요")).toBeNull();
   });
 });

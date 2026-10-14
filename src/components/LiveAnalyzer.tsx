@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { scoreText, type Label, type SignalGroup } from "@/engine";
+import { minhash } from "@/engine/minhash";
 import type { ShownReason } from "./Reasons";
 import { DEMO_HANDLE } from "@/lib/copy";
 import { useLang } from "@/lib/i18n";
-import { communityKeys, keyLabel, oneLineReason, shareUrl } from "@/lib/result-view";
-import { HeroSample } from "./HeroSample";
+import { communityKeys, keyLabel, plainSigns, shareUrl } from "@/lib/result-view";
 
-const SAMPLE = "급등주 종목 무료로 공개합니다. 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
+const SAMPLE = "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
 
 const TONE = { HIGH: "risk-high", REVIEW: "risk-review", LOW: "risk-low" } as const;
 const STEP = { LOW: 1, REVIEW: 2, HIGH: 3 } as const;
@@ -16,20 +16,40 @@ const STEP = { LOW: 1, REVIEW: 2, HIGH: 3 } as const;
 type AccountLookup =
   | { status: "idle" }
   | { status: "loading"; handle: string }
-  | { status: "known"; handle: string; profileUrl: string; label: Label; reasons: ShownReason[]; signalGroups: SignalGroup[]; postCount: number; profileCountry?: string | null; sharedAccounts: number }
+  | { status: "known"; handle: string; label: Label; reasons: ShownReason[]; signalGroups: SignalGroup[]; postCount: number }
   | { status: "paste"; handle: string; profileUrl: string }
-  | { status: "unsupported" }
-  | { status: "error"; message: "invalid" | "demoFail" };
+  | { status: "demoFail" };
 
 type LiveResult = {
   score: number;
   label: Label;
   reasons: ShownReason[];
   signalGroups: SignalGroup[];
-  modelReview?: { verdict: "scam" | "benign" | "unsure"; confidence: number; rationale: string; model: string } | null;
 };
 
-type Registry = { status: "closed" } | { status: "open"; picked: string[] } | { status: "sending"; picked: string[] } | { status: "done" } | { status: "limited" } | { status: "failed" };
+type Check = { counts: Record<string, number>; similar: number; underReview: string[] };
+type PanelStatus = "closed" | "open" | "sending" | "done" | "limited" | "failed";
+type Registry = { status: PanelStatus; picked: string[]; withText: boolean };
+type Review = { status: PanelStatus; contact: string; message: string; id?: string };
+const NO_REGISTRY: Registry = { status: "closed", picked: [], withText: false };
+const NO_REVIEW: Review = { status: "closed", contact: "", message: "" };
+
+/** 공유창(모바일) 또는 복사 — 성공 여부만 돌려준다 */
+async function shareOrCopy(title: string, text: string, url: string): Promise<"shared" | "copied" | "failed"> {
+  if (typeof navigator.share === "function" && window.matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title, text, url }); return "shared"; } catch (e) { if ((e as Error).name === "AbortError") return "shared"; }
+  }
+  try { await navigator.clipboard.writeText(`${text} ${url}`); return "copied"; } catch { return "failed"; }
+}
+
+/** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
+export function accountFromInput(value: string): string | null {
+  const v = value.trim();
+  if (!v || /\s/.test(v)) return null;
+  if (!v.startsWith("@") && !/threads\.(?:com|net)\//i.test(v)) return null;
+  const c = classifyInput(v);
+  return c.kind === "handle" ? c.handle : null;
+}
 
 const TLDS = "com|net|org|kr|co|io|me|shop|store|site|online|xyz|top|vip|app|dev|ai|info|biz|cc|tv|ly|link|click|club|live|page";
 
@@ -50,23 +70,23 @@ export function classifyInput(value: string): { kind: "handle"; handle: string }
 
 export function LiveAnalyzer() {
   const { t } = useLang();
+  const [input, setInput] = useState("");
   const [text, setText] = useState("");
-  const [accountQuery, setAccountQuery] = useState("");
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
-  const [manualOverride, setManualOverride] = useState(false);
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
   const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle");
   const [sharedKeys, setSharedKeys] = useState<string[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [registry, setRegistry] = useState<Registry>({ status: "closed" });
+  const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0, underReview: [] });
+  const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
+  const [review, setReview] = useState<Review>(NO_REVIEW);
+  const [familyMsg, setFamilyMsg] = useState<"" | "copied" | "failed">("");
   const [shareMsg, setShareMsg] = useState<"" | "copied" | "failed">("");
 
-  useEffect(() => {
-    if (!textResult || !textResult.needsLlmReview || (account.status === "known" && !manualOverride)) {
-      return;
-    }
+  const known = account.status === "known";
 
+  useEffect(() => {
+    if (!textResult || !textResult.needsLlmReview || known) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setAiStatus("checking");
@@ -84,74 +104,71 @@ export function LiveAnalyzer() {
       } catch (error) {
         if ((error as Error).name !== "AbortError") setAiStatus("error");
       }
-    }, 900);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [text, textResult, account.status, manualOverride]);
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [text, textResult, known]);
 
   const handle = account.status === "known" || account.status === "paste" ? account.handle : null;
   const keys = useMemo(() => {
     const own = communityKeys(handle, text);
     return [...own, ...sharedKeys.filter((k) => !own.includes(k))].slice(0, 6);
   }, [handle, text, sharedKeys]);
-  const keysParam = keys.join("\n");
+  // 비슷한 신고 글 대조용 서명 — 브라우저에서 계산하고 원문은 보내지 않는다. 계정 조회(여러 글을 이은 것)는 대조하지 않는다
+  const sig = useMemo(() => (text.trim() && !known ? minhash(text) : null), [text, known]);
+  const checkBody = useMemo(() => (keys.length || sig ? JSON.stringify({ keys, sig: sig ?? undefined }) : ""), [keys, sig]);
 
-  // 이용자 신고 수 — 키가 바뀌면 잠깐 기다렸다 한 번 조회
+  // 이용자 신고 수·비슷한 신고 글·검토 중 여부 — 입력이 정해질 때마다 한 번
   useEffect(() => {
-    if (!keysParam) return;   // 화면은 지금 키의 수만 읽으므로 지난 값은 비우지 않아도 된다
+    if (!checkBody) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
-        const q = new URLSearchParams();
-        for (const k of keysParam.split("\n")) q.append("k", k);
-        const response = await fetch(`/api/community?${q}`, { cache: "no-store", signal: controller.signal });
+        const response = await fetch("/api/community/check", { method: "POST", headers: { "content-type": "application/json" }, body: checkBody, cache: "no-store", signal: controller.signal });
         const data = await response.json().catch(() => null);
-        if (response.ok && data?.counts) setCounts(data.counts as Record<string, number>);
+        if (response.ok && data?.counts) setCommunity(data as Check);
       } catch { /* 신고 수는 보조 정보 — 실패해도 판독은 그대로 */ }
-    }, 500);
+    }, 200);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [keysParam]);
+  }, [checkBody]);
 
   const currentServerResult = serverResult?.input === text ? serverResult.result : null;
-  const result = account.status === "known" && !manualOverride
+  const result = account.status === "known"
     ? { label: account.label, reasons: account.reasons, signalGroups: account.signalGroups }
     : (currentServerResult ?? textResult);
   const level = result ? (result.label as keyof typeof TONE) : null;
   const positive = result?.reasons.filter((reason) => reason.points > 0) ?? [];
-  const reported = keys.filter((k) => (counts[k] ?? 0) > 0).sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
+  const underReview = handle ? community.underReview.includes(`threads:${handle.toLowerCase()}`) : false;
+  const reported = keys.filter((k) => (community.counts[k] ?? 0) > 0).sort((a, b) => (community.counts[b] ?? 0) - (community.counts[a] ?? 0));
+  const signs = level ? plainSigns(level, result!.signalGroups, positive, t.result) : [];
+  const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0 || sharedKeys.length > 0;
 
-  async function checkAccount(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const input = classifyInput(accountQuery);
-    if (input.kind === "unsupported") {
-      setAccount({ status: "unsupported" });
-      return;
-    }
-    if (input.kind === "invalid") {
-      setAccount({ status: "error", message: "invalid" });
-      return;
-    }
-    await lookup(input.handle);
+  function reset() {
+    setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY); setReview(NO_REVIEW); setShareMsg("");
+    setCommunity({ counts: {}, similar: 0, underReview: [] });
   }
 
-  /** 합성 데모 계정을 한 번에 연다. 조회가 안 되면(DB 불통 등) 예시 문구로 대신 보여 준다 */
+  async function submit(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const value = input.trim();
+    if (!value) return;
+    reset();
+    setSharedKeys([]);
+    const h = accountFromInput(value);
+    if (h) { setText(""); await lookup(h); }
+    else { setAccount({ status: "idle" }); setText(value); }
+    document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /** 합성 데모 계정을 한 번에 연다. 조회가 안 되면(DB 불통 등) 예시 글로 대신 보여 준다 */
   async function showDemo() {
-    setAccountQuery(`@${DEMO_HANDLE}`);
+    reset();
+    setInput(`@${DEMO_HANDLE}`);
     const ok = await lookup(DEMO_HANDLE);
-    if (!ok) {
-      setText(SAMPLE);
-      setManualOverride(true);
-      setAccount({ status: "error", message: "demoFail" });
-    }
+    if (!ok) { setText(SAMPLE); setAccount({ status: "demoFail" }); }
   }
 
   async function lookup(h: string): Promise<boolean> {
     setAccount({ status: "loading", handle: h });
-    setManualOverride(false);
-    setRegistry({ status: "closed" });
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(h)}`, { cache: "no-store" });
       const data = await response.json().catch(() => null);
@@ -159,24 +176,19 @@ export function LiveAnalyzer() {
         const postText = Array.isArray(data.posts)
           ? data.posts.slice(0, 8).map((post: { text?: string }) => post.text?.trim()).filter(Boolean).join("\n\n")
           : "";
-        if (postText) setText(postText);
+        setText(postText);
         setAccount({
           status: "known",
           handle: data.account.handle ?? h,
-          profileUrl: data.account.profileUrl ?? `https://www.threads.com/@${h}`,
           label: (["LOW", "REVIEW", "HIGH"].includes(data.account.label) ? data.account.label : "LOW") as Label,
           reasons: Array.isArray(data.account.reasons) ? data.account.reasons : [],
           signalGroups: Array.isArray(data.account.signalGroups) ? data.account.signalGroups : [],
           postCount: Number(data.account.postTotal ?? data.posts?.length ?? 0),
-          profileCountry: data.account.profileCountry,
-          sharedAccounts: Array.isArray(data.sharedWith) ? data.sharedWith.length : 0,
         });
         return true;
       }
-      setAccount({ status: "paste", handle: h, profileUrl: `https://www.threads.com/@${h}` });
-    } catch {
-      setAccount({ status: "paste", handle: h, profileUrl: `https://www.threads.com/@${h}` });
-    }
+    } catch { /* 아래 "기록 없음" 과 같게 */ }
+    setAccount({ status: "paste", handle: h, profileUrl: `https://www.threads.com/@${h}` });
     return false;
   }
 
@@ -187,184 +199,151 @@ export function LiveAnalyzer() {
       const a = q.get("a");
       const ks = q.getAll("k").slice(0, 3);
       if (a) {
-        const input = classifyInput(a);
-        if (input.kind === "handle") { setAccountQuery(`@${input.handle}`); void lookup(input.handle); }
+        const c = classifyInput(a);
+        if (c.kind === "handle") { setInput(`@${c.handle}`); void lookup(c.handle); }
       } else if (ks.length) setSharedKeys(ks);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
-  function editText(value: string) {
-    setText(value); setManualOverride(true); setServerResult(null); setAiStatus("idle");
-    if (registry.status !== "closed") setRegistry({ status: "closed" });
+  async function sendToParents() {
+    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, null, []));
+    if (r !== "shared") { setFamilyMsg(r); window.setTimeout(() => setFamilyMsg(""), 4000); }
   }
 
-  async function submitRegistry(picked: string[]) {
-    setRegistry({ status: "sending", picked });
+  async function shareResult() {
+    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, handle, keys));
+    if (r !== "shared") { setShareMsg(r); window.setTimeout(() => setShareMsg(""), 4000); }
+  }
+
+  async function submitRegistry(picked: string[], withText: boolean) {
+    setRegistry({ status: "sending", picked, withText });
     try {
-      const response = await fetch("/api/community", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keys: picked }) });
+      const response = await fetch("/api/community", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ keys: picked.slice(0, 5), sig: withText && sig ? sig : undefined }),
+      });
+      setRegistry({ status: response.status === 429 ? "limited" : response.ok ? "done" : "failed", picked, withText });
+    } catch {
+      setRegistry({ status: "failed", picked, withText });
+    }
+  }
+
+  async function submitReview(contact: string, message: string) {
+    setReview({ status: "sending", contact, message });
+    try {
+      const response = await fetch("/api/review-request", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ keys, contact, message }),
+      });
       const data = await response.json().catch(() => null);
-      if (response.status === 429) { setRegistry({ status: "limited" }); return; }
-      if (!response.ok) { setRegistry({ status: "failed" }); return; }
-      if (data?.counts) setCounts((c) => ({ ...c, ...(data.counts as Record<string, number>) }));
-      setRegistry({ status: "done" });
+      if (response.status === 429) setReview({ status: "limited", contact, message });
+      else if (response.ok && data?.id) setReview({ status: "done", contact, message, id: data.id as string });
+      else setReview({ status: "failed", contact, message });
     } catch {
-      setRegistry({ status: "failed" });
+      setReview({ status: "failed", contact, message });
     }
   }
 
-  async function share() {
-    const url = shareUrl(window.location.origin, handle, keys);
-    const shareText = handle || keys.length ? t.share.text : t.share.textGeneric;
-    if (typeof navigator.share === "function" && window.matchMedia("(pointer: coarse)").matches) {
-      try { await navigator.share({ title: "Scam Radar", text: shareText, url }); return; } catch (e) { if ((e as Error).name === "AbortError") return; }
-    }
-    try {
-      await navigator.clipboard.writeText(`${shareText} ${url}`);
-      setShareMsg("copied");
-    } catch {
-      setShareMsg("failed");
-    }
-    window.setTimeout(() => setShareMsg(""), 4000);
-  }
+  const reviewButton = <button type="button" className="inline-link" onClick={() => setReview({ status: "open", contact: "", message: "" })}>{t.result.reviewLink}</button>;
 
   return (
-    <section id="check" className="analyzer-shell" aria-labelledby="analyzer-title">
-      <header className="analyzer-hero">
-        <div className="analyzer-hero-copy">
-          <div className="hero-label">{t.hero.label}</div>
-          <h1>{t.hero.title1}<br />{t.hero.title2}<br /><em>{t.hero.title3}</em></h1>
-          <p>{t.hero.lead}</p>
-          <form className="account-form" onSubmit={checkAccount}>
-            <label htmlFor="account-query">{t.hero.formLabel}</label>
-            <div>
-              <input
-                id="account-query"
-                value={accountQuery}
-                onChange={(event) => setAccountQuery(event.target.value)}
-                placeholder={t.hero.placeholder}
-                autoComplete="off"
-              />
-              <button type="submit" disabled={account.status === "loading"}>
-                {account.status === "loading" ? t.hero.checking : t.hero.check}
-              </button>
-            </div>
-            <small>{t.scope} {t.hero.scopeTail}</small>
-            <button type="button" className="demo-link" onClick={showDemo} disabled={account.status === "loading"}>{t.hero.demo}</button>
-          </form>
-        </div>
-        <HeroSample />
-      </header>
+    <>
+      <div className="family-bar">
+        <p>{t.family.lead}</p>
+        <button type="button" onClick={sendToParents}>{t.family.button}</button>
+        {familyMsg && <small role="status">{t.family[familyMsg]}</small>}
+      </div>
 
-      {account.status !== "idle" && account.status !== "loading" && (
-        <div className={`account-status account-status-${account.status}`} aria-live="polite">
-          {account.status === "known" && (
-            <>
-              <div><b>@{account.handle}</b><span>{t.status.known(account.postCount, account.sharedAccounts, account.profileCountry)}</span></div>
-              <div className="status-actions"><a href={`/report/${encodeURIComponent(`threads:${account.handle.toLowerCase()}`)}`}>{t.status.report}</a></div>
-            </>
-          )}
-          {account.status === "paste" && (
-            <>
-              <div>
-                <b>@{account.handle}</b>
-                <div>
-                  <span>{t.status.noRecord} {t.notice.account}</span>
-                  <ol>{t.status.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+      <section id="check" className="checker" aria-labelledby="checker-title">
+        <h1 id="checker-title">{t.hero.title}</h1>
+        <form onSubmit={submit}>
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder={t.hero.placeholder}
+            aria-label={t.hero.aria}
+            rows={5}
+          />
+          <button type="submit" className="checker-go" disabled={account.status === "loading" || !input.trim()}>
+            {account.status === "loading" ? t.hero.checking : t.hero.check}
+          </button>
+        </form>
+        <div className="checker-links">
+          <button type="button" onClick={() => setInput(SAMPLE)}>{t.hero.sample}</button>
+          <button type="button" onClick={showDemo}>{t.hero.demo}</button>
+          {input && <button type="button" onClick={() => setInput("")}>{t.hero.clear}</button>}
+        </div>
+        <p className="checker-scope">{t.hero.scope}</p>
+        <details className="privacy-note"><summary>✓ {t.notice.home.split(".")[0]}.</summary><p>{t.notice.home}</p></details>
+      </section>
+
+      <section id="result" className="result-area" aria-live="polite">
+        {hasAnything && (
+          <div className={`result-card ${level && !underReview ? TONE[level] : "risk-none"}`}>
+            {account.status === "known" && (
+              <p className="result-account">{t.status.known(account.handle, account.postCount)} <a href={`/report/${encodeURIComponent(`threads:${account.handle.toLowerCase()}`)}`}>{t.status.report}</a></p>
+            )}
+            {account.status === "paste" && (
+              <p className="result-account">{t.status.noRecord(account.handle)} <a href={account.profileUrl} target="_blank" rel="noreferrer">{t.status.open}</a></p>
+            )}
+            {account.status === "demoFail" && <p className="result-account">{t.status.demoFail}</p>}
+
+            {underReview ? (
+              <div className="verdict verdict-neutral"><p>{t.result.underReview}</p></div>
+            ) : level && (
+              <>
+                <div className="verdict-top">
+                  <span>{t.result.level[level]}</span>
+                  <span className="level-meter" role="img" aria-label={t.result.level[level]}>{[1, 2, 3].map((n) => <i key={n} data-on={n <= STEP[level]} />)}</span>
+                  <span className="engine-state">{aiStatus === "checking" ? t.result.engine.checking : aiStatus === "applied" ? t.result.engine.applied : aiStatus === "error" ? t.result.engine.error : t.result.engine.rule}</span>
                 </div>
-              </div>
-              <div className="status-actions">
-                <a href={account.profileUrl} target="_blank" rel="noreferrer">{t.status.open}</a>
-                <button type="button" onClick={showDemo}>{t.status.demo}</button>
-              </div>
-            </>
-          )}
-          {account.status === "unsupported" && (
-            <>
-              <div><b>{t.status.unsupportedTitle}</b><span>{t.scope} {t.status.unsupportedTail}</span></div>
-              <div className="status-actions"><button type="button" onClick={showDemo}>{t.status.demo}</button></div>
-            </>
-          )}
-          {account.status === "error" && <span>{t.status[account.message]}</span>}
-        </div>
-      )}
+                <div className="verdict">
+                  <strong>{t.result.banner[level].title}</strong>
+                  <span>{t.result.banner[level].sub}</span>
+                </div>
+              </>
+            )}
+            <p className="result-disclaimer">{t.result.disclaimer} {reviewButton}{t.result.disclaimerTail}</p>
 
-      {reported.length > 0 && (
-        <div className="community-warn" role="alert">
-          <ul>
-            {reported.slice(0, 3).map((k) => (
-              <li key={k}><b>⚠ {t.community.warn(counts[k])}</b><span>{keyLabel(k, t.community.kind)}</span></li>
-            ))}
-          </ul>
-          <small>{t.community.warnNote}</small>
-        </div>
-      )}
-
-      <div className="analyzer-body">
-        <div className="analyzer-input">
-          <div className="section-kicker"><span /> {t.input.kicker}</div>
-          <h2 id="analyzer-title">{t.input.title}</h2>
-          <p>{account.status === "known" ? t.input.leadKnown(account.handle) : t.input.lead}</p>
-          <div className="textarea-wrap">
-            <textarea
-              value={text}
-              onChange={(event) => editText(event.target.value)}
-              placeholder={t.input.placeholder}
-              aria-label={t.input.aria}
-              rows={9}
-            />
-            <div className="textarea-meta">
-              <span>{t.input.chars(text.length)}</span>
-              <div>
-                <button type="button" onClick={() => editText(SAMPLE)}>{t.input.sample}</button>
-                {text && <button type="button" onClick={() => editText("")}>{t.input.clear}</button>}
+            {!underReview && (reported.length > 0 || community.similar > 0) && (
+              <div className="community-warn" role="alert">
+                <ul>
+                  {reported.slice(0, 3).map((k) => <li key={k}><b>⚠ {t.community.warn(community.counts[k])}</b><span>{keyLabel(k, t.community.kind)}</span></li>)}
+                  {community.similar > 0 && <li><b>⚠ {t.result.similar(community.similar)}</b></li>}
+                </ul>
+                <small>{t.community.warnNote}</small>
               </div>
-            </div>
-          </div>
-          <p className="privacy-note"><span aria-hidden="true">✓</span> {t.notice.home}</p>
-        </div>
+            )}
 
-        <div className={`analyzer-result ${level ? TONE[level] : "risk-empty"}`} aria-live="polite">
-        {!result || !level ? (
-          <div className="empty-result">
-            <div className="radar-mark" aria-hidden="true"><span /><i /></div>
-            <div>
-              <strong>{account.status === "paste" ? t.result.emptyPaste : t.result.emptyTitle}</strong>
-              <p>{account.status === "paste" ? t.result.emptyPasteLead(account.handle) : t.result.emptyLead}</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="result-topline"><span>{t.result.eyebrow}</span><span>{aiStatus === "checking" ? t.result.engine.checking : aiStatus === "applied" ? t.result.engine.applied : aiStatus === "error" ? t.result.engine.error : t.result.engine.rule}</span></div>
-            <div className="result-level">
-              <strong>{t.result.level[level]}</strong>
-              <div className="level-meter" role="img" aria-label={t.result.level[level]}>
-                {[1, 2, 3].map((n) => <i key={n} data-on={n <= STEP[level]} />)}
+            {!underReview && signs.length > 0 && (
+              <div className="result-signs">
+                <h3>{t.result.signsTitle}</h3>
+                <ul>{signs.map((s) => <li key={s}>{s}</li>)}</ul>
               </div>
-            </div>
-            <p className="result-why"><b>{t.result.why}</b> {oneLineReason(level, result.signalGroups, positive.length > 0, t.result)}</p>
+            )}
 
-            <div className="result-todo">
-              <h3>{t.result.todoTitle}</h3>
-              <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
-              {level !== "LOW" && (
+            {level && !underReview && (
+              <div className="result-todo">
+                <h3>{t.result.todoTitle}</h3>
+                <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
                 <p className="report-links"><b>{t.result.reportTo}</b> {t.result.reportLinks.map((l, i) => <span key={l.url}>{i > 0 && " · "}<a href={l.url} target="_blank" rel="noreferrer">{l.name}</a></span>)}</p>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="result-actions">
-              <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: keys })}>{t.community.button}</button>
-              <button type="button" className="act-share" onClick={share}>{t.share.button}</button>
+              <button type="button" className="act-share" onClick={shareResult}>{t.share.button}</button>
+              <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: keys, withText: !!sig })}>{t.community.button}</button>
             </div>
-            {shareMsg && <p className="act-msg" role="status">{t.share[shareMsg]}</p>}
+            {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
 
             {registry.status !== "closed" && (
-              <div className="registry-panel">
+              <div className="side-panel">
                 <h3>{t.community.title}</h3>
                 {registry.status === "done" ? <p>{t.community.done}</p>
                   : registry.status === "limited" ? <p>{t.community.limited}</p>
                   : registry.status === "failed" ? <p>{t.community.failed}</p>
-                  : !keys.length ? <p>{t.community.none}</p>
+                  : !keys.length && !sig ? <p>{t.community.none}</p>
                   : (
                     <>
                       <p>{t.community.lead}</p>
@@ -373,42 +352,66 @@ export function LiveAnalyzer() {
                           <li key={k}>
                             <label>
                               <input type="checkbox" checked={registry.picked.includes(k)} disabled={registry.status === "sending"}
-                                onChange={(e) => setRegistry({ status: "open", picked: e.target.checked ? [...registry.picked, k] : registry.picked.filter((x) => x !== k) })} />
+                                onChange={(e) => setRegistry({ ...registry, status: "open", picked: e.target.checked ? [...registry.picked, k] : registry.picked.filter((x) => x !== k) })} />
                               {keyLabel(k, t.community.kind)}
                             </label>
                           </li>
                         ))}
+                        {sig && (
+                          <li>
+                            <label>
+                              <input type="checkbox" checked={registry.withText} disabled={registry.status === "sending"}
+                                onChange={(e) => setRegistry({ ...registry, status: "open", withText: e.target.checked })} />
+                              {t.community.textOption}
+                            </label>
+                          </li>
+                        )}
                       </ul>
                       <small>{t.community.privacy}</small>
-                      <div className="registry-buttons">
-                        <button type="button" disabled={!registry.picked.length || registry.status === "sending"} onClick={() => submitRegistry(registry.picked.slice(0, 5))}>
+                      <div className="panel-buttons">
+                        <button type="button" disabled={(!registry.picked.length && !(registry.withText && sig)) || registry.status === "sending"} onClick={() => submitRegistry(registry.picked, registry.withText)}>
                           {registry.status === "sending" ? t.community.sending : t.community.submit}
                         </button>
                       </div>
                     </>
                   )}
-                <button type="button" className="registry-close" onClick={() => setRegistry({ status: "closed" })}>{t.community.cancel}</button>
+                <button type="button" className="panel-close" onClick={() => setRegistry(NO_REGISTRY)}>{t.community.cancel}</button>
               </div>
             )}
 
-            <details className="result-details">
-              <summary>{t.result.details}</summary>
-              <div className="signal-groups" aria-hidden="true">
-                {result.signalGroups.map((group) => <span key={group.code} data-active={group.active}>{t.result.groups[group.code] ?? group.label}</span>)}
+            {review.status !== "closed" && (
+              <div className="side-panel">
+                <h3>{t.review.title}</h3>
+                {review.status === "done" ? <p>{t.review.done(review.id ?? "")}</p>
+                  : review.status === "limited" ? <p>{t.review.limited}</p>
+                  : review.status === "failed" ? <p>{t.review.failed}</p>
+                  : (
+                    <form onSubmit={(e) => { e.preventDefault(); void submitReview(review.contact, review.message); }}>
+                      <p>{t.review.lead}</p>
+                      <p className="panel-target"><b>{t.review.target}</b> {keys.length ? keys.map((k) => keyLabel(k, t.community.kind)).join(", ") : t.review.targetNone}</p>
+                      <label>{t.review.contact}<input type="email" required value={review.contact} disabled={review.status === "sending"} onChange={(e) => setReview({ ...review, status: "open", contact: e.target.value })} /></label>
+                      <label>{t.review.message}<textarea required rows={3} maxLength={2000} value={review.message} disabled={review.status === "sending"} onChange={(e) => setReview({ ...review, status: "open", message: e.target.value })} /></label>
+                      <div className="panel-buttons"><button type="submit" disabled={review.status === "sending"}>{review.status === "sending" ? t.review.sending : t.review.submit}</button></div>
+                    </form>
+                  )}
+                <button type="button" className="panel-close" onClick={() => setReview(NO_REVIEW)}>{t.review.close}</button>
               </div>
-              <ul className="result-reasons">
-                {positive.slice(0, 6).map((reason, i) => (
-                  <li key={i}><span aria-hidden="true">●</span><div><strong>{reason.label}</strong>{reason.evidence && <small>“{reason.evidence}”</small>}</div></li>
-                ))}
-              </ul>
-              <small>{t.result.detailsNote}</small>
-            </details>
+            )}
 
-            <p className="result-caution">{t.result.disclaimer}</p>
-          </>
+            {result && positive.length > 0 && !underReview && (
+              <details className="result-details">
+                <summary>{t.result.details}</summary>
+                <ul className="result-reasons">
+                  {positive.slice(0, 6).map((reason, i) => (
+                    <li key={i}><span aria-hidden="true">●</span><div><strong>{reason.label}</strong>{reason.evidence && <small>“{reason.evidence}”</small>}</div></li>
+                  ))}
+                </ul>
+                <small>{t.result.detailsNote}</small>
+              </details>
+            )}
+          </div>
         )}
-        </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

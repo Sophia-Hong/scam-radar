@@ -6,12 +6,18 @@ import type { GroupCode, Level, Strings } from "./strings";
  * 규칙은 여기서 새로 만들지 않는다: 단계(HIGH/REVIEW/LOW)와 신호군(signalGroups)은 엔진이 낸 것을 그대로 옮긴다.
  */
 
-/** 이유 한 줄 — 켜진 신호군 이름을 엔진 순서대로 최대 2개 */
-export function oneLineReason(level: Level, groups: { code: string; active: boolean }[], hasPositive: boolean, t: Strings["result"]): string {
-  const names = groups.filter((g) => g.active && g.code in t.groups).map((g) => t.groups[g.code as GroupCode]).slice(0, 2);
-  if (names.length) return names.join(t.joiner);
-  if (level === "LOW" || !hasPositive) return t.whyNone;
-  return t.whyFallback;
+const GUARANTEE_CODES = ["term:원금보장", "term:손실보전", "term:확정수익", "term:확정지급"];
+
+/**
+ * 쉬운 말 징후 최대 3개 — 게시물에 있는 사실로만 쓴다(사람 평가 문장 금지, 율 1791943087).
+ * 켜진 신호군을 엔진 순서대로, '원금 보장' 같은 약속 문구가 있으면 맨 앞에. 낮음 단계는 징후를 보이지 않는다.
+ */
+export function plainSigns(level: Level, groups: { code: string; active: boolean }[], reasons: { code?: string; points: number }[], t: Strings["result"]): string[] {
+  if (level === "LOW") return [];
+  const out: string[] = [];
+  if (reasons.some((r) => r.points > 0 && r.code && GUARANTEE_CODES.includes(r.code))) out.push(t.signGuarantee);
+  for (const g of groups) if (g.active && g.code in t.signs) out.push(t.signs[g.code as GroupCode]);
+  return out.length ? out.slice(0, 3) : [t.signFallback];
 }
 
 const COMMUNITY_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "url", "line", "wechat", "handle"]);
