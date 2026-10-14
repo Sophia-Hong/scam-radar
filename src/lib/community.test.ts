@@ -65,6 +65,11 @@ describe("결과 첫 화면", () => {
       expect(shownText).not.toMatch(/사기입니다|사기꾼|사기 계정|is a scam\b|scammer\b|fraudster/i);
     }
     expect(STRINGS.ko.meta.title.replace("Scam Radar", "")).not.toMatch(/사기|scam/i);
+    // 신고 수는 사람 수가 아니라 서로 다른 연결(IP 해시) 기준 건수 — "여러 명·N명·people" 표현 금지 (카이 73f1845)
+    for (const L of [STRINGS.ko, STRINGS.en]) {
+      const c = JSON.stringify([L.community.lead, L.community.done, L.community.privacy, L.community.warn(5, "threads"), L.result.similar(5), L.criteria.steps]);
+      expect(c).not.toMatch(/여러 명|\d+명|명이|people report|several people|users? flagged/i);
+    }
     expect(STRINGS.en.meta.title.replace("Scam Radar", "")).not.toMatch(/사기|scam/i);
   });
   it("조회 키 = 계정 + 글 속 연락처, 원문 없음", () => {
