@@ -30,6 +30,7 @@ export function categoryOf(code: string): ExplainCategory {
   if (code.startsWith("term:")) return TERM_BY_NAME.get(code.slice(5))?.cat ?? "invest";
   if (code.startsWith("pattern:")) return PATTERN_BY_LABEL.get(code.slice(8))?.cat ?? "structure";
   if (code.startsWith("impersonate:")) return "impersonate";
+  if (code.startsWith("guarantee:")) return "profit";
   if (code.startsWith("evidence:")) return "impersonate";
   if (code.startsWith("identity:")) return "account";
   if (code.startsWith("combo:") || code === "obfuscation" || code === "cta") return "structure";
@@ -400,6 +401,7 @@ export function explainReason(code: string, label: string, evidence?: string): E
   }
   if (code.startsWith("gate:")) return SPECIFIC["gate:no-contact"](label, ev);
   if (code.startsWith("llm:")) return SPECIFIC[code.startsWith("llm:scam") ? "llm:scam" : "llm:benign"](label, ev);
+  if (code.startsWith("guarantee:")) return GUARANTEE(label, ev);
   if (code.startsWith("impersonate:")) return CATEGORY_TEXT.impersonate(label, ev);
   if (code.startsWith("term:")) {
     const t = TERM_BY_NAME.get(code.slice(5));

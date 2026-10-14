@@ -37,3 +37,21 @@ export function findTactics(text: string): TacticHit[] {
 export function hasEasyMoneyPitch(text: string): boolean {
   return /(?:하루\s*\d+\s*분|고수익|고액\s*수당|경험\s*불필요|보장|확정)|\b(?:no (?:experience|skills?)|easy money|high[- ]paying|guaranteed|risk[- ]free|\d+ minutes? (?:a|per) day)\b/.test(text);
 }
+
+/**
+ * A promise to protect investment principal or guarantee investment profit is
+ * independently illegal.  It is deliberately narrower than the general
+ * profit lexicon: ordinary warranties and vague "guaranteed results" claims
+ * do not match.  Call this only after clause-local warning/negation removal.
+ */
+export const ILLEGAL_GUARANTEE = /원금\s*보장|손실\s*보전|확정\s*수익|\b(?:guaranteed?\s+(?:returns?|profits?|income|roi)|(?:returns?|profits?|income|roi)\s+(?:are |is )?(?:fully |100% )?guaranteed|no[- ]risk\s*,?\s*guaranteed|risk[- ]free\s+(?:returns?|profits?)|principal\s+(?:is\s+)?(?:guaranteed|protected))\b/i;
+const LOSS_COMPENSATION = /손실.{0,24}(?:책임지|메꿔|보상|보전)/;
+const INVESTMENT_CONTEXT = /(?:투자|매수|매도|종목|주식|코인|수익|거래)/;
+
+export function hasIllegalInvestmentGuarantee(text: string): boolean {
+  return ILLEGAL_GUARANTEE.test(text) || (LOSS_COMPENSATION.test(text) && INVESTMENT_CONTEXT.test(text));
+}
+
+export function illegalGuaranteeEvidence(text: string): string | undefined {
+  return ILLEGAL_GUARANTEE.exec(text)?.[0] ?? (LOSS_COMPENSATION.exec(text)?.[0]);
+}
