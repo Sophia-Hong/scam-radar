@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
+import { check, countsVisible, MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
 import { accountFromInput } from "@/components/LiveAnalyzer";
 import { minhash } from "@/engine/minhash";
 import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "./result-view";
@@ -112,5 +112,23 @@ describe("신고 표시 조건", () => {
     expect(accountFromInput("sample_vip")).toBeNull();
     expect(accountFromInput("t.me/vip_room")).toBeNull();
     expect(accountFromInput("@a 텔레그램으로 오세요")).toBeNull();
+  });
+});
+
+describe("교차 확인 — 신고 수 공개 = 연결 3곳 이상 AND 엔진 중간 이상 (테오 1791948637 · 율 1791948645)", () => {
+  it("엔진 판정 관문", () => {
+    expect(countsVisible("HIGH")).toBe(true);
+    expect(countsVisible("REVIEW")).toBe(true);
+    expect(countsVisible("LOW")).toBe(false);
+    expect(countsVisible(null)).toBe(false);
+    expect(countsVisible(undefined)).toBe(false);
+  });
+  it("낮음·판정 없음이면 DB 를 읽기 전에 숨김(신고가 아무리 많아도) — 판정이 내려가면 다음 조회부터 바로 숨음", async () => {
+    for (const level of ["LOW", null] as const) {
+      expect(await check(["threads:sample_vipstock77", "telegram:abc"], null, level)).toEqual({ counts: {}, similar: 0, gated: true });
+    }
+  });
+  it("두 조건이 따로 — 연결 수 기준은 그대로", () => {
+    expect([2, 3].map(shown)).toEqual([0, 3]);
   });
 });

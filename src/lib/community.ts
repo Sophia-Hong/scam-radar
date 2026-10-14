@@ -109,21 +109,36 @@ export async function rawCounts(keys: string[], now = new Date()): Promise<Recor
 }
 
 /** 이 서명과 비슷한(추정 Jaccard ≥ 기준) 신고 글의 서로 다른 신고자 수(원값) */
-export async function similarReporters(sig: number[]): Promise<number> {
+/** 이 서명과 비슷한 신고 글의 서로 다른 신고자 수(원값). 최근 BURST_WINDOW 안에 BURST_LIMIT 건 이상 몰렸으면 null(표시 보류 — 키와 같은 규칙, 카이 912e045) */
+export async function similarReporters(sig: number[], now = new Date()): Promise<number | null> {
   await ensureTables();
   const t = schema.communityTexts;
-  const rows = await db().select({ reporter: t.reporter, sig: t.sig }).from(t).where(sql`${t.bands} && ${textArray(bandKeys(sig))}`).limit(500);
-  return new Set(rows.filter((r) => estimateJaccard(sig, r.sig as number[]) >= JACCARD_THRESHOLD).map((r) => r.reporter)).size;
+  const rows = await db().select({ reporter: t.reporter, sig: t.sig, createdAt: t.createdAt }).from(t).where(sql`${t.bands} && ${textArray(bandKeys(sig))}`).limit(500);
+  const hits = rows.filter((r) => estimateJaccard(sig, r.sig as number[]) >= JACCARD_THRESHOLD);
+  const since = now.getTime() - BURST_WINDOW_MS;
+  if (hits.filter((r) => new Date(r.createdAt).getTime() > since).length >= BURST_LIMIT) return null;
+  return new Set(hits.map((r) => r.reporter)).size;
 }
 
-export type CheckResult = { counts: Record<string, number>; similar: number };
+export type CheckResult = { counts: Record<string, number>; similar: number; gated?: boolean };
+export type EngineLevel = "HIGH" | "REVIEW" | "LOW";
+
+/**
+ * 교차 확인 (테오 1791948637, 율 OK 1791948645): 신고 수는 *서로 다른 연결 3곳 이상 AND 지금 이 글·계정의 엔진 판정이 중간 이상*일 때만 공개.
+ * 엔진이 낮음(또는 판정 없음)이면 신고는 쌓이기만 하고 공개 화면엔 안 보인다. 조회마다 그때의 판정으로 계산하므로,
+ * 판정이 낮음으로 내려가면 이미 보이던 "신고 N건"도 그 즉시 숨는다. 신고만으로는 무고한 계정에 경고가 뜨지 않게.
+ */
+export function countsVisible(level: EngineLevel | null | undefined): boolean {
+  return level === "HIGH" || level === "REVIEW";
+}
 
 /** 화면용 조회 — 숨김 규칙(서로 다른 신고자 3명 미만)을 적용한 값만 돌려준다 */
-export async function check(keys: string[], sig: number[] | null): Promise<CheckResult> {
+export async function check(keys: string[], sig: number[] | null, level: EngineLevel | null = null): Promise<CheckResult> {
+  if (!countsVisible(level)) return { counts: {}, similar: 0, gated: true };   // DB 를 읽기 전에 — 낮음이면 숫자 자체를 만들지 않는다
   const [raw, similar] = await Promise.all([rawCounts(keys), sig ? similarReporters(sig) : Promise.resolve(0)]);
   const counts: Record<string, number> = {};
   for (const [k, n] of Object.entries(raw)) if (n !== null && shown(n)) counts[k] = shown(n);   // null = 몰림 보류
-  return { counts, similar: shown(similar) };
+  return { counts, similar: similar === null ? 0 : shown(similar) };
 }
 
 /**
@@ -138,6 +153,12 @@ export async function reserve(reporter: string, bucket: string, k: number, limit
     WHERE community_quota.n + EXCLUDED.n <= ${limit} RETURNING n`);
   const rows = (res as unknown as { rows?: unknown[] }).rows ?? (res as unknown as unknown[]);
   return Array.isArray(rows) && rows.length > 0;
+}
+
+/** 예약했지만 실제로 쓰지 않은 만큼 되돌린다(0 아래로는 안 감) — 동시 중복 요청이 할당량을 실제 등록보다 더 쓰지 않게 */
+export async function release(reporter: string, bucket: string, k: number): Promise<void> {
+  if (k <= 0) return;
+  await db().execute(sql`UPDATE community_quota SET n = GREATEST(n - ${k}, 0) WHERE reporter = ${reporter} AND bucket = ${bucket}`);
 }
 
 export type RegisterResult = { ok: true; added: number } | { ok: false; reason: "limited" };
@@ -159,10 +180,21 @@ export async function register(keys: string[], sig: number[] | null, reporter: s
     const day = now.toISOString().slice(0, 10);
     const allowed: string[] = [];
     for (const key of fresh) if (await reserve(`key:${key}`, `d:${day}`, 1, KEY_DAILY_LIMIT)) allowed.push(key);
-    if (fresh.length && !allowed.length && !textIsNew) return { ok: false, reason: "limited" };
-    fresh.splice(0, fresh.length, ...allowed);
-    if (fresh.length) await db().insert(r).values(fresh.map((key) => ({ key, reporter, createdAt: now }))).onConflictDoNothing();
-    if (textIsNew && sig && textId) await db().insert(tx).values({ id: textId, reporter, sig, bands: bandKeys(sig), createdAt: now }).onConflictDoNothing();
+    // 글 서명도 같은 하루 상한 — 비슷한 글은 밴드 하나 이상을 공유하므로, 밴드마다 하루 KEY_DAILY_LIMIT 를 넘으면 그 글은 받지 않는다(카이 912e045)
+    let textOk = textIsNew;
+    if (textIsNew && sig) for (const b of bandKeys(sig)) if (!(await reserve(`band:${b}`, `d:${day}`, 1, KEY_DAILY_LIMIT))) textOk = false;
+    if (!allowed.length && !textOk) return { ok: false, reason: "limited" };
+    // 실제로 들어간 행만 센다 — 동시 중복 요청에서 added 가 부풀지 않게, 할당량도 실제 등록 수만큼만 남긴다(카이 912e045, 테오 1791948618)
+    const insKeys = allowed.length ? await db().insert(r).values(allowed.map((key) => ({ key, reporter, createdAt: now }))).onConflictDoNothing().returning({ key: r.key }) : [];
+    const insText = textOk && sig && textId ? await db().insert(tx).values({ id: textId, reporter, sig, bands: bandKeys(sig), createdAt: now }).onConflictDoNothing().returning({ id: tx.id }) : [];
+    const added = insKeys.length + insText.length;
+    const hour = now.toISOString().slice(0, 13);
+    await release(reporter, `h:${hour}`, adding - added);
+    await release(reporter, `d:${day}`, adding - added);
+    const inserted = new Set(insKeys.map((x) => x.key));
+    for (const key of fresh) if (!inserted.has(key)) await release(`key:${key}`, `d:${day}`, 1);   // 상한에 걸렸거나 중복이던 키
+    if (textIsNew && sig && !insText.length) for (const b of bandKeys(sig)) await release(`band:${b}`, `d:${day}`, 1);
+    return { ok: true, added };
   }
-  return { ok: true, added: adding };
+  return { ok: true, added: 0 };
 }

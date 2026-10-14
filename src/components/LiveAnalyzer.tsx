@@ -116,7 +116,9 @@ export function LiveAnalyzer() {
   }, [handle, text, sharedKeys, known]);
   // 비슷한 신고 글 대조용 서명 — 브라우저에서 계산하고 원문은 보내지 않는다. 계정 조회(여러 글을 이은 것)는 대조하지 않는다
   const sig = useMemo(() => (text.trim() && !known ? minhash(text) : null), [text, known]);
-  const checkBody = useMemo(() => (keys.length || sig ? JSON.stringify({ keys, sig: sig ?? undefined }) : ""), [keys, sig]);
+  // 신고 수는 지금 화면의 엔진 판정이 중간 이상일 때만 보인다(서버가 강제, 테오 1791948637·율 1791948645) — 판정이 바뀌면 다시 묻는다
+  const engineLevel = (account.status === "known" ? account.label : (serverResult?.input === text ? serverResult.result.label : textResult?.label)) ?? undefined;
+  const checkBody = useMemo(() => (keys.length || sig ? JSON.stringify({ keys, sig: sig ?? undefined, level: engineLevel }) : ""), [keys, sig, engineLevel]);
 
   // 이용자 신고 수·비슷한 신고 글·검토 중 여부 — 입력이 정해질 때마다 한 번
   useEffect(() => {
