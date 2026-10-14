@@ -166,3 +166,12 @@ describe("받은 메시지 징후 문장 (율 1791951936·1791951972)", () => {
     expect(STRINGS.en.result.stopFooter).toBe("");
   });
 });
+
+describe("AI 없이 확인 — 수동 신고 안내가 실제 전송 항목과 맞음 (카이 e2759fb)", () => {
+  it("안내·확인 창에 계정·연락처·링크·서명이 모두 적혀 있음", () => {
+    expect(STRINGS.ko.notice.aiOffOn).toMatch(/계정·연락처·링크/);
+    expect(STRINGS.ko.community.aiOffConfirm).toMatch(/계정·연락처·링크.*서명/);
+    expect(STRINGS.en.notice.aiOffOn).toMatch(/accounts, contacts and links/);
+    expect(STRINGS.en.community.aiOffConfirm).toMatch(/accounts, contacts and links.*signature/);
+  });
+});
