@@ -43,6 +43,11 @@ async function shareOrCopy(title: string, text: string, url: string): Promise<"s
 }
 
 /** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
+/** 서버 응답 → 화면 상태. "AI 재검토 반영"은 서버가 실제 모델 판정을 받았다고 답했을 때만, 키 없음·상한·실패는 "못 함 · 규칙 결과"(카이 1fe5e41) */
+export function aiStatusOf(data: unknown): "applied" | "error" {
+  return (data as { ai?: string } | null)?.ai === "applied" ? "applied" : "error";
+}
+
 export function accountFromInput(value: string): string | null {
   const v = value.trim();
   if (!v || /\s/.test(v)) return null;
@@ -75,7 +80,7 @@ export function LiveAnalyzer() {
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
-  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle");
+  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle")   // applied = 서버가 실제 모델 판정을 받았다고 답했을 때만;
   const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0 });
   const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
   const [familyMsg, setFamilyMsg] = useState<"" | "copied" | "failed">("");
@@ -111,7 +116,7 @@ export function LiveAnalyzer() {
         const data = await response.json();
         if (!response.ok) throw new Error("analysis failed");
         setServerResult({ input: text, result: data as LiveResult });
-        setAiStatus("applied");
+        setAiStatus(aiStatusOf(data));
       } catch (error) {
         if ((error as Error).name !== "AbortError") setAiStatus("error");
       }

@@ -68,6 +68,8 @@ describe("결과 첫 화면", () => {
     ["가족 새 번호 + 돈은 필요 없다 → 문장 없음", "HIGH", [P("tactic:family")], [], ["fallback"], "엄마 나 폰 액정 깨져서 임시번호로 연락해. 돈은 필요 없고 그냥 이 번호 저장해줘"],
     ["가족 tactic 코드만(글 없음) → 문장 없음", "HIGH", [P("tactic:family")], [], ["fallback"]],
     ["택배 사칭 + 비공식 링크 + 누르라는 요구", "HIGH", [P("tactic:delivery")], ["url"], ["deliveryLink"], "[CJ대한통운] 주소 불일치로 배송 보류. 아래 링크 눌러 주소 수정하세요 https://cj-redeliv.top/x"],
+    // 난독화 링크(hxxps·[.])는 엔티티로 안 뽑혀도(ents=[]) 엔진 행동 사실(act.link)로 근거가 된다(카이 1fe5e41). 엔진이 tactic:delivery 를 내는 건 테오 7차
+    ["택배 사칭 + 난독화 링크 + 누르라는 요구", "HIGH", [P("tactic:delivery")], [], ["deliveryLink"], "[USPS] Your package is on hold due to an incomplete address. Click the link to update within 12 hours: hxxps://shorturl[.]at/claim"],
     ["일반 배송 지연 + 추적 링크 → 문장 없음", "HIGH", [P("tactic:delivery")], ["url"], ["fallback"], "Your package delivery is delayed. Track: https://bit.ly/abc123"],
     ["기관 사칭 + 전화번호 + 전화하라는 요구", "HIGH", [P("tactic:authority")], ["phone"], ["deliveryLink"], "서울중앙지검 수사관입니다. 사건 확인을 위해 010-1234-5678로 바로 전화 주세요"],
     ["택배 언급만(링크·전화 없음)은 문장 없음", "REVIEW", [P("tactic:delivery")], [], ["fallback"], "택배 배송 안내입니다"],

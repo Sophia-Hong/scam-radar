@@ -70,7 +70,7 @@ const ko = {
       REVIEW: { title: "조심하세요.", sub: "돈을 보내기 전에 가족이나 은행에 먼저 물어보세요." },
       LOW: { title: "뚜렷한 위험 신호는 못 찾았어요.", sub: "그래도 돈 이야기가 나오면 가족이나 은행에 먼저 물어보세요." },
     } as Record<Level, { title: string; sub: string }>,
-    engine: { checking: "AI가 한 번 더 보는 중…", applied: "AI 재검토 반영", error: "AI 재검토 실패 · 규칙 결과", rule: "자동 분석" },
+    engine: { checking: "AI가 한 번 더 보는 중…", applied: "AI 재검토 반영", error: "AI 재검토 못 함 · 규칙 결과", rule: "자동 분석" },
     signsTitle: "이런 점이 이상해요",
     noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds

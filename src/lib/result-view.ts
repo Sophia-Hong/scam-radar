@@ -73,9 +73,10 @@ export function signIds(level: Level, reasons: { code?: string; points: number }
     // 가족 문장 = 새 번호·폰 고장 주장 *그리고* 돈·상품권·신분증 요구(부정 절 제외)
     familyNewNumber: has((c) => c === "tactic:family") && PHONE_CHANGE.test(said) && (!!act?.money || ID_ASK.test(said)),
     // 택배·기관이라며 링크·전화 — 사칭 수법 + 발신자 주장 + (비공식 링크와 누르라는 요구 | 전화번호와 전화하라는 요구).
+    // 링크는 엔진의 행동 사실(act.link: hxxp·[.] 난독화 포함, 공식 도메인 제외)로 본다 — 엔티티 추출이 못 뽑은 난독화 링크도(카이 1fe5e41)
     // 문장에는 회사·기관 이름을 넣지 않는다(그 회사도 피해자)
     deliveryLink: has((c) => ["tactic:delivery", "tactic:authority", "tactic:toll", "tactic:grant"].includes(c)) && SENDER_CLAIM.test(said)
-      && ((!!act?.link && entityTypes.includes("url") && TAP_ASK.test(said)) || (entityTypes.includes("phone") && CALL_ASK.test(said))),
+      && ((!!act?.link && TAP_ASK.test(said)) || (entityTypes.includes("phone") && CALL_ASK.test(said))),
     // 대출 문장 = 싼 이자·대환 제안 *그리고* 먼저 갚기·수수료 요구
     loanFee: has((c) => c === "tactic:loan") && LOWER_RATE.test(said) && PAY_FIRST.test(said),
     // 부업 문장 = 적은 노동 *그리고* 큰돈

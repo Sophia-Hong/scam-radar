@@ -141,6 +141,11 @@ const REVIEW_SYSTEM = [
   "출력은 verdict·confidence·checks 만. 설명 문장은 쓰지 않는다.",
 ].join("\n");
 
+/** 실제 모델이 쓸 수 있는 판정을 냈나 — 키 없음(template)·실패(fallback)·상한(quota-rule)·모순 응답 폐기(|discarded)는 아님(카이 1fe5e41) */
+export function reviewApplied(v: Pick<ReviewVerdict, "model"> | null | undefined): boolean {
+  return !!v && !["template", "fallback", "quota-rule"].includes(v.model) && !v.model.endsWith("|discarded");
+}
+
 export async function reviewPost(text: string, reasonLabels: string[], context: ReviewContext = {}): Promise<ReviewVerdict> {
   const key = fnv1a64(`review-v3|${text}|${reasonLabels.join("|")}|${JSON.stringify(context)}`);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, checks: [], model: "template" };
