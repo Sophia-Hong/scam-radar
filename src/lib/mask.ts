@@ -1,3 +1,5 @@
+import { extractEntities } from "@/engine/entities";
+
 /**
  * 공개 화면의 연락처 가림 (율 #compliance 1791947465 조건 2, 테오 1791947472).
  * 전화번호는 앞 3자리·끝 4자리만(010-****-1234), 메신저 아이디·링크 경로는 앞 2자·끝 2자만. 관리자 화면은 가리지 않는다.
@@ -86,4 +88,43 @@ export function contactPairs(contacts: { type: string; value: string }[]): MaskP
     if (c.type === "url") pairs.push([new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?${c.value.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "gi"), masked]);
   }
   return pairs;
+}
+
+/** 이메일 → 첫 글자와 최상위 도메인만(a***@g***.com) — "이메일이 있다"는 꼴은 남긴다 */
+export function maskEmail(v: string): string {
+  const [local, domain = ""] = v.split("@");
+  const tld = domain.includes(".") ? domain.slice(domain.lastIndexOf(".")) : "";
+  return `${local.slice(0, 1)}***@${domain.slice(0, 1)}***${tld}`;
+}
+
+/**
+ * 계좌번호 꼴 — (1) 하이픈 3~4 묶음에 숫자 10~16자리(날짜 2024-09-08 은 8자리라 제외, 가린 전화번호는 * 가 있어 제외)
+ * (2) '계좌·은행·입금·account' 바로 뒤의 붙은 숫자 10~16자리. 끝 4자리만 남긴다.
+ */
+const ACCOUNT_HYPHEN = /(?<![\d-])\d{2,6}-\d{2,6}-\d{2,8}(?:-\d{1,4})?(?![\d-])/g;
+const ACCOUNT_LABELED = /((?:계좌|은행|입금|account|acct|iban)[^\d\n]{0,15})(\d{10,16})(?!\d)/gi;
+export function maskAccountNumbers(text: string): string {
+  return text
+    .replace(ACCOUNT_LABELED, (_m, pre: string, d: string) => `${pre}***-****-${d.slice(-4)}`)
+    .replace(ACCOUNT_HYPHEN, (m) => {
+      const d = m.replace(/\D/g, "");
+      if (/^01[016789]\d{7,8}$/.test(d) || /^050\d{8,9}$/.test(d)) return m;   // 휴대전화·050 꼴은 아래 전화 가림이 맡는다(010-****-5678 꼴 유지)
+      return d.length >= 10 && d.length <= 16 ? `***-****-${d.slice(-4)}` : m;
+    });
+}
+
+/**
+ * AI 로 보내기 전 가림(율 국내 배포 점검 ⑦, 테오 1791955154 → 1791955875): 글 속 전화번호·계좌번호·이메일.
+ * 판정에 필요한 건 "번호가 있다"는 사실이지 번호 자체가 아니다 — 꼴(010-****-5678, ***-****-1234, a***@g***.com)은 남긴다.
+ * 전화는 공개 화면과 같은 규칙(contactPairs + maskPhonesAnywhere). 메신저 아이디·링크는 판정 신호라 그대로.
+ */
+export function maskForAi(text: string): string {
+  const ents = extractEntities(text);
+  const pairs: MaskPair[] = [
+    ...contactPairs(ents.filter((e) => e.type === "phone")),
+    ...ents.filter((e) => e.type === "email").map((e): MaskPair => [e.value, maskEmail(e.value)]),
+  ];
+  // 순서: 계좌(라벨 붙은 것 먼저, 휴대전화 꼴 제외) → 뽑은 전화·이메일 → 남은 휴대전화 꼴.
+  // 계좌를 먼저 덮어야 '계좌 110123456789'가 엔티티 추출에서 전화번호로 잡혀 010-… 꼴로 바뀌지 않는다
+  return maskPhonesAnywhere(maskText(maskAccountNumbers(text), pairs));
 }

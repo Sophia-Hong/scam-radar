@@ -1,3 +1,4 @@
+import { maskForAi } from "./mask";
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
@@ -146,6 +147,11 @@ export function reviewApplied(v: Pick<ReviewVerdict, "model"> | null | undefined
   return !!v && !["template", "fallback", "quota-rule"].includes(v.model) && !v.model.endsWith("|discarded");
 }
 
+/** 재검 프롬프트 — 글 속 전화번호·계좌번호·이메일은 가려서 보낸다(율 국내 배포 점검 ⑦, maskForAi) */
+export function reviewPrompt(text: string, reasonLabels: string[], context: ReviewContext = {}): string {
+  return `룰 엔진이 본 것(참고): ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n글:\n"""\n${maskForAi(text.slice(0, 1800))}\n"""`;
+}
+
 export async function reviewPost(text: string, reasonLabels: string[], context: ReviewContext = {}): Promise<ReviewVerdict> {
   const key = fnv1a64(`review-v3|${text}|${reasonLabels.join("|")}|${JSON.stringify(context)}`);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, checks: [], model: "template" };
@@ -156,7 +162,7 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
         maxOutputTokens: 120,
         output: Output.object({ schema: ReviewSchema }),
         system: REVIEW_SYSTEM,
-        prompt: `룰 엔진이 본 것(참고): ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n글:\n\"\"\"\n${text.slice(0, 1800)}\n\"\"\"`,
+        prompt: reviewPrompt(text, reasonLabels, context),
       });
       const out = result.output;
       const model = servedModel(result);
@@ -199,7 +205,7 @@ export async function reviewEvidenceImage(text: string, image: string): Promise<
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: `게시물 문구:\n${text.slice(0, 1200)}\n\n이미지에 관측 가능한 합성·조작 정황만 검토해라.` },
+            { type: "text", text: `게시물 문구:\n${maskForAi(text.slice(0, 1200))}\n\n이미지에 관측 가능한 합성·조작 정황만 검토해라.` },
             { type: "file", data: /^https?:\/\//.test(image) ? new URL(image) : image, mediaType: image.match(/^data:(image\/[^;]+)/)?.[1] ?? "image" },
           ],
         }],
@@ -246,7 +252,7 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
         maxOutputTokens: 420,
         system: "관측 사실 기반 내용 요약을 작성한다. 판단이나 추측 없이 확인된 사실만 1) 대상 계정 2) 게시 일시·장소 3) 게시 내용 4) 유도 수단 5) 반복성 순서의 3~5문장 개조식으로 쓴다. '사기'라고 단정하지 말고 '유인 정황'이라고 표현한다.",
         // 내부 규칙 코드는 모델에 넘기지 않는다(요약문으로 새어 나가지 않게)
-        prompt: JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1),
+        prompt: maskForAi(JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1)),   // 번호·계좌·이메일 가림(율 ⑦)
       });
       return { summary: result.text.trim() || templateSummary(input), model: servedModel(result) };
     });
