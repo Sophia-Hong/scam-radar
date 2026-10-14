@@ -437,3 +437,9 @@ main { overflow:hidden; }
 .learn-source a { text-decoration:underline; }
 .learn-back { margin-top:24px; font-weight:800; }
 .learn-link { display:inline-block; margin-top:14px; font-weight:800; text-decoration:underline; }
+
+/* /learn 실제 사례 화면(율 O 11장, 가림·자름 끝난 것) */
+.learn-figure { margin:12px 0 0; padding:10px; background:#f7f6f1; border:1px solid var(--line); }
+.learn-figure b { display:block; font-size:12px; margin-bottom:6px; }
+.learn-figure img { display:block; width:100%; height:auto; border:1px solid var(--line); }
+.learn-figure figcaption { margin-top:6px; font-size:12px; color:#5c5a54; line-height:1.5; overflow-wrap:anywhere; }

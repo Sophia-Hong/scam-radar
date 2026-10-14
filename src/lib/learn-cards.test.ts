@@ -31,3 +31,15 @@ describe("/learn 정보 카드", () => {
     expect(STRINGS.en.learn.title).toBe("How these scams work");
   });
 });
+
+describe("/learn 실제 사례 화면 (율 O 1791962248)", () => {
+  it("한국어 카드에만, 파일이 있고 출처가 붙는다. 영어 카드는 글만. 수익 인증 대표 = 06", () => {
+    const { existsSync } = require("fs") as typeof import("fs");
+    for (const c of LEARN_CARDS.ko) for (const im of c.images ?? []) {
+      expect(existsSync(`${process.cwd()}/public${im.src}`)).toBe(true);
+      expect(im.source.org && im.source.title && im.source.date).toBeTruthy();
+    }
+    for (const c of LEARN_CARDS.en) expect(c.images).toBeUndefined();
+    expect(LEARN_CARDS.ko[0].images?.[0].src).toBe("/learn/06-profit-proof-lotto.jpg");
+  });
+});
