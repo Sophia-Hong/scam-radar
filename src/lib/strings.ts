@@ -388,7 +388,7 @@ const en: Strings = {
         "If money comes up, ask a family member before you send anything.",
       ],
     },
-    firmCheck: { text: "If it's an investment firm, search its name on FINRA BrokerCheck. If it isn't listed, it may be a scam.", link: "brokercheck.finra.org", url: "https://brokercheck.finra.org/" },
+    firmCheck: { text: "If it's a US investment firm, search its name on FINRA BrokerCheck. If it isn't listed, it may be a scam.", link: "brokercheck.finra.org", url: "https://brokercheck.finra.org/" },
     reportTo: "Get help",
     reportLinks: [
       { name: "FSS hotline 1332 (Korea)", url: "tel:1332" },
