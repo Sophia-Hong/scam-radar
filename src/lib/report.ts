@@ -53,6 +53,7 @@ export function publicView(report: InvestigationReport, admin: boolean): Investi
   const trimmed = linked.length !== report.linkedAccounts.length;
   return {
     ...report,
+    rationale: report.rationale.map((r) => ({ ...r, points: Math.sign(r.points) })),   // 공개 JSON: 신호 방향만, 크기(가점·감점) 비공개 (소현 10-05)
     linkedAccounts: linked,
     summary: trimmed ? { text: "이 계정과 같은 연락처를 쓰는 계정 중 공개 범위 밖의 계정이 있어 요약문을 공개 화면에서 생략했습니다.", generatedBy: "withheld" } : report.summary,
   };
