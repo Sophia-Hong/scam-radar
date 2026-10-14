@@ -38,3 +38,20 @@ describe.skipIf(!localTestDb)("서명 등록 원자성 (카이 392ac60, 테오 1
     expect(await c.insertTextAtomically(`${tag}-d`, `${tag}-dup`, sig2, tag, new Date())).toBe("duplicate");
   });
 });
+
+describe.skipIf(!localTestDb)("AI 하루 상한 — 호출을 시도하면 실패해도 1회로 셈 (카이 cf53ba8, 테오 1791952082)", () => {
+  it("호출 후 예외 → 카운터 유지(돌려주지 않음), 캐시에 없으면 다음에도 다시 셈", async () => {
+    process.env.POSTGRES_URL = testUrl;
+    process.env.DATABASE_URL = testUrl;
+    const llm = await import("./llm");
+    const { db } = await import("@/db");
+    const bucket = `d:${new Date().toISOString().slice(0, 10)}`;
+    const n = async () => Number(((await db().execute(sql`SELECT n FROM community_quota WHERE reporter = 'ai-call' AND bucket = ${bucket}`)) as unknown as { rows: { n: number }[] }).rows?.[0]?.n ?? 0);
+    const before = await n();
+    await expect(llm.cached("dbtest", `${tag}-boom`, async () => { throw new Error("provider timeout after billing"); })).rejects.toThrow("provider timeout");
+    expect(await n()).toBe(before + 1);
+    await expect(llm.cached("dbtest", `${tag}-boom`, async () => { throw new Error("again"); })).rejects.toThrow("again");
+    expect(await n()).toBe(before + 2);
+    await c.release("ai-call", bucket, 2);   // 시험이 쓴 2회는 정리
+  });
+});

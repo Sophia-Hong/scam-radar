@@ -63,20 +63,17 @@ function servedModel(result: { response?: { modelId?: string } }): string {
   return result.response?.modelId || MODEL_NAME;
 }
 
-async function cached<T>(kind: string, key: string, fn: () => Promise<T>): Promise<T> {
+export async function cached<T>(kind: string, key: string, fn: () => Promise<T>): Promise<T> {
   const k = `${kind}:${fnv1a64(MODEL_NAME)}:${key}`;   // 캐시 키에 모델 — 모델을 바꾸면 옛 판정(예: gemini)이 섞이지 않는다(테오 1791949447)
   if (!hasDb) throw new AiBudgetExhausted("no database — budget cannot be enforced");   // fail-closed
   const hit = await db().select().from(schema.llmCache).where(eq(schema.llmCache.key, k)).limit(1);
   if (hit[0]) return hit[0].result as T;
   const slot = await reserveAiCall();
   if (!slot) throw new AiBudgetExhausted("daily AI call budget reached or unavailable");
-  let result: T;
-  try {
-    result = await fn();
-  } catch (e) {
-    await slot.release();   // 호출이 실패하면 예약을 돌려준다
-    throw e;
-  }
+  // 예약은 호출을 *시도한 순간* 소진된 것으로 본다 — 실패·timeout 이어도 돌려주지 않는다.
+  // 제공자가 이미 처리·과금한 뒤 timeout 이 날 수 있어서, 돌려주면 하루 상한(≈$1.6)이 강제 상한이 아니게 된다(카이 cf53ba8)
+  void slot;
+  const result = await fn();
   const served = (result as { model?: string })?.model ?? MODEL_NAME;
   await db().insert(schema.llmCache).values({ key: k, kind, result: result as object, model: served }).onConflictDoNothing();
   return result;
