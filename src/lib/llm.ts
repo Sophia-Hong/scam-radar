@@ -151,7 +151,8 @@ export function reviewApplied(v: Pick<ReviewVerdict, "model"> | null | undefined
 
 /** 재검 프롬프트 — 글 속 전화번호·계좌번호·이메일은 가려서 보낸다(율 국내 배포 점검 ⑦, maskForAi) */
 export function reviewPrompt(text: string, reasonLabels: string[], context: ReviewContext = {}): string {
-  return `룰 엔진이 본 것(참고): ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n글:\n"""\n${maskForAi(text.slice(0, 1800))}\n"""`;
+  // 계정 관측 정보(수집 경로의 소개글·외부 링크 등)도 같은 가림을 거친다(카이 1001f5d HOLD)
+  return `룰 엔진이 본 것(참고): ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${maskForAi(JSON.stringify(context))}\n\n글:\n"""\n${maskForAi(text.slice(0, 1800))}\n"""`;
 }
 
 export async function reviewPost(text: string, reasonLabels: string[], context: ReviewContext = {}): Promise<ReviewVerdict> {
@@ -237,6 +238,11 @@ const EvidenceImageSchema = z.object({
 });
 
 /** 기관 사칭 후보의 캡처가 있을 때만 호출하는 선택적 이미지 보조 검토. */
+/** AI 로 가는 글 부분은 모두 이 빌더들을 거친다 — 회귀 시험이 전체 payload 를 검사한다(카이 1001f5d HOLD) */
+export function evidenceImagePrompt(text: string): string {
+  return `게시물 문구:\n${maskForAi(text.slice(0, 1200))}\n\n이미지에 관측 가능한 합성·조작 정황만 검토해라.`;
+}
+
 export async function reviewEvidenceImage(text: string, image: string): Promise<EvidenceImageVerdict> {
   if (!llmEnabled) return { verdict: "inconclusive", confidence: 0, evidenceType: "none", cues: [], model: "template" };
   const key = fnv1a64(`${text}|${image}`);
@@ -250,7 +256,7 @@ export async function reviewEvidenceImage(text: string, image: string): Promise<
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: `게시물 문구:\n${maskForAi(text.slice(0, 1200))}\n\n이미지에 관측 가능한 합성·조작 정황만 검토해라.` },
+            { type: "text", text: evidenceImagePrompt(text) },
             { type: "file", data: /^https?:\/\//.test(image) ? new URL(image) : image, mediaType: image.match(/^data:(image\/[^;]+)/)?.[1] ?? "image" },
           ],
         }],
@@ -283,6 +289,10 @@ export const SUMMARY_VERSION = "|s2";
 export const isCurrentSummary = (model: string | null | undefined) => !!model && model.endsWith(SUMMARY_VERSION);
 export const summaryModelLabel = (model: string) => model.replace(SUMMARY_VERSION, "");
 
+export function summaryPrompt(input: SummaryInput): string {
+  return maskForAi(JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1));   // 번호·계좌·이메일 가림(율 ⑦)
+}
+
 export async function summarizeAccount(input: SummaryInput): Promise<{ summary: string; model: string }> {
   const key = fnv1a64(
     SUMMARY_VERSION + input.handle + "|" + input.posts.map((p) => p.postUrl + p.text).join("|") +
@@ -297,7 +307,7 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
         maxOutputTokens: 420,
         system: "관측 사실 기반 내용 요약을 작성한다. 판단이나 추측 없이 확인된 사실만 1) 대상 계정 2) 게시 일시·장소 3) 게시 내용 4) 유도 수단 5) 반복성 순서의 3~5문장 개조식으로 쓴다. '사기'라고 단정하지 말고 '유인 정황'이라고 표현한다.",
         // 내부 규칙 코드는 모델에 넘기지 않는다(요약문으로 새어 나가지 않게)
-        prompt: maskForAi(JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1)),   // 번호·계좌·이메일 가림(율 ⑦)
+        prompt: summaryPrompt(input),
       });
       return { summary: result.text.trim() || templateSummary(input), model: servedModel(result) };
     });

@@ -102,7 +102,10 @@ export function maskEmail(v: string): string {
  * (2) '계좌·은행·입금·account' 바로 뒤의 붙은 숫자 10~16자리. 끝 4자리만 남긴다.
  */
 const ACCOUNT_HYPHEN = /(?<![\d-])\d{2,6}-\d{2,6}-\d{2,8}(?:-\d{1,4})?(?![\d-])/g;
-const ACCOUNT_LABELED = /((?:계좌|은행|입금|account|acct|iban)[^\d\n]{0,15})(\d{10,16})(?!\d)/gi;
+const BANKS = "국민|신한|우리|하나|농협|기업|카카오뱅크|카뱅|토스뱅크|토스|케이뱅크|K뱅크|IBK|NH|KB|SC제일|제일|씨티|수협|새마을|신협|우체국|부산|대구|경남|광주|전북|제주|산업|저축";
+const ACCOUNT_LABELED = new RegExp(`((?:계좌|은행|입금|예금주|${BANKS}|account|acct|iban)[^\\d\\n]{0,15})(\\d{10,16})(?!\\d)`, "gi");
+/** 라벨이 없어도 10~16자리로 붙은 숫자(휴대전화 꼴 제외)는 계좌·카드번호일 수 있어 가린다 — 판정에는 '긴 번호가 있다'만 필요(카이 1001f5d HOLD: "신한 110123456789") */
+const LONG_DIGITS = /(?<![\d*])\d{10,16}(?![\d*])/g;
 export function maskAccountNumbers(text: string): string {
   return text
     .replace(ACCOUNT_LABELED, (_m, pre: string, d: string) => `${pre}***-****-${d.slice(-4)}`)
@@ -110,7 +113,8 @@ export function maskAccountNumbers(text: string): string {
       const d = m.replace(/\D/g, "");
       if (/^01[016789]\d{7,8}$/.test(d) || /^050\d{8,9}$/.test(d)) return m;   // 휴대전화·050 꼴은 아래 전화 가림이 맡는다(010-****-5678 꼴 유지)
       return d.length >= 10 && d.length <= 16 ? `***-****-${d.slice(-4)}` : m;
-    });
+    })
+    .replace(LONG_DIGITS, (d) => (/^01[016789]\d{7,8}$/.test(d) || /^050\d{8,9}$/.test(d) ? d : `***-****-${d.slice(-4)}`));
 }
 
 /**
