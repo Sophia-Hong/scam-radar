@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ACCOUNT_KEY_TYPES, check, CONTACT_KEY_TYPES, countsVisible, isAccountKey, KEY_TYPES, MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
 import { accountFromInput } from "@/components/LiveAnalyzer";
 import { minhash } from "@/engine/minhash";
+import { scoreText } from "@/engine/score";
+import { extractEntities } from "@/engine/entities";
 import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "./result-view";
 import { STRINGS } from "./strings";
 
@@ -30,7 +32,7 @@ describe("결과 첫 화면", () => {
   const t = STRINGS.en.result;
   // 신호 → 문장 매핑 표 (테오·카이 1791947403, 율 1791947465). 문장은 그 글에서 찾은 사실이 있을 때만
   const P = (code: string) => ({ code, points: 5 });
-  const CASES: [string, Parameters<typeof signIds>[0], { code?: string; points: number }[], string[], SignId[]][] = [
+  const CASES: [string, Parameters<typeof signIds>[0], { code?: string; points: number }[], string[], SignId[], string?][] = [
     ["보장 어휘", "HIGH", [P("term:원금보장")], [], ["guarantee"]],
     ["영어 보장", "HIGH", [P("term:en:profit:guaranteed")], [], ["guarantee"]],
     ["수익 + 서두름", "HIGH", [P("term:급등주"), P("term:선착순")], [], ["conversion"]],
@@ -61,17 +63,49 @@ describe("결과 첫 화면", () => {
     ["비밀 요구", "HIGH", [P("tactic:secrecy")], [], ["secrecy"]],
     ["출금 전 돈 요구", "HIGH", [P("tactic:withdrawal")], [], ["withdrawal"]],
     ["앱 설치 요구", "HIGH", [P("tactic:install")], [], ["appInstall"]],
-    ["가족 사칭 새 번호", "HIGH", [P("tactic:family")], [], ["familyNewNumber"]],
-    ["택배·기관 사칭 + 링크", "HIGH", [P("tactic:delivery")], ["url"], ["deliveryLink"]],
-    ["기관 사칭 + 전화번호", "HIGH", [P("tactic:authority")], ["phone"], ["deliveryLink"]],
-    ["택배 언급만(링크·전화 없음)은 문장 없음", "REVIEW", [P("tactic:delivery")], [], ["fallback"]],
-    ["대출 선수수료", "HIGH", [P("tactic:loan")], [], ["loanFee"]],
-    ["부업·알바", "HIGH", [P("tactic:task")], [], ["sideJob"]],
+    // 아래 넷은 tactic 코드만으로는 문장 없음 — 글에서 그 문장의 행동 근거를 따로 확인(카이 60a5fbf HOLD, 테오 1791952640)
+    ["가족 사칭 새 번호 + 상품권 요구", "HIGH", [P("tactic:family")], [], ["familyNewNumber"], "엄마 나 폰 고장나서 임시폰이야. 급하게 상품권 사서 핀번호 보내줘"],
+    ["가족 새 번호 + 돈은 필요 없다 → 문장 없음", "HIGH", [P("tactic:family")], [], ["fallback"], "엄마 나 폰 액정 깨져서 임시번호로 연락해. 돈은 필요 없고 그냥 이 번호 저장해줘"],
+    ["가족 tactic 코드만(글 없음) → 문장 없음", "HIGH", [P("tactic:family")], [], ["fallback"]],
+    ["택배 사칭 + 비공식 링크 + 누르라는 요구", "HIGH", [P("tactic:delivery")], ["url"], ["deliveryLink"], "[CJ대한통운] 주소 불일치로 배송 보류. 아래 링크 눌러 주소 수정하세요 https://cj-redeliv.top/x"],
+    ["일반 배송 지연 + 추적 링크 → 문장 없음", "HIGH", [P("tactic:delivery")], ["url"], ["fallback"], "Your package delivery is delayed. Track: https://bit.ly/abc123"],
+    ["기관 사칭 + 전화번호 + 전화하라는 요구", "HIGH", [P("tactic:authority")], ["phone"], ["deliveryLink"], "서울중앙지검 수사관입니다. 사건 확인을 위해 010-1234-5678로 바로 전화 주세요"],
+    ["택배 언급만(링크·전화 없음)은 문장 없음", "REVIEW", [P("tactic:delivery")], [], ["fallback"], "택배 배송 안내입니다"],
+    ["대출 선수수료", "HIGH", [P("tactic:loan")], [], ["loanFee"], "저금리 대환대출 가능합니다. 기존 대출을 먼저 상환하셔야 승인됩니다"],
+    ["대출 단어 + 상환 조언 → 문장 없음", "HIGH", [P("tactic:loan")], [], ["fallback"], "신용등급 관리 팁: 기존 대출은 상환 계획을 세우세요"],
+    ["부업 적은 노동 + 큰돈", "HIGH", [P("tactic:task")], [], ["sideJob"], "재택 부업 하루 30분, 상품 리뷰만 쓰면 일당 15만원"],
+    ["일반 구인 → 문장 없음", "HIGH", [P("tactic:task")], [], ["fallback"], "Part-time job opening at our store, apply in person"],
     ["받은 메시지 수법이 앞 순서", "HIGH", [P("cta"), P("tactic:secrecy"), P("tactic:withdrawal"), P("term:무료")], ["telegram"], ["withdrawal", "secrecy", "conversion"]],
     ["순서·최대 3", "HIGH", [P("obfuscation"), P("spread"), P("term:원금보장"), P("cta"), P("term:무료")], ["telegram"], ["guarantee", "conversion", "telegram"]],
     ["쇼츠 예시(영어)", "HIGH", [P("term:en:profit:guaranteed"), P("term:en:urgency:spots"), P("term:en:contact:tme"), P("combo:contact+invest")], ["telegram"], ["guarantee", "conversion", "telegram"]],
   ];
-  for (const [name, level, reasons, ents, want] of CASES) it(`매핑: ${name}`, () => expect(signIds(level, reasons, ents)).toEqual(want));
+  for (const [name, level, reasons, ents, want, text] of CASES) it(`매핑: ${name}`, () => expect(signIds(level, reasons, ents, text ?? null)).toEqual(want));
+  // 글 → 엔진 → 화면 문장 끝까지(코드 주입 없이). 엔진 단계와 무관하게 글에 없는 행동을 말하는 문장은 나오지 않는다(카이 60a5fbf·2e5de5a HOLD)
+  const E2E: [string, SignId, boolean][] = [
+    ["엄마 나 폰 액정 깨져서 임시번호로 연락해. 돈은 필요 없고 그냥 이 번호 저장해줘", "familyNewNumber", false],
+    ["엄마 나 폰 고장나서 새 번호야. 입금은 안 해도 돼, 상품권도 필요 없어", "familyNewNumber", false],
+    ["Hi Mum, my phone broke so this is my new number. I don't need any money, just save it.", "familyNewNumber", false],
+    ["Hi Mum, new number! I'm not asking for money or gift cards, just saying hi.", "familyNewNumber", false],
+    ["엄마 나 폰 고장나서 임시폰이야. 급하게 상품권 50만원어치 사서 핀번호 보내줘", "familyNewNumber", true],
+    ["Hi Mum it's me, new number. Can you transfer £850 for a bill today?", "familyNewNumber", true],
+    ["고객님의 택배 배송이 지연되고 있습니다. 배송조회: https://bit.ly/abc123", "deliveryLink", false],
+    ["Your package delivery is delayed. Track: https://bit.ly/abc123", "deliveryLink", false],
+    ["Your parcel is on the way and should arrive tomorrow. Tracking: https://bit.ly/abc123", "deliveryLink", false],
+    ["[CJ대한통운] 주소 불일치로 배송 보류. 아래 링크 눌러 주소 수정하세요 https://cj-redeliv.top/x", "deliveryLink", true],
+    ["USPS: your package could not be delivered. Click the link to update your address https://usps-redelivery.top/a", "deliveryLink", true],
+    ["신용등급 관리 팁: 기존 대출은 상환 계획을 세우세요", "loanFee", false],
+    ["저금리 대환대출 가능합니다. 기존 대출을 먼저 상환하셔야 승인됩니다 010-2222-3333", "loanFee", true],
+    ["Part-time job opening at our store, apply in person", "sideJob", false],
+    ["재택 부업 하루 30분, 상품 리뷰만 쓰면 일당 15만원", "sideJob", true],
+  ];
+  for (const [text, id, want] of E2E) it(`글→엔진→문장: ${want ? "있음" : "없음"} ${id} — ${text.slice(0, 28)}`, () => {
+    const r = scoreText(text);
+    const ids = signIds(r.label as "HIGH" | "REVIEW" | "LOW", r.reasons, extractEntities(text).map((e) => e.type), text);
+    if (want) { expect(r.label).not.toBe("LOW"); expect(ids).toContain(id); } else expect(ids).not.toContain(id);
+  });
+  it("글이 없으면(계정 집계) 받은 메시지 행동 문장은 나가지 않는다", () => {
+    for (const c of ["tactic:family", "tactic:delivery", "tactic:loan", "tactic:task"]) expect(signIds("HIGH", [P(c)], ["url", "phone"])).toEqual(["fallback"]);
+  });
   it("문장은 모두 두 줄", () => {
     for (const L of [STRINGS.ko, STRINGS.en]) for (const v of Object.values(L.result.signs)) expect(v).toHaveLength(2);
     expect(signTexts(["guarantee"], t)[0]).toEqual(t.signs.guarantee);
