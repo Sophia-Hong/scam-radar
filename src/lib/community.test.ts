@@ -78,6 +78,15 @@ describe("결과 첫 화면", () => {
     ["부업 적은 노동 + 큰돈", "HIGH", [P("tactic:task")], [], ["sideJob"], "재택 부업 하루 30분, 상품 리뷰만 쓰면 일당 15만원"],
     ["일반 구인 → 문장 없음", "HIGH", [P("tactic:task")], [], ["fallback"], "Part-time job opening at our store, apply in person"],
     ["받은 메시지 수법이 앞 순서", "HIGH", [P("cta"), P("tactic:secrecy"), P("tactic:withdrawal"), P("term:무료")], ["telegram"], ["withdrawal", "secrecy", "conversion"]],
+    // 수익 인증(소현 1791954291, 율 OK 1791954325) — 글에 그 말이 있을 때만, 부정·인용 경고 절 제외, 보장 다음
+    ["수익 인증 있음", "HIGH", [P("term:원금보장")], [], ["guarantee", "profitProof"], "원금보장! 매일 수익 인증샷 올려드립니다"],
+    ["수익 인증 영어", "REVIEW", [P("cta")], [], ["profitProof"], "Join now, we post daily profit screenshots in our group"],
+    ["수익 인증 축약 섞인 영어", "REVIEW", [P("cta")], [], ["profitProof"], "Here's our proof of profit, don't miss it"],
+    ["수익 인증 부정 절 → 없음", "HIGH", [P("term:원금보장")], [], ["guarantee"], "원금보장 상품입니다. 수익 인증 같은 건 필요 없어요"],
+    ["수익 인증 인용 경고 → 없음", "REVIEW", [P("cta")], [], ["fallback"], "“수익 인증” 보여 주며 입금하라는 건 사기예요"],
+    ["수익 인증 경고 절 → 없음", "REVIEW", [P("cta")], [], ["fallback"], "수익 인증샷은 조작일 수 있으니 조심하세요"],
+    ["인용·피해 경고 맥락(veto)이면 없음", "REVIEW", [P("cta"), { code: "veto:quote", points: -10 }], [], ["fallback"], "매일 수익 인증 올립니다"],
+    ["수익 인증 순서·최대 3", "HIGH", [P("term:원금보장"), P("cta"), P("term:무료")], ["telegram"], ["guarantee", "profitProof", "conversion"], "원금보장 무료 리딩방 수익 인증 매일, 텔레그램 지금 입장"],
     ["순서·최대 3", "HIGH", [P("obfuscation"), P("spread"), P("term:원금보장"), P("cta"), P("term:무료")], ["telegram"], ["guarantee", "conversion", "telegram"]],
     ["쇼츠 예시(영어)", "HIGH", [P("term:en:profit:guaranteed"), P("term:en:urgency:spots"), P("term:en:contact:tme"), P("combo:contact+invest")], ["telegram"], ["guarantee", "conversion", "telegram"]],
   ];
@@ -107,6 +116,12 @@ describe("결과 첫 화면", () => {
   });
   it("글이 없으면(계정 집계) 받은 메시지 행동 문장은 나가지 않는다", () => {
     for (const c of ["tactic:family", "tactic:delivery", "tactic:loan", "tactic:task"]) expect(signIds("HIGH", [P(c)], ["url", "phone"])).toEqual(["fallback"]);
+  });
+  it("수익 인증 문구 = 율 OK 원문(1791954325)", () => {
+    expect(STRINGS.ko.result.signs.profitProof).toEqual(["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "이런 사진은 AI로 쉽게 만들 수 있어요. 돈을 보내기 전에 반드시 다시 확인하세요."]);
+    expect(STRINGS.en.result.signs.profitProof).toEqual(["It points to 'proof of profit' screenshots.", "Pictures like these can easily be made with AI. Check again before you send money."]);
+    expect(STRINGS.ko.result.aiProofNote).toBe("수익 인증 사진·영상은 AI로 쉽게 만들 수 있어요. 믿기 전에 다시 확인하세요.");
+    expect(STRINGS.en.result.aiProofNote).toBe("Profit photos and videos can easily be made with AI. Check again before you believe them.");
   });
   it("문장은 모두 두 줄", () => {
     for (const L of [STRINGS.ko, STRINGS.en]) for (const v of Object.values(L.result.signs)) expect(v).toHaveLength(2);

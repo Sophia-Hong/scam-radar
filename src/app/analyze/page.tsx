@@ -45,6 +45,7 @@ export default function AnalyzePage() {
         {lang === "ko" ? <Reasons reasons={r.reasons} /> : (
           <PlainSigns signs={signTexts(signIds(r.label, r.reasons, extractEntities(text).map((e) => e.type), text), L.result)} note={L.report.enSignsNote} />
         )}
+        <p className="text-sm font-semibold text-zinc-700">{L.result.aiProofNote}</p>
         <div className="rounded-lg border border-zinc-200 bg-white p-3 text-xs">
           <div className="mb-1 font-semibold text-zinc-700">{t.normalized}</div>
           <div className="font-mono break-all text-zinc-600">{r.normalized.compact}</div>

@@ -76,6 +76,7 @@ const ko = {
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
       guarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
+      profitProof: ["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "이런 사진은 AI로 쉽게 만들 수 있어요. 돈을 보내기 전에 반드시 다시 확인하세요."],   // 소현 #today-hq 1791954291, 율 OK 1791954325
       withdrawal: ["돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 해요.", "이 말을 듣고 보낸 돈은 돌려받지 못하는 일이 많아요."],
       secrecy: ["비밀로 하라고 하거나, 은행에서 물으면 뭐라고 말할지 시켜요.", "가족이나 은행이 말릴까 봐 그러는 거예요. 사기에서 아주 자주 나와요."],
       appInstall: ["앱을 깔라고 하거나 링크로 설치하라고 해요.", "모르는 앱을 깔면 남이 내 폰을 조종하거나 돈을 빼 갈 수 있어요."],
@@ -97,6 +98,7 @@ const ko = {
     } as Record<SignId, [string, string]>,
     similar: (n: number) => `비슷한 글을 조심하라는 신고 ${n}건`,
     // 모든 결과 화면에 위험도와 상관없이 똑같이 — 계정 이야기가 아니라 일반 안내 (율 1791944215). 출처 표기는 금감원 원문 대조 뒤
+    aiProofNote: "수익 인증 사진·영상은 AI로 쉽게 만들 수 있어요. 믿기 전에 다시 확인하세요.",   // 모든 결과 화면 일반 안내(율 OK 1791954325)
     stopTitle: "이런 말을 들으면 멈추세요",
     stop: [
       "‘아무한테도 말하지 마세요’라고 하면 조심하세요. 사기는 가족이 말릴까 봐 비밀로 하라고 해요.",
@@ -273,6 +275,7 @@ const en: Strings = {
     noSigns: "No clear warning signs found.",
     signs: {
       guarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
+      profitProof: ["It points to 'proof of profit' screenshots.", "Pictures like these can easily be made with AI. Check again before you send money."],
       withdrawal: ["It says you must pay a tax, fee or deposit before you can take your money out.", "People who pay this often never get their money back."],
       secrecy: ["It tells you to keep this secret, or tells you what to say if the bank asks.", "Scammers do this so your family or bank can't stop you."],
       appInstall: ["It asks you to install an app, or to install one from a link.", "An unknown app can let someone control your phone or take your money."],
@@ -293,6 +296,7 @@ const en: Strings = {
       fallback: ["It uses several phrases common in scam messages.", "Double-check before any money is involved."],
     },
     similar: (n: number) => `${n} reports about messages like this`,
+    aiProofNote: "Profit photos and videos can easily be made with AI. Check again before you believe them.",
     stopTitle: "Stop if you hear this",
     stop: [
       "If they tell you not to tell anyone, be careful. Scams ask you to keep it secret so your family can't stop you.",

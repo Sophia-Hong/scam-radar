@@ -144,6 +144,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       <section>
         <h2 className="mb-2 text-lg font-semibold">{t.s6}</h2>
         {lang === "ko" ? <Reasons reasons={r.rationale} /> : <PlainSigns signs={enSigns} note={t.enSignsNote} />}
+        <p className="mt-2 text-sm font-semibold text-zinc-700">{L.result.aiProofNote}</p>
       </section>
 
       <section>

@@ -341,6 +341,8 @@ export function LiveAnalyzer() {
               </div>
             )}
 
+            {level && <p className="ai-proof-note">{t.result.aiProofNote}</p>}
+
             {level && (
               <div className="result-todo">
                 <h3>{t.result.todoTitle}</h3>

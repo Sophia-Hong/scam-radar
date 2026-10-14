@@ -16,10 +16,10 @@ const EVIDENCE_CODES = ["term:사원증", "term:급여명세", "term:명세서",
 const CHAT_ENTITY_TYPES = ["kakao_open", "kakao_channel", "whatsapp", "line", "wechat", "signal"];
 
 /** 화면 문장 id — 규칙 코드가 아니라 문장 목록의 자리. 공개 응답에는 이 id 만 나간다 */
-export type SignId = "guarantee" | "withdrawal" | "secrecy" | "appInstall" | "familyNewNumber" | "deliveryLink" | "loanFee" | "sideJob"
+export type SignId = "guarantee" | "profitProof" | "withdrawal" | "secrecy" | "appInstall" | "familyNewNumber" | "deliveryLink" | "loanFee" | "sideJob"
   | "conversion" | "telegram" | "chatRoom" | "impersonation" | "evidence" | "spreadAccounts" | "sharedContact" | "repeatSelf" | "normalization" | "identity" | "fallback";
 /** 받은 메시지 수법(엔진 v2 tactic:*)은 돈이 바로 나가는 단계라 앞에 둔다 */
-export const SIGN_ORDER: SignId[] = ["guarantee", "withdrawal", "secrecy", "appInstall", "familyNewNumber", "deliveryLink", "loanFee", "sideJob",
+export const SIGN_ORDER: SignId[] = ["guarantee", "profitProof", "withdrawal", "secrecy", "appInstall", "familyNewNumber", "deliveryLink", "loanFee", "sideJob",
   "conversion", "telegram", "chatRoom", "impersonation", "evidence", "spreadAccounts", "sharedContact", "repeatSelf", "normalization", "identity"];
 
 /**
@@ -32,6 +32,13 @@ const NEGATED = /(?:필요\s*(?:없|없어|없습)|안\s*(?:해도|보내도|내
 /** 부정·면제 절을 뺀 본문 — 절 = 문장부호·줄바꿈·쉼표로 나눈 조각 */
 function assertedText(text: string): string {
   return normalize(text).text.split(/[.!?\n,;·]+/).filter((c) => !NEGATED.test(c)).join(". ");
+}
+/** 수익 인증을 *내세우는* 말 — 부정 절·따옴표 안 인용·경고 절은 뺀 뒤에만(테오 1791954335) */
+const PROFIT_PROOF = /수익\s*인증(?:\s*샷)?|인증\s*샷|계좌\s*캡처|수익\s*(?:화면|캡처)|\b(?:profit screenshots?|proof of (?:profits?|earnings)|profit proofs?|earnings? screenshots?)\b/i;
+const WARNING_CLAUSE = /사기|조심|주의|속지|가짜|조작|만들\s*수\s*있|의심|신고|\b(?:scams?|fraud|beware|careful|fake|warning|be wary|made with ai)\b/i;
+function profitProofClaimed(text: string): boolean {
+  const unquoted = normalize(text).text.replace(/["“”「」『』][^"“”「」『』\n]{0,200}["“”「」『』]|[‘][^‘’\n]{0,80}[’]/g, " ");
+  return unquoted.split(/[.!?\n,;·]+/).some((c) => PROFIT_PROOF.test(c) && !NEGATED.test(c) && !WARNING_CLAUSE.test(c));
 }
 const PHONE_CHANGE = /새\s*번호|임시\s*(?:번호|폰)|번호\s*(?:바뀌|바꿨|변경)|(?:폰|핸드폰|휴대\s*(?:전화|폰)|액정)[^.!?\n]{0,12}(?:고장|깨|망가|수리|잃어|분실|침수)|\b(?:new (?:phone )?number|temporary (?:phone|number)|(?:phone|screen) (?:is |got |was )?(?:broken|damaged|cracked|lost)|(?:lost|broke|dropped) my phone)\b/i;
 const ID_ASK = /신분증|주민등록증|운전\s*면허증|여권\s*사진|\b(?:id card|photo (?:of )?(?:your )?id|picture of (?:your )?id|passport|driver'?s licen[cs]e)\b/i;
@@ -66,6 +73,8 @@ export function signIds(level: Level, reasons: { code?: string; points: number }
   const movesYou = !quoted && has((c) => c === "cta" || c === "combo:triple" || c.startsWith("combo:contact"));
   const found: Record<SignId, boolean> = {
     guarantee: has((c) => GUARANTEE_CODES.includes(c)),
+    // 수익 인증 — 엔진 코드가 아니라 글에서 직접(정규화 텍스트). 인용·피해 경고 맥락이면 없음
+    profitProof: !!text && !quoted && profitProofClaimed(text),
     // 받은 메시지 수법 — 엔진이 그 수법을 실제로 찾았을 때만(율 #compliance 1791951936)
     withdrawal: has((c) => c === "tactic:withdrawal"),
     secrecy: has((c) => c === "tactic:secrecy"),
