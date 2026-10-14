@@ -68,3 +68,8 @@ export function decodeParam(raw: string): string {
   }
   return s.trim();
 }
+
+/** 공개 응답의 신호별 점수는 방향(+1 / 0 / -1)만 — 크기(가점·감점)는 내보내지 않는다 (규칙 비공개, 소현 10-05 "규칙은 프론트에 하지 말고"). 화면은 부호만 쓴다. */
+export function publicReasons<T extends { points: number }>(reasons: T[]): T[] {
+  return reasons.map((r) => ({ ...r, points: Math.sign(r.points) }));
+}

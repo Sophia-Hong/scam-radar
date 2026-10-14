@@ -2,6 +2,7 @@ import { z } from "zod";
 import { scoreText } from "@/engine";
 import { json } from "@/lib/auth";
 import { reviewPost } from "@/lib/llm";
+import { publicReasons } from "@/lib/visibility";
 
 export const runtime = "nodejs";
 
@@ -37,9 +38,6 @@ export async function POST(req: Request) {
   }
   label = score >= 70 ? "HIGH" : score >= 40 ? "REVIEW" : "LOW";
 
-  return json({
-    score, label, reasons, matched: r.matched, categories: r.categories,
-    normalized: { text: r.normalized.text, compact: r.normalized.compact, techniques: r.normalized.techniques, obfuscationRatio: r.normalized.obfuscationRatio },
-    needsLlmReview: r.needsLlmReview, signalGroups: r.signalGroups, modelReview,
-  });
+  // 공개 응답 = 화면이 쓰는 것만: 총점·상태·신호(방향만)·신호 묶음. 사전 일치 목록·정규화 내부값·재검토 여부·모델 판정 원문은 내보내지 않는다(규칙 비공개)
+  return json({ score, label, reasons: publicReasons(reasons), signalGroups: r.signalGroups });
 }

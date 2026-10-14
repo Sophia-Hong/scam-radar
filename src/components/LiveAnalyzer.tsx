@@ -153,7 +153,7 @@ export function LiveAnalyzer() {
       <header className="analyzer-hero">
         <div className="analyzer-hero-copy">
           <div className="hero-label">SCAM RADAR · AI 리딩방 문구 판독</div>
-          <h1>사원증까지 위조하는,<br /><em>AI 리딩방 사기</em> —<br />꼭 한번 확인해보아요</h1>
+          <h1>증권사 직원까지 사칭하는,<br /><em>AI 리딩방 사기</em> —<br />꼭 한번 확인해보아요</h1>
           <p>사진과 경력이 그럴듯해도 안심할 수 없어요. 먼저 확인할 Threads 계정을 넣어보세요. 처음이라면 합성 사례부터 볼 수 있어요.</p>
           <form className="account-form" onSubmit={checkAccount}>
             <label htmlFor="account-query">Threads 계정 확인 (Threads 전용)</label>
@@ -284,7 +284,7 @@ function groupsFromReasons(reasons: Reason[]): SignalGroup[] {
   return [
     { code: "normalization", label: "숨긴 글자 복원", active: has("obfuscation"), evidence: [] },
     { code: "impersonation", label: "재직·퇴직 사칭", active: has("impersonate:"), evidence: [] },
-    { code: "evidence", label: "페이크 증빙 정황", active: has("evidence:", "term:사원증", "term:급여명세", "term:재직증명"), evidence: [] },
+    { code: "evidence", label: "증빙 언급 정황", active: has("evidence:", "term:사원증", "term:급여명세", "term:재직증명"), evidence: [] },
     { code: "conversion", label: "투자 유인 전환", active: has("combo:", "cta"), evidence: [] },
     { code: "infrastructure", label: "외부 이동 인프라", active: has("acct:lure-link", "term:텔레", "term:카카오", "term:오픈"), evidence: [] },
     { code: "coordination", label: "계정·캠페인 연결", active: has("spread", "spray", "cluster", "shared-contact"), evidence: [] },

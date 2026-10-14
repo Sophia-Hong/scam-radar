@@ -286,10 +286,10 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // 6) 계정 특성
   if (account.createdAt) {
     const days = (Date.now() - Date.parse(account.createdAt)) / 86400000;
-    if (days >= 0 && days < 30) { reasons.push({ code: "acct:new", label: "생성 30일 미만 계정", points: 8, evidence: `${Math.floor(days)}일` }); score += 8; }
+    if (days >= 0 && days < 30) { reasons.push({ code: "acct:new", label: "최근 생성된 계정", points: 8, evidence: `${Math.floor(days)}일` }); score += 8; }
   }
   if (typeof account.followers === "number" && account.followers < 50 && categories.contact > 0) {
-    reasons.push({ code: "acct:lowfollow", label: "팔로워 50 미만", points: 4, evidence: `${account.followers}` }); score += 4;
+    reasons.push({ code: "acct:lowfollow", label: "팔로워 적은 계정", points: 4, evidence: `${account.followers}` }); score += 4;
   }
   if (typeof account.following === "number" && typeof account.followers === "number" && account.followers > 0 && account.following / account.followers > 20) {
     reasons.push({ code: "acct:ratio", label: "팔로잉/팔로워 비율 비정상", points: 4 }); score += 4;
@@ -323,7 +323,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   //    보이는 신호가 하나라도 있으면 자동 판정을 포기하고 사람/LLM 에 넘긴다.
   const capAt = (cap: number, code: string, label: string, evidence?: string) => {
     if (score <= cap) return;
-    reasons.push({ code, label: `${label} → ${cap}점으로 상한`, points: cap - score, evidence });
+    reasons.push({ code, label, points: cap - score, evidence });   // 표시 라벨에 상한 숫자를 쓰지 않는다 (규칙 비공개, 소현 10-05)
     score = cap;
   };
 
@@ -336,11 +336,11 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     capAt(59, "veto:quote", "유인 문구 인용(풍자·해설 맥락)", n.text.match(QUOTED_LURE)?.[0]);
   }
   // 경고·피해 어휘. 하나만 있어도 자동 HIGH 는 포기한다 (유인글이 스스로 "신고하세요" 라고 쓰진 않는다).
-  if (strongCounters >= 2) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호", `강한 신호 ${strongCounters}개`);
+  if (strongCounters >= 2) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호");
   else if (strongCounters === 1) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
   // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
   if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
-    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정 — 자동 HIGH 보류", `팔로워 ${account.followers}`);
+    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정 (사람 검토)", `팔로워 ${account.followers}`);
   }
 
   // 8) HARD GATE — 다음 셋 중 하나는 있어야 HIGH 가 된다.

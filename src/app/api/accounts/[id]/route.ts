@@ -1,7 +1,7 @@
 import { desc, eq, or, ilike } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { checkAdmin, json } from "@/lib/auth";
-import { decodeParam, onlyVisible, redactSharedContact } from "@/lib/visibility";
+import { decodeParam, onlyVisible, publicReasons, redactSharedContact } from "@/lib/visibility";
 import { resolveAccountId } from "@/lib/resolve";
 import { sharedAccountsOf } from "@/lib/pipeline";
 import { effectiveStatus } from "@/lib/labels";
@@ -35,11 +35,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const trimmed = sharedWith.length !== shared.sharedWith.length;
   const shownAccount = admin ? acc : {
     ...acc,
-    reasons: redactSharedContact((acc.reasons ?? []) as { code: string; label: string; evidence?: string | null }[]),
+    reasons: publicReasons(redactSharedContact((acc.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[])),
     summary: trimmed ? null : acc.summary,
   };
   return json({
-    found: true, account: shownAccount, posts, entities, sharedWith,
+    found: true, account: shownAccount,
+    posts: admin ? posts : posts.map((p) => ({ ...p, reasons: publicReasons(((p.reasons ?? []) as { points: number }[])) })),   // 공개: 신호 방향만
+    entities, sharedWith,
     // 표시 라벨은 사람 판단이 있으면 그것이 최종 (src/lib/labels.ts 한 곳에서 결정)
     humanLabel: acc.humanLabel,
     humanNote: acc.humanNote,
