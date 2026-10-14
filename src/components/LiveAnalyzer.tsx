@@ -265,13 +265,10 @@ export function LiveAnalyzer() {
 
   return (
     <>
-      <div className="family-bar">
-        <p>{t.family.lead}</p>
-        <button type="button" onClick={sendToParents}>{t.family.button}</button>
-        {familyMsg && <small role="status">{t.family[familyMsg]}</small>}
-      </div>
 
       <section id="check" className="checker" aria-labelledby="checker-title">
+        {/* 자녀가 보낸 링크로 처음 온 분 — 할 일 세 단계를 맨 위에 크게(카이 노인 검수 2, 테오 1791956461). 원문은 URL 에 넣지 않는다 */}
+        <ol className="checker-steps">{t.hero.steps.map((s, i) => <li key={s}><b>{["①", "②", "③"][i]}</b> {s}</li>)}</ol>
         <h1 id="checker-title">{t.hero.title}</h1>
         <form onSubmit={submit}>
           <textarea
@@ -302,6 +299,13 @@ export function LiveAnalyzer() {
         )}
       </section>
 
+      {/* "소중한 사람에게 보내기"는 받은 분이 아니라 보내는 분의 행동 — 첫 화면 맨 위에서 입력칸 아래로(카이 노인 검수 2) */}
+      <div className="family-bar">
+        <p>{t.family.lead}</p>
+        <button type="button" onClick={sendToParents}>{t.family.button}</button>
+        {familyMsg && <small role="status">{t.family[familyMsg]}</small>}
+      </div>
+
       <section id="result" className="result-area" aria-live="polite">
         {hasAnything && (
           <div className={`result-card ${level ? TONE[level] : "risk-none"}`}>
@@ -328,6 +332,21 @@ export function LiveAnalyzer() {
             )}
             <p className="result-disclaimer">{t.result.disclaimer}</p>
 
+            {/* 할 일과 보내기를 긴 설명(징후·멈추세요)보다 위로(카이 노인 검수 5, 테오 1791956461) */}
+            {level && (
+              <div className="result-todo">
+                <h3>{t.result.todoTitle}</h3>
+                <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+                <p className="report-links"><b>{t.result.reportTo}</b> {t.result.reportLinks.map((l, i) => <span key={l.url}>{i > 0 && " · "}<a href={l.url} target="_blank" rel="noreferrer">{l.name}</a></span>)}</p>
+              </div>
+            )}
+
+            <div className="result-actions">
+              <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
+              {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: aiOff ? [] : keys, withText: !!sig && !aiOff })}   /* AI 없이 확인: 아무것도 미리 고르지 않음(테오 1791952508) */>{t.community.button}</button>}
+            </div>
+            {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
+
             {!aiOff && !community.unavailable && (reported.length > 0 || community.similar > 0) && (
               <div className="community-warn" role="alert">
                 <ul>
@@ -347,13 +366,6 @@ export function LiveAnalyzer() {
 
             {level && <p className="ai-proof-note">{t.result.aiProofNote}</p>}
 
-            {level && (
-              <div className="result-todo">
-                <h3>{t.result.todoTitle}</h3>
-                <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
-                <p className="report-links"><b>{t.result.reportTo}</b> {t.result.reportLinks.map((l, i) => <span key={l.url}>{i > 0 && " · "}<a href={l.url} target="_blank" rel="noreferrer">{l.name}</a></span>)}</p>
-              </div>
-            )}
 
             <div className="stop-box">
               <h3>{t.result.stopTitle}</h3>
@@ -361,11 +373,6 @@ export function LiveAnalyzer() {
               {t.result.stopFooter && <p className="stop-footer">{t.result.stopFooter}</p>}
             </div>
 
-            <div className="result-actions">
-              <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
-              {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: aiOff ? [] : keys, withText: !!sig && !aiOff })}   /* AI 없이 확인: 아무것도 미리 고르지 않음(테오 1791952508) */>{t.community.button}</button>}
-            </div>
-            {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
 
             {registry.status !== "closed" && (
               <div className="side-panel">

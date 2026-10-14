@@ -22,20 +22,21 @@ const ko = {
   family: {
     lead: "누구나 이상한 투자 권유를 받을 수 있어요. 소중한 사람에게 이 페이지를 보내 주세요.",
     button: "소중한 사람에게 보내기",
-    text: "이상한 투자 권유나 링크 받으면 여기 먼저 넣어 보세요.",
+    text: "이상한 투자 권유나 링크 받으면 여기 먼저 넣어 보세요. 의심되는 문자를 길게 눌러 복사한 뒤, 이 링크에 들어가 붙여넣기 하세요.",   // 테오 1791956461
     copied: "링크를 복사했어요. 메신저에 붙여넣어 보내세요.",
     failed: "복사하지 못했어요. 주소창의 링크를 복사해 주세요.",
   },
   hero: {
     title: "돈 보내기 전에, 받은 글을 여기 넣어 보세요",
-    placeholder: "의심 가는 글·링크·계정을 붙여 넣으세요\n\n예) 받은 카톡·문자·DM, t.me/… 링크, @계정명",
+    steps: ["받은 문자 길게 누르기 → 복사", "아래 칸에 붙여넣기", "[확인하기] 누르기"],   // 노인 첫 화면 1·2·3(카이·테오 1791956461)
+    placeholder: "의심 가는 글·링크를 붙여 넣으세요\n\n예) 받은 카톡·문자 메시지, 텔레그램 링크, SNS 글",
     aria: "확인할 글, 링크 또는 계정",
     check: "확인하기",
     checking: "확인 중…",
     sample: "예시로 해 보기",
     clear: "지우기",
-    demo: "합성 사례 보기",
-    scope: "투자 권유 글, 메신저 링크, Threads 계정을 확인할 수 있어요.",
+    demo: "예시 계정 보기",
+    scope: "받은 메시지, 텔레그램 같은 메신저 링크, SNS 글을 확인할 수 있어요.",
   },
   // 국외 이전 고지(개인정보 보호법 §28-8, 율 #compliance 1791950335·1791951502 최종 · 테오 1791950346). 보관·나라는 두 회사 현재 문서 원문에서(율 대조)
   notice: {
@@ -66,7 +67,7 @@ const ko = {
   result: {
     level: { HIGH: "위험 신호 높음", REVIEW: "위험 신호 중간", LOW: "위험 신호 낮음" } as Record<Level, string>,
     banner: {
-      HIGH: { title: "사기일 수 있어요.", sub: "돈을 보내기 전에 가족이나 은행에 먼저 물어보세요." },
+      HIGH: { title: "사기일 수 있어요.", sub: "돈을 보내지 마세요. 먼저 가족이나 은행에 물어보세요." },   // 율 OK 1791956479
       REVIEW: { title: "조심하세요.", sub: "돈을 보내기 전에 가족이나 은행에 먼저 물어보세요." },
       LOW: { title: "뚜렷한 위험 신호는 못 찾았어요.", sub: "그래도 돈 이야기가 나오면 가족이나 은행에 먼저 물어보세요." },
     } as Record<Level, { title: string; sub: string }>,
@@ -224,20 +225,21 @@ const en: Strings = {
   family: {
     lead: "Anyone can get a strange investment offer. Send this page to someone you care about.",
     button: "Share with someone you care about",
-    text: "Got a strange investment tip or link? Check it here first.",
+    text: "Got a strange investment tip or link? Check it here first. Press and hold the suspicious message to copy it, then open this link and paste it.",
     copied: "Link copied. Paste it into a chat to send.",
     failed: "Couldn't copy. Please copy the link from the address bar.",
   },
   hero: {
     title: "Before you send money, paste what you received here",
-    placeholder: "Paste the suspicious message, link or account\n\ne.g. a chat or text message, a t.me/… link, @username",
+    steps: ["Press and hold the message you got → Copy", "Paste it in the box below", "Tap [Check]"],
+    placeholder: "Paste the suspicious message or link\n\ne.g. a chat or text message, a Telegram link, a social media post",
     aria: "Message, link or account to check",
     check: "Check",
     checking: "Checking…",
     sample: "Try an example",
     clear: "Clear",
-    demo: "See a synthetic example",
-    scope: "Works with investment messages, messenger links and Threads accounts.",
+    demo: "See an example account",
+    scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
   },
   notice: {
     lead: "We don't store what you paste. Only unclear messages are sent to a US AI company (Anthropic) for a second look. Don't want that? Use",
@@ -267,7 +269,7 @@ const en: Strings = {
   result: {
     level: { HIGH: "Warning signs: high", REVIEW: "Warning signs: medium", LOW: "Warning signs: low" },
     banner: {
-      HIGH: { title: "This could be a scam.", sub: "Before you send money, ask your family or your bank first." },
+      HIGH: { title: "This could be a scam.", sub: "Do not send money. Ask your family or your bank first." },
       REVIEW: { title: "Be careful.", sub: "Before you send money, ask your family or your bank first." },
       LOW: { title: "No clear warning signs found.", sub: "If money comes up, still ask your family or your bank first." },
     },

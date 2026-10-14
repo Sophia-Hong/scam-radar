@@ -30,7 +30,7 @@ main { overflow:hidden; }
 .account-form label { display:block; margin-bottom:8px; color:var(--acid); font-size:13px; font-weight:800; }
 .account-form>div { display:flex; min-height:50px; background:white; border:1px solid white; }
 .account-form input { min-width:0; flex:1; border:0; outline:0; padding:0 14px; color:var(--ink); background:white; font-size:15px; }
-.account-form input::placeholder { color:#8e8b83; }
+.account-form input::placeholder { color:#5f5c55; }
 .account-form button { flex:0 0 auto; border:0; border-left:1px solid var(--ink); padding:0 17px; background:var(--acid); color:var(--ink); font-size:14px; font-weight:850; cursor:pointer; }
 .account-form button:disabled { cursor:wait; opacity:.7; }
 .account-form small { display:block; margin-top:8px; color:rgba(255,255,255,.54); font-size:11px; line-height:1.45; }
@@ -59,7 +59,7 @@ main { overflow:hidden; }
 .textarea-wrap { margin-top:24px; border:1px solid #b9b7b0; background:#faf9f6; }
 .textarea-wrap:focus-within { border-color:var(--ink); box-shadow:0 0 0 2px var(--acid); }
 .textarea-wrap textarea { width:100%; min-height:225px; resize:vertical; border:0; outline:0; background:transparent; padding:18px; color:var(--ink); font-size:16px; line-height:1.65; }
-.textarea-wrap textarea::placeholder { color:#9b9992; }
+.textarea-wrap textarea::placeholder { color:#5f5c55; }
 .textarea-meta { padding:11px 14px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #d8d6cf; color:#8b8982; font-size:12px; }
 .textarea-meta div { display:flex; gap:8px; }
 .textarea-meta button { padding:5px 9px; border:1px solid #cfcdc6; border-radius:999px; background:white; color:#55534d; cursor:pointer; font-size:12px; }
@@ -239,7 +239,7 @@ main { overflow:hidden; }
 
 /* 한영 전환 */
 .lang-toggle { margin-left:auto; display:inline-flex; border:1px solid var(--ink); border-radius:999px; overflow:hidden; }
-.lang-toggle button { border:0; background:transparent; padding:7px 11px; font-size:12px; font-weight:800; cursor:pointer; color:#66645d; }
+.lang-toggle button { min-width:44px; min-height:44px; border:0; background:transparent; padding:7px 11px; font-size:12px; font-weight:800; cursor:pointer; color:#66645d; }
 .lang-toggle button[aria-pressed="true"] { background:var(--ink); color:white; }
 .lang-toggle + .nav-cta { margin-left:0; }
 
@@ -284,7 +284,7 @@ main { overflow:hidden; }
 .community-warn span { font-family:ui-monospace,monospace; font-size:13px; word-break:break-all; }
 .community-warn small { display:block; margin-top:4px; color:#9a5a4f; font-size:11px; }
 @media (max-width:600px) {
-  .lang-toggle button { padding:6px 8px; }
+  .lang-toggle button { padding:6px 8px; min-width:44px; min-height:44px; }
   .result-actions { grid-template-columns:1fr; }
   .community-warn { padding:12px 18px; }
 }
@@ -300,11 +300,11 @@ main { overflow:hidden; }
 .checker form { display:grid; gap:12px; }
 .checker textarea { width:100%; min-height:170px; resize:vertical; padding:16px; border:2px solid var(--ink); outline:0; background:#faf9f6; font-size:20px; line-height:1.55; }
 .checker textarea:focus { box-shadow:0 0 0 3px var(--acid); }
-.checker textarea::placeholder { color:#8e8b83; font-size:18px; }
+.checker textarea::placeholder { color:#5f5c55; font-size:18px; }   /* #faf9f6 위 대비 4.5:1 이상(카이 노인 검수 3) */
 .checker-go { min-height:64px; border:0; background:var(--signal); color:white; font-size:24px; font-weight:900; letter-spacing:-.02em; cursor:pointer; }
 .checker-go:disabled { opacity:.45; cursor:not-allowed; }
 .checker-links { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
-.checker-links button { padding:7px 12px; border:1px solid #bdbab2; border-radius:999px; background:white; color:#45433d; font-size:14px; cursor:pointer; }
+.checker-links button { min-height:44px; padding:7px 16px; border:1px solid #bdbab2; border-radius:999px; background:white; color:#45433d; font-size:14px; cursor:pointer; }
 .checker-scope { margin:12px 0 0; color:#66645d; font-size:14px; }
 .checker .privacy-note { display:block; margin-top:10px; font-size:12px; color:#66645d; }
 .checker .privacy-note summary { cursor:pointer; color:#247651; font-weight:700; }
@@ -325,7 +325,7 @@ main { overflow:hidden; }
 .verdict-neutral { background:#efede6; color:var(--ink); }
 .verdict-neutral p { margin:0; font-size:16px; line-height:1.55; }
 .result-disclaimer { margin:10px 0 0; color:#55534d; font-size:13px; line-height:1.6; }
-.inline-link { padding:0; border:0; background:none; color:inherit; font:inherit; font-weight:800; text-decoration:underline; cursor:pointer; }
+.inline-link { display:inline-block; min-height:44px; min-width:44px; padding:0 4px; border:0; background:none; color:inherit; font:inherit; font-weight:800; text-decoration:underline; cursor:pointer; }
 .result-card .community-warn { margin-top:16px; padding:12px 16px; border:1px solid #e3a395; }
 .result-signs, .result-card .result-todo { margin-top:18px; }
 .result-signs h3, .result-card .result-todo h3 { margin:0 0 8px; font-size:17px; color:var(--ink); }
@@ -388,3 +388,12 @@ main { overflow:hidden; }
 .checker .privacy-note dd { margin:0; line-height:1.55; word-break:keep-all; overflow-wrap:anywhere; }
 .checker .privacy-note.ai-off { color:#247651; font-weight:700; line-height:1.55; }
 .stop-box .stop-footer { margin:10px 0 0; font-weight:800; font-size:16px; }
+
+/* 노인 첫 화면 1·2·3 단계 + 모든 누르는 곳 44×44 (카이 노인 검수 2·4, 테오 1791956461) */
+.checker-steps { list-style:none; margin:0 0 16px; padding:14px 16px; display:grid; gap:8px; background:var(--acid); border:1px solid var(--ink); }
+.checker-steps li { font-size:20px; font-weight:850; line-height:1.4; word-break:keep-all; }
+.checker-steps b { margin-right:4px; }
+.brand, .nav-links a, .nav-cta { min-height:44px; display:inline-flex; align-items:center; }
+.learn-link, .report-links a, .result-actions button, .panel-close, .privacy-note summary { min-height:44px; }
+.learn-link { display:inline-flex; align-items:center; }
+.report-links a { display:inline-flex; align-items:center; }
