@@ -82,6 +82,15 @@ describe("extractEntities — 전화·라인·위챗·링크", () => {
   it.each(["Use e.g. a normal example.", "The price moved from 1.5 to 2.0."])("does not treat normal prose as a URL: %s", text => {
     expect(vals(extractEntities(text), "url")).toEqual([]);
   });
+  it("does not extract an email domain as a URL beside an obfuscated link", () => {
+    const entities = extractEntities("info@company.com hxxps://evil[.]com");
+    expect(vals(entities, "email")).toContain("info@company.com");
+    expect(vals(entities, "url")).not.toContain("company.com");
+    expect(vals(entities, "url")).toContain("evil.com");
+  });
+  it("does not turn a bracket-dot email domain into a URL", () => {
+    expect(vals(extractEntities("name@domain[.]com"), "url")).not.toContain("domain.com");
+  });
 });
 
 describe("extractEntities — 일반 핸들·중복·출처", () => {

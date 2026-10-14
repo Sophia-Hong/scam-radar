@@ -269,3 +269,15 @@ so prose such as `e.g.` and decimal numbers is not promoted to a link.
 | DEV red-team benign HIGH | **0 / 36** |
 | On cases benign HIGH / lure HIGH | **0 / 8; 2 / 2** |
 | Real examples (84), HIGH + REVIEW | **44 / 84** |
+
+## Round 8 — message-wide disclosure boundary and email-safe URLs
+
+Institutional disclosure wording now remains exempt only when the complete
+active text has no investment-solicitation signal. A fixed-return promise in a
+joined offer therefore remains actionable across commas, colons, semicolons,
+dashes, line breaks, and no separator; ordinary deposit-insurance, FDIC, and
+policy disclosures remain below HIGH.
+
+URL extraction now rejects domains that begin immediately after an email
+local-part, including bracket-dot forms after de-obfuscation. Email entities
+remain available without producing a duplicate weak link.

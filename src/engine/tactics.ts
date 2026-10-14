@@ -151,18 +151,12 @@ const INVESTMENT_CONTEXT = /(?:투자|매수|매도|종목|주식|코인|수익|
 // becomes decisive only with an observable offer, return rate, asset tip, room,
 // move-to-chat, or payment action.
 const INVESTMENT_SOLICITATION = /(?:\b\d+(?:\.\d+)?\s*%\b|(?:월|연|daily|weekly|monthly)\s*(?:수익률|수익|returns?|profits?)|수익률|\b(?:stock(?:s)?\s*(?:tips?|picks?|signals?)|crypto|coin|leading\s*(?:room|group)|trading\s*(?:signals?|tips?))\b|(?:종목|주식|매수|매도|코인|가상자산|투자).{0,35}(?:추천|종목\s*정보|신호|시그널|드립|드립니다|제공|권유|상담|문의|가입|입장|텔레그램|카카오(?:톡)?|오픈채팅|입금)|(?:텔레그램|카카오(?:톡)?|오픈채팅|dm|message|contact).{0,35}(?:종목|주식|코인|투자|수익)|(?:투자|investment).{0,35}(?:입금|deposit|join|가입|문의|contact|with us))/i;
-const INSTITUTIONAL_DISCLOSURE = /(?:예금자\s*보호|예금보험공사|예금\s*보험|보험.{0,50}(?:약관|상품|설명|보장)|fdic|deposit\s+insurance|insured\s+(?:savings|deposit)|insurance\s+policy|(?:bank|은행).{0,50}(?:disclosure|약관|상품\s*설명|설명서)|(?:disclosure|약관|상품\s*설명|설명서).{0,50}(?:bank|은행)|principal[-\s]*protected\s+note)/i;
-
 export function hasIllegalInvestmentGuarantee(text: string): boolean {
-  // A disclosure only describes its own sentence or clause.  Treating one
-  // institutional phrase as a post-wide exemption lets a solicitation hide
-  // behind an unrelated disclosure prefix.
-  const eligibleGuaranteeText = text
-    .split(/[.!?;；\n]+/)
-    .filter((clause) => !INSTITUTIONAL_DISCLOSURE.test(clause))
-    .join(" ");
-  return (ILLEGAL_GUARANTEE.test(eligibleGuaranteeText) && INVESTMENT_SOLICITATION.test(text)) ||
-    (LOSS_COMPENSATION.test(eligibleGuaranteeText) && INVESTMENT_CONTEXT.test(text) && INVESTMENT_SOLICITATION.test(text));
+  // Institutional wording is harmless only when this entire active message
+  // contains no offer. A punctuation-bound exemption lets a solicitation hide
+  // behind a disclosure prefix, so evaluate solicitation at message scope.
+  return (ILLEGAL_GUARANTEE.test(text) && INVESTMENT_SOLICITATION.test(text)) ||
+    (LOSS_COMPENSATION.test(text) && INVESTMENT_CONTEXT.test(text) && INVESTMENT_SOLICITATION.test(text));
 }
 
 export function illegalGuaranteeEvidence(text: string): string | undefined {

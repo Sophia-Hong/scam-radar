@@ -211,6 +211,11 @@ function hasPlausibleHost(value: string): boolean {
   return PLAUSIBLE_TLD.test(value.split("/")[0]);
 }
 
+/** A domain immediately following an email local-part is not a destination. */
+function startsInsideEmail(text: string, start: number): boolean {
+  return /[a-z0-9._%+-]+@$/i.test(text.slice(0, start));
+}
+
 /**
  * 초성 난독화된 채널 단서만 되돌린다. 점수 엔진의 초성 매칭과 달리 여기서는
  * "단서 바로 뒤에 붙은 아이디"를 잡는 게 목적이라 단서 토큰만 치환하면 충분하다.
@@ -248,6 +253,7 @@ function scan(input: string, source: EntitySource, out: Map<string, Entity>) {
     const canonical = deobfuscateUrl(n.text);
     DEOBFUSCATED_URL.lastIndex = 0;
     for (const m of canonical.matchAll(DEOBFUSCATED_URL)) {
+      if (startsInsideEmail(canonical, m.index ?? 0)) continue;
       const value = stripUrl(m[0]);
       if (!value || !hasPlausibleHost(value) || URL_HANDLED.test(value)) continue;
       add(out, { type: "url", value, raw: m[0].trim(), source });
@@ -269,6 +275,7 @@ function scan(input: string, source: EntitySource, out: Map<string, Entity>) {
     if (v === input || v === despace(input)) {
       GENERIC_URL.lastIndex = 0;
       for (const m of v.matchAll(GENERIC_URL)) {
+        if (startsInsideEmail(v, m.index ?? 0)) continue;
         const value = stripUrl(m[0]);
         if (!value || !value.includes(".") || URL_HANDLED.test(value)) continue;
         add(out, { type: "url", value, raw: m[0].trim(), source });
@@ -280,6 +287,7 @@ function scan(input: string, source: EntitySource, out: Map<string, Entity>) {
     for (const re of [OBFUSCATED_PROTOCOL_URL, OBFUSCATED_BARE_URL]) {
       re.lastIndex = 0;
       for (const m of v.matchAll(re)) {
+        if (startsInsideEmail(v, m.index ?? 0)) continue;
         const value = stripUrl(deobfuscateUrl(m[0]));
         if (!value || !hasPlausibleHost(value) || URL_HANDLED.test(value)) continue;
         add(out, { type: "url", value, raw: m[0].trim(), source });
