@@ -89,6 +89,14 @@ export const llmCache = pgTable("llm_cache", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Best-effort TTL cache for public investigation sources; absence of this table falls back to memory. */
+export const investigateCache = pgTable("investigate_cache", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("investigate_cache_expires_idx").on(t.expiresAt)]);
+
 /** 조회 사이트에서 사용자가 남긴 제보/이의 */
 export const feedback = pgTable("feedback", {
   id: text("id").primaryKey(),
