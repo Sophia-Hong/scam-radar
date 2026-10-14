@@ -10,8 +10,8 @@ describe("AI 재검토 설정", () => {
     const { PROVIDERS } = await import("./llm");
     if (!process.env.AI_REVIEW_PROVIDERS) expect(PROVIDERS).toEqual(["anthropic"]);
   });
-  it("체크리스트 8개, 이름이 모두 있음", () => {
-    expect(REVIEW_CHECKS).toEqual(["giver", "money_promise", "guarantee", "move_chat", "secrecy_urgency", "impersonation", "withdrawal_fee", "quote_warning"]);
+  it("체크리스트 11개(받은 메시지 3항목 추가, 테오 O 1791960379), 이름이 모두 있음", () => {
+    expect(REVIEW_CHECKS).toEqual(["giver", "money_promise", "guarantee", "move_chat", "secrecy_urgency", "impersonation", "withdrawal_fee", "link_or_call", "pay_request", "personal_info", "quote_warning"]);
     for (const c of REVIEW_CHECKS) expect(REVIEW_CHECK_LABEL[c]).toBeTruthy();
   });
 });
@@ -30,5 +30,15 @@ describe("AI 호출 경계 (카이 71eea9b, 테오 1791950431)", () => {
   it("DB 가 없으면 예약 실패 = 호출 안 함(fail-closed)", async () => {
     const { reserveAiCall } = await import("./llm");
     if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) expect(await reserveAiCall()).toBeNull();
+  });
+});
+
+describe("모순 필터 — 새 항목만으로도 '사기' 유지", () => {
+  it("사기 + 링크·전화/돈 요구/개인정보만 → 버리지 않음, 사기 + 인용·경고만 → 버림", async () => {
+    const { reviewConsistent } = await import("./llm");
+    for (const c of ["link_or_call", "pay_request", "personal_info"] as const) expect(reviewConsistent({ verdict: "scam", checks: [c] })).toBe(true);
+    expect(reviewConsistent({ verdict: "scam", checks: ["quote_warning"] })).toBe(false);
+    expect(reviewConsistent({ verdict: "benign", checks: ["pay_request"] })).toBe(true);   // 정상 청구서도 결제 요구는 있다
+    expect(reviewConsistent({ verdict: "benign", checks: ["guarantee"] })).toBe(false);
   });
 });
