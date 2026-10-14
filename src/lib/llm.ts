@@ -1,6 +1,7 @@
 import { maskForAi } from "./mask";
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
+import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
@@ -21,16 +22,38 @@ const FALLBACK_MODELS = (process.env.AI_REVIEW_FALLBACK_MODELS ?? "")
   .split(",").map((m) => m.trim()).filter((m) => m && m !== PRIMARY_MODEL);
 export const PROVIDERS = (process.env.AI_REVIEW_PROVIDERS ?? PRIMARY_MODEL.split("/")[0]).split(",").map((p) => p.trim()).filter(Boolean);
 const useDirectGoogle = PRIMARY_MODEL.startsWith("google/") && !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+/**
+ * Anthropic 직접 호출(테오 1791966434 — Gateway BYOK 는 유료 크레딧이 있어야 저장돼 막힘): ANTHROPIC_API_KEY 가 있고 기본 모델이 anthropic/ 이면
+ * Gateway 대신 @ai-sdk/anthropic 으로 같은 모델을 부른다(키 = 소현의 Claude 파트너 크레딧 워크스페이스 scam-radar). 키가 없으면 Gateway 그대로.
+ * 받는 곳은 어느 쪽이든 Anthropic 하나 — 국외 이전 고지는 그대로. 캐시 키의 모델 이름(MODEL_NAME)은 바꾸지 않는다(캐시 유지).
+ */
+export const DIRECT_ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+const useDirectAnthropic = PRIMARY_MODEL.startsWith("anthropic/") && !!process.env.ANTHROPIC_API_KEY;
+export const AI_ROUTE: "anthropic-direct" | "google-direct" | "gateway" = useDirectAnthropic ? "anthropic-direct" : useDirectGoogle ? "google-direct" : "gateway";
 export const MODEL_NAME = useDirectGoogle ? `google-direct/${PRIMARY_MODEL.slice(7)}` : PRIMARY_MODEL;
-export const llmEnabled = !!(useDirectGoogle || process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL);
+export const llmEnabled = !!(useDirectAnthropic || useDirectGoogle || process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL);
 const DAILY_LLM_BUDGET = Number(process.env.AI_DAILY_REQUEST_BUDGET ?? 450);
 
-function modelConfig(tags: string[]) {
+/** 판정·캡처·이미지 검토·요약 모든 호출이 이 한 함수로 공급자를 고른다 */
+export function modelConfig(tags: string[]) {
+  if (useDirectAnthropic) return { model: anthropic(DIRECT_ANTHROPIC_MODEL) };
   if (useDirectGoogle) return { model: google(PRIMARY_MODEL.slice(7)) };
   return {
     model: PRIMARY_MODEL,
     providerOptions: { gateway: { only: PROVIDERS, ...(FALLBACK_MODELS.length ? { models: FALLBACK_MODELS } : {}), tags } },
   };
+}
+
+/** 직접 호출 비용 = 사용 토큰 × 정가(입력 $2·출력 $10 / 백만, 셈 원장 기준과 같음, 테오 1791966434) */
+export const DIRECT_PRICE_PER_MTOK = { input: 2, output: 10 } as const;
+export function usageCost(usage: unknown): number | undefined {
+  const u = usage as { inputTokens?: number; outputTokens?: number } | undefined;
+  if (typeof u?.inputTokens !== "number" && typeof u?.outputTokens !== "number") return undefined;
+  return ((u.inputTokens ?? 0) * DIRECT_PRICE_PER_MTOK.input + (u.outputTokens ?? 0) * DIRECT_PRICE_PER_MTOK.output) / 1_000_000;
+}
+/** 호출 비용 — Gateway 면 Gateway 가 돌려준 비용, 직접 호출이면 토큰 정가 계산 */
+function callCost(result: { providerMetadata?: unknown; usage?: unknown }): number | undefined {
+  return gatewayCost(result.providerMetadata) ?? (AI_ROUTE === "gateway" ? undefined : usageCost(result.usage));
 }
 
 function gatewayCost(metadata: unknown): number | undefined {
@@ -100,6 +123,8 @@ export async function reserveAiCall(now = new Date(), units = 1): Promise<{ rele
 
 /** Gateway 응답의 실제 모델명(대체로 갔다면 그 이름) — 없으면 요청한 이름 */
 function servedModel(result: { response?: { modelId?: string } }): string {
+  // 직접 호출은 Anthropic 원래 ID(claude-sonnet-5-5)를 돌려준다 — 기록은 Gateway 표기와 같은 정규화 이름으로
+  if (useDirectAnthropic && (!result.response?.modelId || result.response.modelId.startsWith(DIRECT_ANTHROPIC_MODEL))) return MODEL_NAME;
   return result.response?.modelId || MODEL_NAME;
 }
 
@@ -216,8 +241,8 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
       const out = result.output;
       const model = servedModel(result);
       // 모순 응답은 버리고 규칙 판정 유지(캐시에는 버렸다는 표시로 남겨 같은 글에 다시 과금하지 않음)
-      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: gatewayCost(result.providerMetadata) };
-      return { ...out, model, costUsd: gatewayCost(result.providerMetadata) };
+      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: callCost(result) };
+      return { ...out, model, costUsd: callCost(result) };
     });
   } catch (e) {
     logAiError("review", e);
@@ -262,8 +287,8 @@ export async function reviewPostWithImages(text: string, images: string[], reaso
       const { image_text, ...out } = result.output;
       const derived = derive((image_text ?? "").slice(0, 1500));   // 글자는 여기서 쓰고 버린다
       const model = servedModel(result);
-      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: gatewayCost(result.providerMetadata), derived };
-      return { ...out, model, costUsd: gatewayCost(result.providerMetadata), derived };
+      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: callCost(result), derived };
+      return { ...out, model, costUsd: callCost(result), derived };
     }, 1 + images.length);
   } catch (e) {
     logAiError("review-image", e);
@@ -314,7 +339,7 @@ export async function reviewEvidenceImage(text: string, image: string): Promise<
           ],
         }],
       });
-      return { ...result.output, model: servedModel(result), costUsd: gatewayCost(result.providerMetadata) };
+      return { ...result.output, model: servedModel(result), costUsd: callCost(result) };
     });
   } catch (e) {
     logAiError("evidence-image", e);

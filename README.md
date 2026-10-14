@@ -60,7 +60,7 @@ npm test                    # 엔진 단위 테스트
 
 1. GitHub 에 push → Vercel 에서 Import.
 2. **Storage → Postgres(Neon) 생성** → `POSTGRES_URL` 자동 주입. **Storage → Blob 생성** → `BLOB_READ_WRITE_TOKEN` 자동 주입.
-3. Environment Variables 에 `INGEST_TOKEN`·`ADMIN_TOKEN`(각각 아무 긴 문자열)을 설정한다. 보조 모델은 Vercel AI Gateway OIDC를 사용하므로 배포 환경에서 별도 공급자 키가 필요 없다. AI 재검토 모델은 기본 `anthropic/claude-sonnet-5.5`(Gateway 공급자 Anthropic 고정, 대체 모델 없음 — 실패하면 규칙 판정만)이며, 바꾸면 국외 이전 고지("자세히")도 같이 바꿔야 한다. 하루 호출 상한 `AI_DAILY_REQUEST_BUDGET`(기본 450, 호출을 시도하면 실패해도 1회로 셈). 신고 장부용 `COMMUNITY_SECRET` 은 필수.
+3. Environment Variables 에 `INGEST_TOKEN`·`ADMIN_TOKEN`(각각 아무 긴 문자열)을 설정한다. 보조 모델은 Vercel AI Gateway OIDC를 사용하므로 배포 환경에서 별도 공급자 키가 필요 없다. AI 재검토 모델은 기본 `anthropic/claude-sonnet-5.5`(Gateway 공급자 Anthropic 고정, 대체 모델 없음 — 실패하면 규칙 판정만)이며, 바꾸면 국외 이전 고지("자세히")도 같이 바꿔야 한다. 하루 호출 상한 `AI_DAILY_REQUEST_BUDGET`(기본 450, 호출을 시도하면 실패해도 1회로 셈). `ANTHROPIC_API_KEY`를 넣으면 Gateway 대신 Anthropic API를 직접 부른다(`@ai-sdk/anthropic`, 모델 `claude-sonnet-5-5`, 비용 = 토큰 × 입력 $2·출력 $10/백만, 캐시 모델 이름은 그대로) — 2026-10-14 Gateway BYOK 가 막혀 바꿈. 신고 장부용 `COMMUNITY_SECRET` 은 필수.
    `ADMIN_TOKEN` 은 `/review` 검토 화면과 `/api/admin/*` 을 여는 열쇠다. **프로덕션에서 비워 두면 검토 API 가 잠긴다.**
 4. 로컬에서 `POSTGRES_URL=<Neon URL> npm run db:push` 로 스키마 생성 (또는 `drizzle/0000_*.sql` 을 Neon SQL 콘솔에 붙여넣기).
 5. 로컬 `.env` 의 `API_BASE=https://<your-app>.vercel.app`, `INGEST_TOKEN` 을 맞춘 뒤 `npm run seed` 또는 `npm run push`.

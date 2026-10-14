@@ -16,6 +16,7 @@
     "score:local": "tsx collector/score-local.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.60",
     "@ai-sdk/google": "^4.0.76",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.8.0",
