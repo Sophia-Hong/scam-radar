@@ -213,6 +213,10 @@ describe("Google canonicalization examples (docs.cloud.google.com/web-risk/docs/
     ["http://www.gotaport.com:1234/", "www.gotaport.com/"],
     ["http://host.com/ab%23cd", "host.com/ab%23cd"],
     ["http://host.com//twoslashes?more//slashes", "host.com/twoslashes?more//slashes"],
+    // 쿼리도 %XX를 반복해서 풀고, 끝의 "?"는 남긴다(카이 8a75974)
+    ["https://example.com/?x=%2525", "example.com/?x=%25"],
+    ["http://www.google.com/q?", "www.google.com/q?"],
+    ["http://www.google.com/q?#frag", "www.google.com/q?"],
   ];
   for (const [input, expected] of cases) it(input, () => expect(canonicalExpression(parseSite(input)!)).toBe(expected));
   it("the hash Google compares is SHA-256 of exactly that expression", () => {

@@ -7,7 +7,7 @@ describe("노인 첫 방문", () => {
   it("HIGH 배너 = 율 OK 문구, 안내 문장은 그대로", () => {
     expect(`${STRINGS.ko.result.banner.HIGH.title} ${STRINGS.ko.result.banner.HIGH.sub}`).toBe("사기일 수 있어요. 돈을 보내지 마세요. 먼저 가족이나 은행에 물어보세요.");
     expect(`${STRINGS.en.result.banner.HIGH.title} ${STRINGS.en.result.banner.HIGH.sub}`).toBe("This could be a scam. Do not send money. Ask your family or your bank first.");
-    expect(STRINGS.ko.result.disclaimer).toContain("사기로 확정한 건 아니예요");   // 소현 1791987366: 단정하지 않는 요소는 유지
+    expect(STRINGS.ko.result.disclaimer).toContain("사기로 확정한 건 아니에요");   // 소현 1791987366: 단정하지 않는 요소는 유지
   });
   it("공유 메시지에 쓰는 법, 링크에는 원문 없음", () => {
     expect(STRINGS.ko.family.text).toContain("의심되는 문자를 길게 눌러 복사한 뒤, 이 링크에 들어가 붙여넣기 하세요");

@@ -17,6 +17,7 @@ export interface ParsedSite {
   /** 등록 가능한 도메인(예: example.co.kr) — IP 주소면 null */
   domain: string | null;
   path: string;
+  /** 원문의 쿼리("?"부터 "#" 전까지, "?"만 있어도 그대로). 없으면 "" — URL.search는 끝의 "?"를 지워서 쓰지 않는다(카이 8a75974) */
   query: string;
   signs: UrlSign[];
 }
@@ -45,7 +46,9 @@ export function parseSite(input: string): ParsedSite | null {
   if (domain && (SHORTENERS.has(domain) || SHORTENERS.has(host))) signs.push("shortener");
   if (u.username || u.password) signs.push("userinfo");
   u.hash = "";
-  return { url: u.toString(), host, domain, path: u.pathname || "/", query: u.search, signs };
+  const noFrag = raw.split("#")[0];
+  const q = noFrag.indexOf("?");
+  return { url: u.toString(), host, domain, path: u.pathname || "/", query: q >= 0 ? noFrag.slice(q) : "", signs };
 }
 
 /** Threads 계정 주소는 웹사이트 확인이 아니라 계정 조회로 간다 */
@@ -60,12 +63,28 @@ export function isThreads(site: ParsedSite): boolean {
  */
 /** Google 정규화 규칙(urls-hashing)대로 만든 "호스트+경로+쿼리" — 해시 표현의 첫 번째 */
 export function canonicalExpression(site: ParsedSite): string {
-  return site.host + canonicalPath(site.path) + (site.query && site.query !== "?" ? site.query : "");
+  return site.host + canonicalPath(site.path) + canonicalQuery(site.query);
+}
+
+/** 쿼리도 경로와 같은 규칙: 더 풀 것이 없을 때까지 %XX를 풀고, 0x20 이하·0x7F 이상·#·%만 다시 감싼다. "?"만 있어도 남긴다(Google urls-hashing) */
+function canonicalQuery(query: string): string {
+  if (!query) return "";
+  return "?" + escapeBytes(unescapeAll(query.slice(1)));
+}
+
+function unescapeAll(v: string): string {
+  let p = v;
+  for (let i = 0; i < 32; i++) { const d = p.replace(/%([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))); if (d === p) break; p = d; }
+  return p;
+}
+
+function escapeBytes(v: string): string {
+  return v.replace(/[\x00-\x20\x7f-\xff#%]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
 }
 
 export function hashExpressions(site: ParsedSite): string[] {
   const path = canonicalPath(site.path);
-  const full = path + (site.query && site.query !== "?" ? site.query : "");
+  const full = path + canonicalQuery(site.query);
   const hosts = [site.host, ...(site.domain && site.domain !== site.host ? [site.domain] : [])];
   const out: string[] = [];
   for (const h of hosts) for (const p of [full, "/"]) {

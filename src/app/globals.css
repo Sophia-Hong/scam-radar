@@ -551,3 +551,20 @@ h1, h2, h3 { letter-spacing:normal; }
 .checker .privacy-note .notice-full { margin:8px 0 0; line-height:1.55; }
 .checking-note { margin:4px 0 0; font-size:14px; color:var(--muted); }
 .firm-link { display:inline-block; min-height:44px; line-height:44px; font-weight:600; color:#111111; text-decoration:underline; }
+
+/* 한 줄 고지·판독 중 줄: 소현 "정말 작게, 흐린 회색" — 율 바닥선 12px·#767676(대비 4.54:1, 1791987477) */
+.checker .privacy-note summary, .checker .privacy-note summary .more, .checking-note { font-size:12px; color:#767676; }
+/* "이렇게 하세요" = 작은 체크리스트(소현 1791987441 "체크리스트 작게", 테오 1791987454) — 상자·배경 없이 */
+.result-card .result-todo, .result-todo { margin-top:16px; padding:0; background:none; border:0; }
+.result-todo h3 { margin:0 0 6px; font-size:14px; font-weight:600; color:#111111; letter-spacing:normal; }
+.result-todo ol { list-style:none; margin:0; padding:0; display:grid; gap:4px; }
+.result-todo li { position:relative; padding-left:22px; font-size:14px; line-height:1.5; color:#374151; }
+.result-todo li::before { content:"☐"; position:absolute; left:0; top:0; color:#6b7280; }
+.result-todo .report-links { font-size:13px; color:var(--muted); }
+/* 결과 화면 나머지 상자도 담백하게(소현 1791987441 "지금 너무 스캠같고 디자인 이상해") */
+.stop-box { background:var(--soft) !important; border:0 !important; border-radius:10px; }
+.stop-box h3 { font-size:15px; font-weight:600; }
+.stop-box li, .stop-box p { font-size:14px; }
+.ai-proof-note { border-left:3px solid #d1d5db !important; font-weight:400 !important; font-size:14px; color:#374151; }
+.ai-unavailable { background:var(--soft) !important; border:1px solid var(--line) !important; border-radius:8px; color:#374151 !important; font-weight:500 !important; font-size:14px; }
+.result-signs li { border-radius:8px; }

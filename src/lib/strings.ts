@@ -60,9 +60,10 @@ const ko = {
     more: "자세히",
     age: (n: number) => n < 30 ? `만든 지 ${n}일 된 주소예요. 새로 만든 주소는 사기에 자주 쓰여요.` : `만든 지 ${n}일(약 ${Math.round(n / 30)}개월) 된 주소예요. 아직 새 주소예요.`,
     url: { punycode: "다른 글자를 흉내 낸 주소일 수 있어요(xn-- 로 시작하는 부분이 있어요).", "ip-host": "이름 대신 숫자(IP)로 된 주소예요.", "risky-tld": "사기에 자주 쓰이는 끝자리(도메인 끝)예요.", shortener: "줄인 주소라 실제로 어디로 가는지 알 수 없어요.", userinfo: "주소 앞에 다른 이름을 끼워 넣은 모양이에요(@가 들어 있어요)." },
-    none: "Google 정보와 주소 확인에서 뚜렷한 위험 신호는 못 찾았어요. 그래도 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",
-    noneNoGoogle: "주소 모양과 등록일에서 뚜렷한 위험 신호는 못 찾았어요. Google 확인은 하지 못했어요. 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",   // 미조회 ≠ Google에서 못 찾음(카이 db5385f HOLD 3)
-    googleSkipped: "오늘은 Google 확인을 하지 못했어요. 주소 모양과 등록일만 봤어요.",
+    none: "Google 정보와 주소 모양에서 뚜렷한 위험 신호는 못 찾았어요. 안전하다는 뜻은 아니에요. 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",
+    ageUnknown: "만든 날짜는 확인하지 못했어요.",   // RDAP 실패 = 미확인(카이 8a75974)
+    noneNoGoogle: "주소 모양에서 뚜렷한 위험 신호는 못 찾았어요. Google 확인은 하지 못했어요. 안전하다는 뜻은 아니에요. 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",   // 미조회 ≠ Google에서 못 찾음(카이 db5385f HOLD 3)
+    googleSkipped: "오늘은 Google 확인을 하지 못했어요.",
     limited: "오늘 확인 횟수를 다 썼어요. 내일 다시 해 주세요.",
     failed: "웹사이트를 확인하지 못했어요. 잠시 뒤 다시 해 주세요.",
     note: "웹사이트 확인에는 Google 정보도 써요. 위험한 사이트를 다 찾지는 못하고, 안전한 사이트를 잘못 표시할 수도 있어요.",
@@ -73,12 +74,12 @@ const ko = {
     aiOffButton: "AI 없이 확인",
     leadTail: "을 쓰세요.",
     more: "자세히",
-    short: "확인하면 AI(미국)로 보내 판정해요",   // 전송 전 보이는 한 줄(소현 1791987249, 테오 1791987265) — 회사 이름·보관·캡처 문장은 "자세히" 안
+    short: "확인하면 AI(미국)로 보내 판정해요 · 신분증·카드 사진은 올리지 마세요",   // 율 1791987477 ③: 신분증 줄은 올리기 전에 보여야(§24의2)   // 전송 전 보이는 한 줄(소현 1791987249, 테오 1791987265) — 회사 이름·보관·캡처 문장은 "자세히" 안
     aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요(AI 확인·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
     aiOffUndo: "AI 확인 다시 켜기",
     details: [
       ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요. 올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
-      ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com). Google LLC (미국 회사) — 웹사이트 주소를 바꾼 암호값의 앞부분만, 위험 사이트 확인용"],   // 율 1791986341·1791986630(hashes.search)
+      ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com). Google LLC (미국 회사 · 개인정보 문의 support.google.com/policies/contact/general_privacy_form) — 웹사이트 주소를 바꾼 암호값의 앞부분만, 위험 사이트 확인용"],   // 받는 자 연락처(율 1791987477 ①)   // 율 1791986341·1791986630(hashes.search)
       ["웹사이트 확인", "사이트 이름(도메인)만, 그 끝자리(.com 등)를 관리하는 기관의 공개 등록 정보 조회처에 보내 만든 날짜를 봐요 (IANA 공식 목록 기준)."],   // 율 1791986630: §28-8 이전 아님, 투명성 한 줄
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사 · privacy@vercel.com). 저희 서버가 Vercel에서 돌아가서, 글은 Vercel을 거쳐 Anthropic으로 가요. Vercel AI Gateway를 거칠 때도 있어요."],   // 율 1791966604 — 직접 호출·Gateway 둘 다 맞게
@@ -100,7 +101,7 @@ const ko = {
     banner: {
       HIGH: { title: "사기일 수 있어요.", sub: "돈을 보내지 마세요. 먼저 가족이나 은행에 물어보세요." },   // 율 OK 1791956479
       REVIEW: { title: "조심하세요.", sub: "돈을 보내기 전에 가족이나 은행에 먼저 물어보세요." },
-      LOW: { title: "뚜렷한 위험 신호는 못 찾았어요.", sub: "그래도 돈 이야기가 나오면 가족이나 은행에 먼저 물어보세요." },
+      LOW: { title: "뚜렷한 위험 신호는 못 찾았어요.", sub: "안전하다는 뜻은 아니에요. 돈 이야기가 나오면 가족이나 은행에 먼저 물어보세요." },   // 징후 없음 ≠ 안전(테오 1791987474)
     } as Record<Level, { title: string; sub: string }>,
     aiUnavailable: "지금은 AI 확인을 못 해서 AI 없이 확인한 결과예요. 놓치는 사기가 많을 수 있어요.",   // 율 1791957681
     engine: { checking: "AI가 확인 중…", applied: "AI 확인 반영", error: "AI 확인 못 함", rule: "자동 분석", limited: "오늘 검사 횟수를 다 썼어요. 내일 다시 해 주세요" },
@@ -109,8 +110,8 @@ const ko = {
     noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
-      guarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
-      profitProof: ["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "이런 사진은 AI로 쉽게 만들 수 있어요. 돈을 보내기 전에 반드시 다시 확인하세요."],   // 소현 #today-hq 1791954291, 율 OK 1791954325
+      guarantee: ["‘원금 보장’이라고 써 있어요.", "‘절대 안 잃는’ 투자는 없어요."],   // 소현 1791987441(테오 1791987454) — 법 조문 괄호는 율 답 뒤
+      profitProof: ["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "수익인증사진은 AI로 딸깍, 쉽게 만들 수 있어요. 진정한 수익인증인지 알 수 없으니, 송금 전엔 반드시 다시 확인하세요."],   // 소현 원문 1791987441   // 소현 #today-hq 1791954291, 율 OK 1791954325
       withdrawal: ["돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 해요.", "이 말을 듣고 보낸 돈은 돌려받지 못하는 일이 많아요."],
       secrecy: ["비밀로 하라고 하거나, 은행에서 물으면 뭐라고 말할지 시켜요.", "가족이나 은행이 말릴까 봐 그러는 거예요. 사기에서 아주 자주 나와요."],
       appInstall: ["앱을 깔라고 하거나 링크로 설치하라고 해요.", "모르는 앱을 깔면 남이 내 폰을 조종하거나 돈을 빼 갈 수 있어요."],
@@ -164,7 +165,7 @@ const ko = {
       { name: "경찰 112", url: "tel:112" },
       { name: "사이버범죄 신고(ECRM)", url: "https://ecrm.police.go.kr/minwon/main" },
     ],
-    disclaimer: "주의: AI가 판단하여 오류가 있을 수 있고, 사기로 확정한 건 아니예요. 미리 확인하고 안전하게 진행하세요. 가족과 꼭 상의하세요.",   // 소현 원문 1791987366(테오 1791987374) — "확정한 건 아니" 요소 유지
+    disclaimer: "주의: AI가 판단하여 오류가 있을 수 있고, 사기로 확정한 건 아니에요. 미리 확인하고 안전하게 진행하세요. 가족과 꼭 상의하세요.",   // 소현 원문 1791987366(테오 1791987374) — "확정한 건 아니" 요소 유지
     details: "자세한 근거 보기",
     detailsNote: "근거 이름과 인용은 엔진이 본 원문 표현입니다.",
     contactLine: "",   // 소현 답 대기: "잘못 표시됐으면: 메일주소" 한 줄 (율 1791943988)
@@ -294,9 +295,10 @@ const en: Strings = {
     more: "Details",
     age: (n: number) => n < 30 ? `This address was created ${n} days ago. New addresses are often used for scams.` : `This address was created ${n} days ago (about ${Math.round(n / 30)} months). It is still new.`,
     url: { punycode: "The address may imitate other letters (part of it starts with xn--).", "ip-host": "The address is a number (IP) instead of a name.", "risky-tld": "The ending of this address is often used for scams.", shortener: "It is a shortened link, so you can't see where it really goes.", userinfo: "Another name is squeezed in front of the address (it contains @)." },
-    none: "No clear warning signs from Google data or the address itself. Still, check again before entering money or personal details.",
-    noneNoGoogle: "No clear warning signs from the address or its registration date. We couldn't check with Google. Check again before entering money or personal details.",
-    googleSkipped: "We couldn't check with Google today. Only the address and its registration date were checked.",
+    none: "No clear warning signs from Google data or the address itself. That does not mean it's safe. Check again before entering money or personal details.",
+    ageUnknown: "We couldn't check when this address was created.",
+    noneNoGoogle: "No clear warning signs from the address itself. We couldn't check with Google. That does not mean it's safe. Check again before entering money or personal details.",
+    googleSkipped: "We couldn't check with Google today.",
     limited: "You've used today's checks. Please try again tomorrow.",
     failed: "We couldn't check the website. Please try again shortly.",
     note: "Website checks also use Google data. It can miss some risky sites and may flag a safe site by mistake.",
@@ -306,12 +308,12 @@ const en: Strings = {
     aiOffButton: "Check without AI",
     leadTail: ".",
     more: "Details",
-    short: "We send it to an AI (US) to check",
+    short: "We send it to an AI (US) to check · Don't upload ID or card photos",
     aiOffOn: "Checking without AI — your text never leaves your browser, but more scams may be missed (no AI check, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
     aiOffUndo: "Turn the AI check back on",
     details: [
       ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught. Screenshots you upload, as they are (names, numbers and faces in them are sent too). Discarded right after the check; never stored."],
-      ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com). Google LLC (US company) — only the first part of a scrambled code made from the website address, to check for risky sites"],
+      ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com). Google LLC (US company · privacy inquiries support.google.com/policies/contact/general_privacy_form) — only the first part of a scrambled code made from the website address, to check for risky sites"],
       ["Website check", "Only the site name (domain) is sent to the public registration lookup of the body that runs its ending (like .com), as listed by IANA, to see when it was created."],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company · privacy@vercel.com). Our server runs on Vercel, so your text passes through Vercel on its way to Anthropic. Sometimes it also goes through Vercel AI Gateway."],
@@ -333,7 +335,7 @@ const en: Strings = {
     banner: {
       HIGH: { title: "This could be a scam.", sub: "Do not send money. Ask your family or your bank first." },
       REVIEW: { title: "Be careful.", sub: "Before you send money, ask your family or your bank first." },
-      LOW: { title: "No clear warning signs found.", sub: "If money comes up, still ask your family or your bank first." },
+      LOW: { title: "No clear warning signs found.", sub: "That does not mean it's safe. If money comes up, ask your family or your bank first." },
     },
     aiUnavailable: "AI checking is unavailable right now, so this result is without AI. More scams may be missed.",
     engine: { checking: "AI is checking…", applied: "AI check applied", error: "AI check unavailable", rule: "Automated check", limited: "You've used today's checks. Please try again tomorrow" },
@@ -341,8 +343,8 @@ const en: Strings = {
     signsTitle: "What looks wrong",
     noSigns: "No clear warning signs found.",
     signs: {
-      guarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
-      profitProof: ["It points to 'proof of profit' screenshots.", "Pictures like these can easily be made with AI. Check again before you send money."],
+      guarantee: ["It says “guaranteed.”", "No investment is ‘guaranteed not to lose.’"],
+      profitProof: ["It points to 'proof of profit' screenshots.", "Profit screenshots can be made with AI in one click. You can't tell if they're real, so check again before you send money."],
       withdrawal: ["It says you must pay a tax, fee or deposit before you can take your money out.", "People who pay this often never get their money back."],
       secrecy: ["It tells you to keep this secret, or tells you what to say if the bank asks.", "Scammers do this so your family or bank can't stop you."],
       appInstall: ["It asks you to install an app, or to install one from a link.", "An unknown app can let someone control your phone or take your money."],

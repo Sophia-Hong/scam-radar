@@ -117,9 +117,9 @@ describe("결과 첫 화면", () => {
   it("글이 없으면(계정 집계) 받은 메시지 행동 문장은 나가지 않는다", () => {
     for (const c of ["tactic:family", "tactic:delivery", "tactic:loan", "tactic:task"]) expect(signIds("HIGH", [P(c)], ["url", "phone"])).toEqual(["fallback"]);
   });
-  it("수익 인증 문구 = 율 OK 원문(1791954325)", () => {
-    expect(STRINGS.ko.result.signs.profitProof).toEqual(["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "이런 사진은 AI로 쉽게 만들 수 있어요. 돈을 보내기 전에 반드시 다시 확인하세요."]);
-    expect(STRINGS.en.result.signs.profitProof).toEqual(["It points to 'proof of profit' screenshots.", "Pictures like these can easily be made with AI. Check again before you send money."]);
+  it("수익 인증 문구 = 소현 원문(1791987441, 테오 1791987454)", () => {
+    expect(STRINGS.ko.result.signs.profitProof).toEqual(["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "수익인증사진은 AI로 딸깍, 쉽게 만들 수 있어요. 진정한 수익인증인지 알 수 없으니, 송금 전엔 반드시 다시 확인하세요."]);
+    expect(STRINGS.en.result.signs.profitProof).toEqual(["It points to 'proof of profit' screenshots.", "Profit screenshots can be made with AI in one click. You can't tell if they're real, so check again before you send money."]);
     expect(STRINGS.ko.result.aiProofNote).toBe("수익 인증 사진·영상은 AI로 쉽게 만들 수 있어요. 믿기 전에 다시 확인하세요.");
     expect(STRINGS.en.result.aiProofNote).toBe("Profit photos and videos can easily be made with AI. Check again before you believe them.");
   });

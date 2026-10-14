@@ -597,6 +597,7 @@ function SiteCard({ site }: { site: SiteState }) {
         <span>{t.result.banner[level].sub}</span>
       </div>
       {v.google === "skipped" && v.googleReason !== "no-key" && <p className="ai-unavailable" role="status">{w.googleSkipped}</p>}
+      {v.ageDays === null && <p className="result-account">{w.ageUnknown}</p>}
       {v.signs.length > 0 ? (
         <div className="result-signs">
           <h3>{t.result.signsTitle}</h3>
