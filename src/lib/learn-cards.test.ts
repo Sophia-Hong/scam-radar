@@ -43,3 +43,11 @@ describe("/learn 실제 사례 화면 (율 O 1791962248)", () => {
     expect(LEARN_CARDS.ko[0].images?.[0].src).toBe("/learn/06-profit-proof-lotto.jpg");
   });
 });
+
+describe("/learn 출처 링크·이미지 자리 (카이 /learn HOLD)", () => {
+  it("사례 이미지 출처는 모두 공식 원문 https 링크(정부·금감원 도메인), 위조 신분증 카드는 이미지 없음, 09는 기관 사칭 카드", () => {
+    for (const c of LEARN_CARDS.ko) for (const im of c.images ?? []) expect(new URL(im.source.url!).hostname).toMatch(/(^|\.)(korea\.kr|fss\.or\.kr|police\.go\.kr)$/);
+    expect(LEARN_CARDS.ko[1].images).toBeUndefined();
+    expect(LEARN_CARDS.ko[4].images?.map((i) => i.src)).toContain("/learn/09-fake-official-letter.jpg");
+  });
+});

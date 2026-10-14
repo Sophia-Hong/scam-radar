@@ -34,7 +34,7 @@ export default async function Learn() {
                 <b>{t.caseImage}</b>
                 {/* 휴대폰 폭에서는 글씨가 작다 — 누르면 원래 크기로 연다 */}
                 <a href={im.src} target="_blank" rel="noreferrer"><img src={im.src} width={im.width} height={im.height} alt={`${t.caseImage} — ${im.source.org} 「${im.source.title}」`} loading="lazy" /></a>
-                <figcaption>{t.source}: {im.source.org} 「{im.source.title}」 · {im.source.date}</figcaption>
+                <figcaption>{t.source}: {im.source.org} · {im.source.url ? <a href={im.source.url} target="_blank" rel="noreferrer">{im.source.title}</a> : `「${im.source.title}」`} · {im.source.date}</figcaption>
               </figure>
             ))}
             <p className="learn-todo"><b>{t.todo}</b> {c.todo}</p>
