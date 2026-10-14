@@ -1,3 +1,5 @@
+import { activeContext } from "./context";
+import { findTactics, hasEasyMoneyPitch } from "./tactics";
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
 import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
@@ -139,7 +141,10 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const bio = account.bio ? `\n${account.bio}` : "";
   const url = account.externalUrl ? `\n${account.externalUrl}` : "";
   const raw = rawText + bio + url;
-  const n = normalize(raw);
+  const original = normalize(raw);
+  const context = activeContext(raw.toLowerCase());
+  const n = normalize(context.text);
+  const tactics = findTactics(n.text);
 
   const reasons: Reason[] = [];
   const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0, impersonate: 0 };
@@ -176,11 +181,11 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     add(term, pts.slice(Math.max(0, idx - pad), idx + Array.from(hit).length + pad).join("").trim());
   }
   // 2) 초성 매칭 (원문에 호환 자모가 있을 때만)
-  for (const { term, token } of findChosungTerms(raw)) {
+  for (const { term, token } of findChosungTerms(context.text)) {
     add(term, token, "초성 난독화");
   }
   // 3) 정규식 구조 신호
-  const rawLower = raw.toLowerCase();
+  const rawLower = context.text.toLowerCase();
   for (const p of PATTERNS) {
     const m = (p.on === "raw" ? rawLower : n.text).match(p.re);
     if (m) {
@@ -198,6 +203,24 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   for (const c of Object.keys(categories) as Category[]) {
     categories[c] = Math.min(categories[c], CAT_CAP[c]);
     score += categories[c];
+  }
+
+  // Received-message families cannot produce HIGH from a lone word/family.
+  // Payment conditioning adds evidence but does not bypass the existing HIGH gate.
+  const financialDemand = tactics.some(t => t.family === "withdrawal" || t.family === "advance");
+  const taskRecruitment = tactics.some(t => t.family === "task") && tactics.some(t => t.family === "recruiter");
+  const receivedCombo = financialDemand && tactics.length >= 2;
+  for (const t of tactics) {
+    score += t.points;
+    reasons.push({ code: `tactic:${t.family}`, label: t.label, points: t.points, evidence: t.evidence });
+  }
+  if (receivedCombo || (taskRecruitment && categories.contact > 0 && categories.profit > 0)) {
+    score += 24;
+    reasons.push({ code: "combo:received", label: "금전 요구와 복수 유인 정황 결합", points: 24 });
+  }
+  if (context.excluded.length) {
+    reasons.push({ code: "counter", label: "인용·부정 범위의 표현 제외", points: 0 });
+    reasons.push({ code: "veto:scoped-context", label: "인용·부정 범위의 표현 제외", points: 0 });
   }
 
   // 3b) 프로필 외부 링크가 메신저·링크모음 — 본문과 무관하게 계정 자체가 유입 장치다.
@@ -288,7 +311,9 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // 5b) 피해자·경고 맥락 감점 — "리딩방 사기 당한 후기" 는 유인글이 아니다
   let counter = 0;
   let strongCounters = 0;
-  const hitCounters = COUNTER_TERMS.filter((c) => (c.re ? c.re.test(n.text) : n.compact.includes(c.term)));
+  const hasActiveOffer = categories.contact > 0 && categories.invest + categories.profit > 0 && CTA_PATTERNS.some(c => c.re.test(n.text));
+  const counterContext = hasActiveOffer ? n : original;
+  const hitCounters = COUNTER_TERMS.filter((c) => (c.re ? c.re.test(counterContext.text) : counterContext.compact.includes(c.term)));
   for (const c of hitCounters) {
     counter += 12 * c.w;
     if (c.strong) strongCounters++;
@@ -332,6 +357,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     reasons.push({ code: "spray", label: "무관한 여러 원글에 동일 댓글 살포", points: 10, evidence: `${account.distinctTargets}개 원글` }); score += 10;
   }
 
+  const scoreWithoutTactics = score - tactics.reduce((sum, t) => sum + t.points, 0);
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   // 7) 상한(veto) — 여기부터는 "점수를 깎는" 게 아니라 "HIGH 를 포기한다".
@@ -342,6 +368,12 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     reasons.push({ code, label, points: cap - score, evidence });   // 표시 라벨에 상한 숫자를 쓰지 않는다 (규칙 비공개, 소현 10-05)
     score = cap;
   };
+
+  // A generic app install, job, fee or affectionate phrase alone must not turn
+  // an otherwise sub-HIGH message into HIGH. Require corroborating families.
+  if (tactics.length === 1 && scoreWithoutTactics < THRESHOLD_HIGH) {
+    capAt(NO_CONTACT_CAP, "gate:tactic-corroboration", "추가 정황 확인 필요");
+  }
 
   for (const v of VETO_PATTERNS) {
     const m = n.text.match(v.re);
@@ -354,6 +386,13 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // 경고·피해 어휘. 하나만 있어도 자동 HIGH 는 포기한다 (유인글이 스스로 "신고하세요" 라고 쓰진 않는다).
   if (strongCounters >= 2) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호");
   else if (strongCounters === 1) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
+  // A recruiter, contact channel and ordinary salary can describe a real job.
+  // Do not let newly added employment families alone promote that to HIGH.
+  const taskOnlyPitch = tactics.some(t => t.family === "task") &&
+    !financialDemand && !hasEasyMoneyPitch(n.text) &&
+    !tactics.some(t => ["secrecy", "install", "room", "romance", "authority"].includes(t.family));
+  if (taskOnlyPitch) capAt(NO_CONTACT_CAP, "veto:ordinary-job", "일반 채용 안내와 구분 필요");
+
   // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
   if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
     capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정", `팔로워 ${account.followers}`);
@@ -389,5 +428,5 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     { code: "identity", label: "신원·활동 맥락 불일치", active: countryMismatch, evidence: reasonEvidence(["identity:"]) },
   ];
 
-  return { score, label, reasons, matched, categories, normalized: n, needsLlmReview: label === "REVIEW", signalGroups };
+  return { score, label, reasons, matched, categories, normalized: original, needsLlmReview: label === "REVIEW", signalGroups };
 }

@@ -30,6 +30,9 @@ export interface Term {
 }
 
 export const TERMS: Term[] = [
+  { term: "ko:profile-offer", cat: "contact", label: "프로필에서 투자 자료 제공", re: /프로필.{0,25}(?:버튼|안내).{0,40}(?:종목|매매|투자|받아|드려)|(?:종목|매매|투자).{0,35}프로필.{0,20}(?:버튼|안내)/ },
+  { term: "ko:comment-offer", cat: "contact", label: "댓글 회신 후 자료 제공", re: /댓글.{0,30}(?:남기|남겨|달아).{0,25}(?:보내|드려|드립|공유)/, w: 0.8 },
+  { term: "종목표", cat: "invest", label: "종목·매매 정보 제공" },
   // ── 연락 채널 유도 ──
   { term: "텔레그램", cat: "contact", label: "텔레그램 유도", chosung: true },
   { term: "텔레", cat: "contact", label: "텔레그램 유도", w: 0.8 },
