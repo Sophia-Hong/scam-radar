@@ -75,7 +75,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       <section>
         <h2 className="mb-2 text-lg font-semibold">3. 내용 요약 (관측 사실)</h2>
         <pre className="whitespace-pre-wrap rounded bg-zinc-50 p-3 text-sm leading-relaxed">{r.summary.text}</pre>
-        <div className="mt-1 text-xs text-zinc-500">작성: {r.summary.generatedBy === "template" ? "템플릿(규칙 기반)" : `LLM ${r.summary.generatedBy} 초안 — 사람 검토 전`}</div>
+        <div className="mt-1 text-xs text-zinc-500">작성: {r.summary.generatedBy === "template" ? "템플릿(규칙 기반)" : `AI(${r.summary.generatedBy}) 초안`}</div>
       </section>
 
       <section>

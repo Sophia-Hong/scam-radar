@@ -1,32 +1,42 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies, headers } from "next/headers";
+import { LangProvider, LangToggle, T } from "@/lib/i18n";
+import { langFrom, STRINGS } from "@/lib/strings";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Scam Radar — Threads 리딩방 계정 확인",
-  description: "Threads 계정과 게시물 문구를 확인해 리딩방 유인 신호와 근거를 바로 보여드립니다. 합성 데모 계정과 붙여넣은 문구만 대상으로 하며, 자동 분석은 법적 판단이 아닙니다.",
-  robots: { index: false, follow: false },
-};
+async function currentLang() {
+  return langFrom((await cookies()).get("lang")?.value, (await headers()).get("accept-language"));
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata(): Promise<Metadata> {
+  const m = STRINGS[await currentLang()].meta;
+  return { title: m.title, description: m.description, robots: { index: false, follow: false } };
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = await currentLang();
   return (
-    <html lang="ko">
+    <html lang={lang}>
       <body>
-        <header className="site-header">
-          <nav>
-            <Link href="/" className="brand"><span className="brand-dot" />SCAM RADAR</Link>
-            <div className="nav-links">
-              <Link href="/#check">계정 확인</Link>
-              <Link href="/#criteria">판독 기준</Link>
-            </div>
-            <Link className="nav-cta" href="/#check">계정 확인하기</Link>
-          </nav>
-        </header>
-        <main>{children}</main>
-        <footer className="site-footer">
-          <span>SCAM RADAR</span>
-          <p>자동 분석 결과는 법적 판단이 아니며, 특정 계정을 사기로 단정하지 않습니다.</p>
-        </footer>
+        <LangProvider initial={lang}>
+          <header className="site-header">
+            <nav>
+              <Link href="/" className="brand"><span className="brand-dot" />SCAM RADAR</Link>
+              <div className="nav-links">
+                <Link href="/#check"><T k="navCheck" /></Link>
+                <Link href="/#criteria"><T k="navCriteria" /></Link>
+              </div>
+              <LangToggle />
+              <Link className="nav-cta" href="/#check"><T k="navCta" /></Link>
+            </nav>
+          </header>
+          <main>{children}</main>
+          <footer className="site-footer">
+            <span>SCAM RADAR</span>
+            <p><T k="footer" /></p>
+          </footer>
+        </LangProvider>
       </body>
     </html>
   );

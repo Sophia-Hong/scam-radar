@@ -114,6 +114,6 @@ export async function buildReport(accountId: string, opts: { admin?: boolean } =
     })),
     rationale: explainReasons(reasons),
     filing: FILING_TARGETS,
-    disclaimer: "본 리포트는 공개 게시물의 자동 분석 결과이며 법적 판단이 아닙니다. 신고 여부와 최종 판단은 사람이 검토 후 결정합니다.",
+    disclaimer: "본 리포트는 공개 게시물의 자동 분석 결과이며 법적 판단이 아닙니다. 특정 계정을 사기로 단정하지 않으며, 신고 여부는 읽는 분이 결정합니다.",
   };
 }

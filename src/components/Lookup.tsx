@@ -46,7 +46,7 @@ export function Lookup() {
     const r = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accountId: res.account.id, isScam }) });
     if (r.status === 429) { setFb("잠시 후 다시 시도해 주세요 (제보는 분당 10건까지)."); return; }
     if (!r.ok) { setFb("제보 저장에 실패했습니다."); return; }
-    setFb("제보가 저장됐습니다. 검토자가 확인합니다.");
+    setFb("제보가 저장됐습니다.");
   }
 
   return (

@@ -350,7 +350,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   if (!gateOpen && score > NO_CONTACT_CAP) {
     reasons.push({
       code: "gate:no-contact",
-      label: "결정적 정황 없음 (사람 검토)",   // 관문 조건·상한 숫자는 표시하지 않는다 (카이 1791940174, 소현 10-05)
+      label: "결정적 정황 없음",   // 관문 조건·상한 숫자는 표시하지 않는다 (카이 1791940174, 소현 10-05)
       points: NO_CONTACT_CAP - score,
     });
     score = NO_CONTACT_CAP;

@@ -236,3 +236,56 @@ main { overflow:hidden; }
 .account-status ol { margin:6px 0 0; padding-left:18px; color:#4a4842; font-size:13px; line-height:1.55; }
 .account-status .status-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .account-status .status-actions button { border:1px solid var(--ink); background:white; padding:7px 11px; font-size:13px; font-weight:800; cursor:pointer; }
+
+/* 한영 전환 */
+.lang-toggle { margin-left:auto; display:inline-flex; border:1px solid var(--ink); border-radius:999px; overflow:hidden; }
+.lang-toggle button { border:0; background:transparent; padding:7px 11px; font-size:12px; font-weight:800; cursor:pointer; color:#66645d; }
+.lang-toggle button[aria-pressed="true"] { background:var(--ink); color:white; }
+.lang-toggle + .nav-cta { margin-left:0; }
+
+/* 결과 첫 화면 — 단계 · 이유 한 줄 · 할 일 · 행동 (테오 10-14 ④) */
+.result-level { margin-top:22px; display:flex; justify-content:space-between; align-items:center; gap:18px; }
+.result-level strong { font-size:clamp(32px,3.8vw,48px); line-height:1.05; letter-spacing:-.05em; word-break:keep-all; }
+.level-meter { flex:0 0 auto; display:flex; gap:5px; }
+.level-meter i { width:22px; height:10px; background:rgba(255,255,255,.22); }
+.level-meter i[data-on="true"] { background:var(--acid); }
+.result-why { margin:14px 0 0; font-size:16px; line-height:1.5; word-break:keep-all; }
+.result-why b { margin-right:6px; padding:2px 7px; background:rgba(255,255,255,.16); font-size:12px; letter-spacing:.04em; vertical-align:2px; }
+.result-todo { margin-top:22px; padding:16px 18px; background:rgba(0,0,0,.22); }
+.result-todo h3 { margin:0 0 8px; font-size:13px; color:var(--acid); letter-spacing:.04em; }
+.result-todo ol { margin:0; padding-left:20px; font-size:14px; line-height:1.6; }
+.result-todo li + li { margin-top:4px; }
+.report-links { margin:12px 0 0; font-size:12px; color:rgba(255,255,255,.75); line-height:1.6; }
+.report-links b { margin-right:6px; color:white; }
+.report-links a { text-decoration:underline; }
+.result-actions { margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.result-actions button { min-height:48px; border:1px solid white; padding:10px 12px; font-size:14px; font-weight:850; cursor:pointer; }
+.act-register { background:white; color:var(--ink); }
+.act-share { background:transparent; color:white; }
+.act-msg { margin:8px 0 0; font-size:12px; color:var(--acid); }
+.registry-panel { position:relative; margin-top:14px; padding:16px 18px; background:white; color:var(--ink); }
+.registry-panel h3 { margin:0 0 6px; font-size:15px; }
+.registry-panel p { margin:0 0 8px; font-size:13px; line-height:1.55; color:#45433d; }
+.registry-panel ul { list-style:none; margin:8px 0; padding:0; }
+.registry-panel li label { display:flex; gap:8px; align-items:center; padding:6px 0; font-size:14px; font-family:ui-monospace,monospace; word-break:break-all; }
+.registry-panel small { display:block; color:#77756e; font-size:11px; line-height:1.5; }
+.registry-buttons { margin-top:10px; }
+.registry-buttons button { border:0; background:var(--ink); color:white; padding:10px 16px; font-weight:850; cursor:pointer; }
+.registry-buttons button:disabled { opacity:.5; cursor:not-allowed; }
+.registry-close { position:absolute; top:10px; right:12px; border:0; background:none; color:#77756e; font-size:12px; text-decoration:underline; cursor:pointer; }
+.result-details { margin-top:18px; font-size:13px; }
+.result-details summary { cursor:pointer; color:rgba(255,255,255,.75); font-weight:750; }
+.result-details .result-reasons { list-style:none; margin:10px 0 0; padding:0; border-top:1px solid rgba(255,255,255,.2); }
+.result-details small { display:block; margin-top:8px; color:rgba(255,255,255,.5); font-size:11px; }
+.community-warn { padding:14px 26px; background:#fff1ec; border-bottom:1px solid var(--ink); color:#8a1f10; }
+.community-warn ul { list-style:none; margin:0; padding:0; }
+.community-warn li { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; padding:3px 0; }
+.community-warn b { font-size:16px; }
+.community-warn span { font-family:ui-monospace,monospace; font-size:13px; word-break:break-all; }
+.community-warn small { display:block; margin-top:4px; color:#9a5a4f; font-size:11px; }
+@media (max-width:600px) {
+  .lang-toggle button { padding:6px 8px; }
+  .result-actions { grid-template-columns:1fr; }
+  .community-warn { padding:12px 18px; }
+}
+.analyzer-hero > *, .analyzer-body > * { min-width:0; }

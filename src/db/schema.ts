@@ -129,6 +129,20 @@ export const postEntities = pgTable("post_entities", {
   index("post_entities_account_idx").on(t.accountId),
 ]);
 
+/**
+ * 이용자 사기 신고 — "사기 당했어요 · 계정 등록" (테오 10-14 ④). 키 = `threads:핸들` 또는 연락처 엔티티 id(`telegram:vip_room`).
+ * 신고자는 IP 의 HMAC 한 조각만 남긴다(원문·IP 원값 저장 안 함). 같은 신고자 × 같은 키는 1건(PK).
+ * 표시하는 N = 키별 행 수 = 서로 다른 신고자 수.
+ */
+export const communityReports = pgTable("community_reports", {
+  key: text("key").notNull(),
+  reporter: text("reporter").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.key, t.reporter] }),
+  index("community_reports_reporter_idx").on(t.reporter, t.createdAt),
+]);
+
 export type Account = typeof accounts.$inferSelect;
 export type EntityRow = typeof entities.$inferSelect;
 export type PostEntityRow = typeof postEntities.$inferSelect;
