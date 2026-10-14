@@ -39,7 +39,21 @@ function gatewayCost(metadata: unknown): number | undefined {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export class AiBudgetExhausted extends Error {}
+export class AiBudgetExhausted extends Error { override name = "AiBudgetExhausted"; }   // 로그에서 상한·DB 없음과 Gateway 오류를 구분
+
+/**
+ * AI 호출 실패를 *오류 이름·HTTP 상태만* 남긴다(테오 1791962254: catch 가 오류를 삼켜 배포판 AI 불가 원인이 어디에도 없었음).
+ * 메시지·본문·글 내용은 남기지 않는다 — 공급자 오류 메시지에 요청 일부가 섞일 수 있어서. Vercel 함수 로그에 한 줄.
+ */
+export function aiErrorSummary(e: unknown): { name: string; status?: number; cause?: string } {
+  const err = e as { name?: string; statusCode?: number; status?: number; cause?: { name?: string } } | null;
+  const status = typeof err?.statusCode === "number" ? err.statusCode : typeof err?.status === "number" ? err.status : undefined;
+  return { name: err?.name || typeof e, ...(status !== undefined ? { status } : {}), ...(err?.cause?.name ? { cause: err.cause.name } : {}) };
+}
+export function logAiError(feature: string, e: unknown) {
+  console.error(`[ai] ${feature} failed`, JSON.stringify(aiErrorSummary(e)));
+}
+
 
 /**
  * 하루 AI 호출 상한 — *호출 전에* 원자적 카운터로 1을 예약한다(신고 상한과 같은 community_quota, 버킷 = UTC 날짜).
@@ -55,7 +69,8 @@ export async function reserveAiCall(now = new Date(), units = 1): Promise<{ rele
     const bucket = `d:${now.toISOString().slice(0, 10)}`;
     if (!(await reserve("ai-call", bucket, units, DAILY_LLM_BUDGET))) return null;
     return { release: () => release("ai-call", bucket, units).catch(() => {}) };
-  } catch {
+  } catch (e) {
+    logAiError("budget-reserve", e);
     return null;
   }
 }
@@ -182,6 +197,7 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
       return { ...out, model, costUsd: gatewayCost(result.providerMetadata) };
     });
   } catch (e) {
+    logAiError("review", e);
     return { verdict: "unsure", confidence: 0, checks: [], model: e instanceof AiBudgetExhausted ? "quota-rule" : "fallback" };
   }
 }
@@ -227,6 +243,7 @@ export async function reviewPostWithImages(text: string, images: string[], reaso
       return { ...out, model, costUsd: gatewayCost(result.providerMetadata), derived };
     }, 1 + images.length);
   } catch (e) {
+    logAiError("review-image", e);
     return { verdict: "unsure", confidence: 0, checks: [], model: e instanceof AiBudgetExhausted ? "quota-rule" : "fallback" };
   }
 }
@@ -276,7 +293,8 @@ export async function reviewEvidenceImage(text: string, image: string): Promise<
       });
       return { ...result.output, model: servedModel(result), costUsd: gatewayCost(result.providerMetadata) };
     });
-  } catch {
+  } catch (e) {
+    logAiError("evidence-image", e);
     return { verdict: "inconclusive", confidence: 0, evidenceType: "none", cues: [], model: "fallback" };
   }
 }
@@ -324,7 +342,8 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
       });
       return { summary: result.text.trim() || templateSummary(input), model: servedModel(result) };
     });
-  } catch {
+  } catch (e) {
+    logAiError("summary", e);
     return { summary: templateSummary(input), model: "fallback-template" };
   }
 }
