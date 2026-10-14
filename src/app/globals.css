@@ -468,3 +468,10 @@ main { overflow:hidden; }
 .nav-links a { min-width:44px; justify-content:center; }   /* EN "Check" 41px → 44 */
 
 .shot-go { width:100%; }
+
+/* 고지 문구는 조용하게: 옅은 회색·작게·볼드 없음, 링크도 같은 톤(소현 1791985819, 테오 1791985835). 링크의 44px 누름 영역은 패딩으로 유지하되 줄 높이는 안 늘린다 */
+.checker .shot-note { margin:6px 0 8px; font-size:12px; font-weight:400; color:#8e8b83; }
+.checker .privacy-note, .checker .privacy-note summary, .checker .privacy-note span, .checker .privacy-note .more { color:#8e8b83; font-weight:400; font-size:12px; }
+.checker .privacy-note .inline-link { display:inline; min-height:0; min-width:0; padding:14px 2px; margin:-14px 0; font-weight:400; color:#8e8b83; }
+.checker .privacy-note dt { color:#6f6c65; font-weight:600; }
+.checker .privacy-note dd { color:#8e8b83; }

@@ -34,7 +34,7 @@ const ko = {
     howto: ["받은 메시지를 캡처하세요", "여기에 캡처를 올리세요", "결과와 할 일을 보세요"],   // 율 1791972312
     orPaste: "또는 받은 글을 붙여 넣으세요",
     upload: "캡처 올리기",   // 테오 1791958372
-    uploadNote: "다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2)
+    uploadNote: "신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2); "가리고 올려 주세요" 삭제 = 소현 1791985819(테오 1791985835), 율 확인 요청 1791986272
     uploadOff: "캡처는 AI로만 확인할 수 있어요. 여기서는 글만 넣을 수 있어요.",   // 율 1791958415
     uploadRemove: "빼기",
     uploadTooMany: "캡처는 3장까지 올릴 수 있어요.",
@@ -250,7 +250,7 @@ const en: Strings = {
     howto: ["Screenshot the message", "Upload it here", "See the result and next steps"],   // Theo 1791985334
     orPaste: "Or paste the text you received",
     upload: "Upload screenshots",
-    uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
+    uploadNote: "Don't upload ID or card photos.",   // "cover … first" removed: Sophia 1791985819 (Theo 1791985835)
     uploadOff: "Screenshots can only be checked with AI. Here you can paste text only.",
     uploadRemove: "Remove",
     uploadTooMany: "You can upload up to 3 screenshots.",

@@ -27,7 +27,7 @@ describe("AI 로 보내기 전 가림 ⑦", () => {
   it("고지 '보내는 것' = 율 OK 문구(1791956132), 코드와 같은 커밋", () => {
     expect(STRINGS.ko.notice.details[0][1]).toContain("다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요.");
     expect(STRINGS.ko.notice.details[0][1]).toContain("올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요.");
-    expect(STRINGS.ko.hero.uploadNote).toBe("다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.");
+    expect(STRINGS.ko.hero.uploadNote).toBe("신분증·카드 사진은 올리지 마세요.");   // 소현 1791985819: 가리기 요청 삭제
     expect(STRINGS.ko.hero.uploadOff).toBe("캡처는 AI로만 확인할 수 있어요. 여기서는 글만 넣을 수 있어요.");
     expect(STRINGS.en.notice.details[0][1]).toContain("The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught.");
   });
