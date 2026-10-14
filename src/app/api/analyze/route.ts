@@ -9,28 +9,27 @@ import { DAILY_LIMIT_ERROR, reserveCheck } from "@/lib/checklimit";
 
 export const runtime = "nodejs";
 
+/**
+ * 공개 입력 = 글만. 계정 특징(팔로워·가입일·소개·외부 링크·국가·묶음 크기·여러 계정·대상 수·이미지 검토 신뢰도)은 *서버가 수집·관측한 값*일 때만
+ * 근거가 된다(pipeline). 공개 경로에서 요청자가 보낸 값은 검증되지 않은 주장이라 받지 않는다 — "여러 계정이 같은 글" 같은 관측 근거를
+ * 꾸며 점수를 올릴 수 있어서(카이 edc45c6: clusterSize 등으로 LOW 18 → HIGH 80). 화면은 원래 글만 보낸다. zod 가 모르는 키(account)는 버린다.
+ */
 const Schema = z.object({
   text: z.string().min(1).max(10000),
-  account: z.object({
-    followers: z.number().nullish(), following: z.number().nullish(), createdAt: z.string().nullish(),
-    bio: z.string().nullish(), externalUrl: z.string().nullish(), clusterSize: z.number().nullish(), clusterAccounts: z.number().nullish(), distinctTargets: z.number().nullish(),
-    profileCountry: z.string().nullish(), countrySource: z.string().nullish(),
-    // syntheticEvidenceConfidence 는 받지 않는다 — "보조 모델 검토" 근거는 서버가 직접 부른 이미지 검토(pipeline)로만 생긴다(카이 1fe5e41, 테오 1791954097). zod 가 모르는 키는 버린다
-  }).optional(),
 });
 
-/** POST /api/analyze — 원문은 저장하지 않고, 경계 사례만 Gemini로 재검토한다. */
+/** POST /api/analyze — 원문은 저장하지 않고, 경계 사례만 AI(Claude)로 재검토한다. */
 export async function POST(req: Request) {
   const parsed = Schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
   // 같은 IP 하루 20회 — 넘으면 엔진·AI 재검 없이 바로 끝(화면은 브라우저 규칙 결과를 그대로 두고 안내만)
   if (!(await reserveCheck(req))) return json({ error: DAILY_LIMIT_ERROR }, 429);
-  const r = scoreText(parsed.data.text, parsed.data.account ?? {});
+  const r = scoreText(parsed.data.text);
   let score = r.score;
   let label = r.label;
   const reasons = [...r.reasons];
   const modelReview = r.needsLlmReview
-    ? await reviewPost(parsed.data.text, r.reasons.map((reason) => reason.label), parsed.data.account ?? {})
+    ? await reviewPost(parsed.data.text, r.reasons.map((reason) => reason.label))
     : null;
   const hasCoordinationEvidence = r.reasons.some((reason) => /^(cluster|spread|spray|shared-contact)/.test(reason.code) && reason.points > 0);
 

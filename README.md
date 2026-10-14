@@ -79,7 +79,7 @@ Aside 의 루틴 기능으로 매일 같은 시간에 2번을 돌리고, cron �
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | `POST` | `/api/ingest` | 수집기 → 게시물 1건 또는 배열(≤50). `Authorization: Bearer $INGEST_TOKEN` |
-| `POST` | `/api/analyze` | 무상태 텍스트 판정 `{ text, account? }` → 점수·근거·정규화 결과 |
+| `POST` | `/api/analyze` | 무상태 텍스트 판정 `{ text }` → 점수·근거·쉬운 말 징후. 계정 특징은 공개 입력으로 받지 않는다(수집 경로에서 서버가 관측한 값만 근거). 같은 IP 하루 20회 |
 | `GET` | `/api/accounts/:q` | 계정 조회. `q` = `@handle` / `threads:handle` / 프로필·게시물 URL. 공개 열람은 합성 데모 계정만 |
 | `GET` | `/api/reports/:accountId` | **조사용 리포트** — 계정명·일시·범죄사실요약·증거 캡처·계정 URL·프로필 캡처·판단 근거·신고처 |
 | `GET` | `/api/clusters` | 캠페인(유사 문구 묶음) |

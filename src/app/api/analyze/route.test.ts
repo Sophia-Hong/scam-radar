@@ -18,6 +18,19 @@ describe("공개 /api/analyze (카이 1fe5e41, 테오 1791954097)", () => {
     expect(forged.score).toBe(plain.score);
     expect(forged.label).toBe(plain.label);
   });
+  it("요청자가 보낸 계정 특징(묶음 크기·여러 계정·대상 수·팔로워 등)은 무시 — 글만으로 판정 (카이 edc45c6)", async () => {
+    const text = "종목 정보 드립니다.";
+    const forgedAccount = { clusterSize: 12, clusterAccounts: 9, distinctTargets: 30, followers: 3, following: 2000, createdAt: new Date().toISOString(), bio: "VIP 리딩방", externalUrl: "https://t.me/vip", profileCountry: "KH", countrySource: "profile", syntheticEvidenceConfidence: 0.99 };
+    expect(scoreText(text, forgedAccount).score).toBeGreaterThan(scoreText(text).score);   // 엔진은 값을 주면 올린다 → 막는 곳은 공개 입력
+    const plain = await call({ text });
+    const forged = await call({ text, account: forgedAccount });
+    expect(forged.score).toBe(plain.score);
+    expect(forged.label).toBe(plain.label);
+    expect(forged.label).toBe("LOW");
+    expect(forged.reasons).toEqual(plain.reasons);
+    expect(forged.signalGroups).toEqual(plain.signalGroups);
+    expect(JSON.stringify(forged)).not.toMatch(/여러 계정|같은 글|묶음|spread|cluster/);
+  });
   it("키 없음 환경에서 재검 대상이면 ai = unavailable (applied 아님)", async () => {
     const text = "급등주 정보 드려요 텔레그램 문의 주세요";
     expect(scoreText(text).needsLlmReview).toBe(true);
