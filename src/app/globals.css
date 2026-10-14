@@ -399,3 +399,11 @@ main { overflow:hidden; }
 .report-links a { display:inline-flex; align-items:center; }
 .closing-note a, .result-details summary { display:inline-flex; align-items:center; min-height:44px; }
 .algorithm-flow li { font-size:13px; }   /* 10px → 13px (카이 노인 검수 3: 본문 최소 크기) */
+
+/* "어떻게 판단하나요? ▸" 접기(테오 1791956699) */
+.criteria-fold { scroll-margin-top:88px; }
+.criteria-fold-summary { list-style:none; display:flex; align-items:center; gap:8px; min-height:56px; padding:0 16px; border:1px solid var(--ink); background:white; font-size:18px; font-weight:850; cursor:pointer; }
+.criteria-fold-summary::-webkit-details-marker { display:none; }
+.criteria-fold[open] .criteria-fold-summary span { display:inline-block; transform:rotate(90deg); }
+.criteria-fold > section { margin-top:24px; }
+@media (max-width:900px) { .criteria-fold-summary { margin-inline:16px; } }

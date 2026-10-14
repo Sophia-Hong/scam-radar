@@ -201,16 +201,17 @@ const ko = {
     title1: "사기 유인 신호",
     title2: " 판독 단계",
     lead: "어떤 종류의 신호를 보는지만 공개합니다. 점수 계산 방식과 기준값은 공개하지 않습니다.",
-    badge: "DETERMINISTIC RULE ENGINE · 입력이 같으면 결과도 같음",
+    fold: "어떻게 판단하나요?",   // 기본 접힘(테오 1791956699)
+    badge: "입력이 같으면 결과도 같음",   // 한국어 화면에 영어 기술 라벨 없음(테오 1791956699)
     aria: "판독 7단계",
     steps: [
-      { label: "NORMALIZE", title: "숨긴 글자 복원", description: "글자를 가리거나 바꿔 쓴 표기를 같은 글자로 되돌려 봅니다.", chips: ["표기 변형 복원"] },
-      { label: "IDENTITY", title: "기관·직업 주장", description: "기관이나 직업을 내세우는 이야기가 있는지 봅니다.", chips: ["기관·직업 주장"] },
-      { label: "EVIDENCE", title: "증빙 언급 정황", description: "사원증·재직증명·급여명세 같은 증빙을 내세우는 표현이 글에 있는지 봅니다. 증빙의 진위를 판별하지는 않습니다.", chips: ["글 속 증빙 언급", "진위 판별 아님"] },
-      { label: "CONVERSION", title: "투자 유인", description: "수익이나 정보를 미끼로 다음 행동을 요구하는 글인지 봅니다.", chips: ["수익 미끼", "행동 유도"] },
-      { label: "INFRA", title: "외부 이동 안내", description: "다른 채널로 옮기자는 안내가 있는지, 같은 연락처를 쓰는 계정이 있는지 봅니다.", chips: ["외부 채널 안내", "공유 연락처"] },
-      { label: "NETWORK", title: "계정·캠페인 연결", description: "비슷한 글이 여러 계정에서 반복되는지, 이용자들이 신고한 글과 비슷한지 봅니다.", chips: ["반복 게시", "다계정", "이용자 신고"] },
-      { label: "CONTEXT", title: "맥락·오탐 방어", description: "피해 후기·경고·뉴스 같은 정상 맥락은 신호로 세지 않으려 합니다.", chips: ["피해·경고 맥락", "정상 활동"] },
+      { label: "", title: "숨긴 글자 복원", description: "글자를 가리거나 바꿔 쓴 표기를 같은 글자로 되돌려 봅니다.", chips: ["표기 변형 복원"] },
+      { label: "", title: "기관·직업 주장", description: "기관이나 직업을 내세우는 이야기가 있는지 봅니다.", chips: ["기관·직업 주장"] },
+      { label: "", title: "증빙 언급 정황", description: "사원증·재직증명·급여명세 같은 증빙을 내세우는 표현이 글에 있는지 봅니다. 증빙의 진위를 판별하지는 않습니다.", chips: ["글 속 증빙 언급", "진위 판별 아님"] },
+      { label: "", title: "투자 유인", description: "수익이나 정보를 미끼로 다음 행동을 요구하는 글인지 봅니다.", chips: ["수익 미끼", "행동 유도"] },
+      { label: "", title: "외부 이동 안내", description: "다른 채널로 옮기자는 안내가 있는지, 같은 연락처를 쓰는 계정이 있는지 봅니다.", chips: ["외부 채널 안내", "공유 연락처"] },
+      { label: "", title: "계정·캠페인 연결", description: "비슷한 글이 여러 계정에서 반복되는지, 이용자들이 신고한 글과 비슷한지 봅니다.", chips: ["반복 게시", "다계정", "이용자 신고"] },
+      { label: "", title: "맥락·오탐 방어", description: "피해 후기·경고·뉴스 같은 정상 맥락은 신호로 세지 않으려 합니다.", chips: ["피해·경고 맥락", "정상 활동"] },
     ],
     closing: "보내기 전에, 한 번 확인.",
     closingLink: "다른 글 확인하기 ↑",
@@ -405,6 +406,7 @@ const en: Strings = {
     title1: "Scam-lure signals",
     title2: ", step by step",
     lead: "We publish only the kinds of signals we look at. How scores are calculated and the thresholds stay private.",
+    fold: "How do we decide?",
     badge: "DETERMINISTIC RULE ENGINE · same input, same result",
     aria: "Seven checking steps",
     steps: [

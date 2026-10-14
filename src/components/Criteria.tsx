@@ -7,7 +7,10 @@ export function Criteria() {
   const c = useLang().t.criteria;
   return (
     <>
-      <section id="criteria" className="criteria" aria-labelledby="criteria-title">
+      {/* 판독 단계는 기본 접힘 — 어르신 화면에는 기술 설명이 길다. 관심 있는 사람·심사위원만 펼친다(테오 1791956699) */}
+      <details id="criteria" className="criteria criteria-fold">
+        <summary className="criteria-fold-summary">{c.fold} <span aria-hidden="true">▸</span></summary>
+        <section aria-labelledby="criteria-title">
         <header className="criteria-intro">
           <div className="section-kicker"><span /> {c.kicker}</div>
           <h2 id="criteria-title"><em>{c.title1}</em>{c.title2}</h2>
@@ -18,14 +21,15 @@ export function Criteria() {
         <div className="algorithm-flow" aria-label={c.aria}>
           {c.steps.map((item, i) => (
             <article key={item.label}>
-              <div className="algorithm-step"><b>{String(i + 1).padStart(2, "0")}</b><span>{item.label}</span></div>
+              <div className="algorithm-step"><b>{String(i + 1).padStart(2, "0")}</b>{item.label && <span>{item.label}</span>}</div>
               <h3>{item.title}</h3>
               <p>{item.description}</p>
               <ul>{item.chips.map((chip) => <li key={chip}>{chip}</li>)}</ul>
             </article>
           ))}
         </div>
-      </section>
+        </section>
+      </details>
 
       <section className="closing-note">
         <p>{c.closing}</p>
