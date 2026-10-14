@@ -26,10 +26,12 @@ const rows: Row[] = readFileSync(CORPUS, "utf8")
   .map((l) => JSON.parse(l));
 
 const fpOnly = process.argv.includes("--fp-only");
+/** 평가 기준 시각 — 코퍼스 측정일(2026-09-20 KST)로 고정. 계정 생성 30·60일 신호가 실행 날짜에 따라 바뀌지 않게. EVAL_AS_OF 로 바꿀 수 있다 */
+const AS_OF = Date.parse(process.env.EVAL_AS_OF ?? "2026-09-20T12:00:00+09:00");
 
 type Scored = Row & { score: number; predHigh: boolean; pred: string; reasons: string[] };
 const scored: Scored[] = rows.map((r) => {
-  const res = scoreText(r.text, r.author ?? {});
+  const res = scoreText(r.text, { ...(r.author ?? {}), asOf: AS_OF });
   return {
     ...r,
     score: res.score,

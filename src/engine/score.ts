@@ -10,6 +10,8 @@ export interface AccountFeatures {
   postCount?: number | null;
   /** 계정 생성일 ISO. 없으면 무시 */
   createdAt?: string | null;
+  /** 계정 나이를 잴 기준 시각(ms). 없으면 지금. 평가는 측정일로 고정해 결과가 날짜에 따라 흔들리지 않게 (카이 1791945667 ④) */
+  asOf?: number | null;
   /** 프로필 bio 텍스트 (있으면 본문과 함께 검사) */
   bio?: string | null;
   /** 프로필 외부 링크 */
@@ -299,7 +301,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
 
   // 6) 계정 특성
   if (account.createdAt) {
-    const days = (Date.now() - Date.parse(account.createdAt)) / 86400000;
+    const days = ((account.asOf ?? Date.now()) - Date.parse(account.createdAt)) / 86400000;
     if (days >= 0 && days < 30) { reasons.push({ code: "acct:new", label: "최근 생성된 계정", points: 8, evidence: `${Math.floor(days)}일` }); score += 8; }
   }
   if (typeof account.followers === "number" && account.followers < 50 && categories.contact > 0) {
@@ -309,7 +311,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     reasons.push({ code: "acct:ratio", label: "팔로잉/팔로워 비율 비정상", points: 4 }); score += 4;
   }
   // 6b) 일회용(버너) 프로필 + 채널 유도 + 투자 언급 — 세 가지가 같이 오면 계정 목적이 유입이다
-  const fresh = account.createdAt ? (Date.now() - Date.parse(account.createdAt)) / 86400000 < 60 : false;
+  const fresh = account.createdAt ? ((account.asOf ?? Date.now()) - Date.parse(account.createdAt)) / 86400000 < 60 : false;
   const fewFollowers = typeof account.followers === "number" && account.followers < 200;
   const skewed = typeof account.following === "number" && typeof account.followers === "number" && account.following > account.followers * 3;
   if (fresh && fewFollowers && skewed && categories.contact > 0 && categories.invest + categories.profit > 0) {

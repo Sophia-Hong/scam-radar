@@ -6,6 +6,9 @@ import { PrintButton } from "@/components/PrintButton";
 import { hasDb } from "@/db";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Reasons } from "@/components/Reasons";
+import { PlainSigns } from "@/components/PlainSigns";
+import { foundTelegram, plainSigns } from "@/lib/result-view";
+import { signalGroupsFromReasons } from "@/lib/visibility";
 import { HumanVerdict } from "@/components/HumanVerdict";
 import { serverLang } from "@/lib/lang-server";
 import { STRINGS } from "@/lib/strings";
@@ -28,6 +31,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const built = await buildReport(accountId, { admin });
   if (!built) notFound();
   const r = publicView(built, admin);
+  // 영어 화면: 엔진 원문(한국어) 라벨 대신 쉬운 말 징후 — 내부 코드로 서버에서 계산하고 문장만 내보낸다
+  const level = (["HIGH", "REVIEW", "LOW"].includes(built.status) ? built.status : "LOW") as "HIGH" | "REVIEW" | "LOW";
+  const enSigns = plainSigns(level, signalGroupsFromReasons(built.rationale.map((x) => ({ code: x.code ?? "", points: x.points }))), built.rationale, foundTelegram(built.contacts.map((c) => c.id), built.rationale), L.result);
   return (
     <article className="mx-auto max-w-3xl space-y-8 rounded-lg border border-zinc-200 bg-white p-8 print:border-0 print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 pb-4">
@@ -137,7 +143,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">{t.s6}</h2>
-        <Reasons reasons={r.rationale} />
+        {lang === "ko" ? <Reasons reasons={r.rationale} /> : <PlainSigns signs={enSigns} note={t.enSignsNote} />}
       </section>
 
       <section>

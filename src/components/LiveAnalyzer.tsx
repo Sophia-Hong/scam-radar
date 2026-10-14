@@ -67,7 +67,7 @@ export function classifyInput(value: string): { kind: "handle"; handle: string }
 }
 
 export function LiveAnalyzer() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [input, setInput] = useState("");
   const [text, setText] = useState("");
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
@@ -365,7 +365,8 @@ export function LiveAnalyzer() {
               </div>
             )}
 
-            {result && positive.length > 0 && (
+            {/* 엔진 원문 라벨은 한국어 — 영어 화면에는 위의 쉬운 말 징후만 (테오 1791945676) */}
+            {lang === "ko" && result && positive.length > 0 && (
               <details className="result-details">
                 <summary>{t.result.details}</summary>
                 <ul className="result-reasons">

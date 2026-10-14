@@ -138,6 +138,7 @@ const ko = {
     s7: "7. 신고처",
     filing: {} as Record<string, { name: string; note: string }>,
     noDb: "데이터베이스가 연결되지 않았습니다.",
+    enSignsNote: "",
   },
   reasons: {
     none: "감지된 신호 없음",
@@ -310,6 +311,7 @@ const en: Strings = {
       "https://help.instagram.com/2922067214679225": { name: "Report the post on Threads (Meta)", note: "In-app report. Done by hand — there is no third-party reporting API." },
     },
     noDb: "The database is not connected.",
+    enSignsNote: "Plain-language summary of the signals found. The detailed engine signals are shown in Korean — switch to 한국어 to see them.",
   },
   reasons: {
     none: "No signals found",
