@@ -144,6 +144,11 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const original = normalize(raw);
   const context = activeContext(raw.toLowerCase());
   const n = normalize(context.text);
+  // Product and OSS notices may mention a chat channel and a price-alert use,
+  // then explicitly deny selling signals.  Without a contrastive new offer,
+  // that denial governs the notice rather than merely its final list item.
+  const explicitSignalDenial = /(?:\b(?:we|i|our (?:bot|service|app))\s+(?:do not|don't|never)\s+(?:sell|offer|provide)\b[^.!?\n]{0,90}\b(?:signals?|trading advice|stock picks?)\b|(?:매수|매도)\s*(?:신호|시그널|종목)\s*(?:를\s*)?(?:판매|제공|추천|권유)\s*(?:하지\s*않|안\s*합))/.test(raw.toLowerCase());
+  const contrastiveOffer = /\b(?:but|however)\b|하지만|그런데/.test(raw.toLowerCase());
   const tactics = findTactics(n.text);
   // Context has already removed only locally attributed quotes, warnings and
   // explicit denials.  Outside those spans, a principal/return guarantee is a
@@ -412,14 +417,23 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     capAt(59, "veto:quote", "유인 문구 인용(풍자·해설 맥락)", n.text.match(QUOTED_LURE)?.[0]);
   }
   // 경고·피해 어휘. 하나만 있어도 자동 HIGH 는 포기한다 (유인글이 스스로 "신고하세요" 라고 쓰진 않는다).
-  if (strongCounters >= 2) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호");
-  else if (strongCounters === 1) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
+  if (strongCounters >= 2) {
+    if (score > 55) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호");
+    else reasons.push({ code: "veto:victim", label: "피해·경고 맥락 다중 신호", points: 0 });
+  } else if (strongCounters === 1) {
+    if (score > NO_CONTACT_CAP) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
+    else reasons.push({ code: "veto:victim", label: "피해·경고 맥락 신호", points: 0 });
+  }
   // A recruiter, contact channel and ordinary salary can describe a real job.
   // Do not let newly added employment families alone promote that to HIGH.
   const taskOnlyPitch = tactics.some(t => t.family === "task") &&
     !financialDemand && !hasEasyMoneyPitch(n.text) &&
     !tactics.some(t => ["secrecy", "install", "room", "romance", "authority"].includes(t.family));
   if (taskOnlyPitch && !receivedMessageCombo) capAt(NO_CONTACT_CAP, "veto:ordinary-job", "일반 채용 안내와 구분 필요");
+
+  if (explicitSignalDenial && !contrastiveOffer) {
+    capAt(NO_CONTACT_CAP, "veto:explicit-denial", "명시적 비판매·비권유 고지");
+  }
 
   // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
   if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
@@ -437,6 +451,18 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
       points: NO_CONTACT_CAP - score,
     });
     score = NO_CONTACT_CAP;
+  }
+
+  // A received-message action plus a weak lure is useful checklist material,
+  // but is not enough to accuse a sender automatically.  This deliberately
+  // promotes only LOW results to REVIEW; all existing HIGH paths still need
+  // their independent corroboration above.
+  const weakReceivedCue = receivedActions.urgency || receivedLure || receivedImpersonation ||
+    tactics.some(t => ["loan", "marketplace", "grant", "crypto", "support", "gift", "toll", "pressure"].includes(t.family));
+  if (hasReceivedAction && weakReceivedCue && score < THRESHOLD_REVIEW) {
+    const points = THRESHOLD_REVIEW - score;
+    reasons.push({ code: "received:escalation", label: "받은 메시지의 행동 요청과 약한 유인 정황", points });
+    score = THRESHOLD_REVIEW;
   }
 
   const label: Label = score >= THRESHOLD_HIGH ? "HIGH" : score >= THRESHOLD_REVIEW ? "REVIEW" : "LOW";

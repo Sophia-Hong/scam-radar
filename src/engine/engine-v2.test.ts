@@ -155,6 +155,70 @@ describe("local quote and negation scope", () => {
   it("does not erase quoted recruiter text without warning attribution", () => {
     expect(activeContext('Received: "Complete tasks. Prepay to unlock commission."').excluded).toHaveLength(0);
   });
+
+  it.each([
+    "Our open-source alert tool posts market prices; we do not sell trade signals or investment advice.",
+    "오픈소스 가격 알림 도구입니다. 매수 신호나 종목을 판매하지 않습니다.",
+  ])("lets an explicit product disclaimer govern the notice: %s", text => {
+    expect(scoreText(text).label).not.toBe("HIGH");
+  });
+
+  it.each([
+    'PSA: if you see "send the deposit to unlock your account", do not reply; report it as a scam.',
+    '이 문구를 보셨나요: "오늘 수익 보장, 프로필 링크로 입장". 사기이니 답장하지 마세요.',
+    'This explainer describes how a fake trading room says "300% gains, join via my profile". It is not an offer.',
+  ])("dampens a lure quoted inside a warning frame: %s", text => {
+    expect(scoreText(text).label).not.toBe("HIGH");
+  });
+});
+
+describe("received-message REVIEW escalation", () => {
+  it.each([
+    "Your relief-payment application expires today. Verify it at https://pale-check.info.",
+    "중고 물품 확인이 긴급합니다. https://safe-pay-check.kr 에서 확인해 주세요.",
+    "Your account has a security issue; install the remote support app now.",
+  ])("routes an action vector plus a weak cue to REVIEW, never HIGH by itself: %s", text => {
+    expect(scoreText(text).label).toBe("REVIEW");
+    expect(scoreText(text).reasons.some(r => r.code === "received:escalation")).toBe(true);
+  });
+
+  it.each([
+    "Government service update: https://www.gov.kr/notice has the schedule.",
+    "은행 점검 안내는 https://www.wooribank.com 에서 확인하세요.",
+  ])("does not escalate an official-only link: %s", text => expect(scoreText(text).label).toBe("LOW"));
+});
+
+describe("Round 3 received-message families", () => {
+  it.each([
+    ["Refinance your loan: pay the credit-score fee first.", "loan"],
+    ["저금리 대환대출 전에 기존 대출 수수료를 먼저 납부하세요.", "loan"],
+    ["Use this safe-payment link and deposit first for the used camera.", "marketplace"],
+    ["중고 거래 안전결제 링크에서 선입금하세요.", "marketplace"],
+    ["Claim the government benefit by confirming at this link.", "grant"],
+    ["재난지원금 신청 확인을 위해 링크에서 인증하세요.", "grant"],
+    ["Connect your wallet to claim the airdrop, then enter your seed phrase.", "crypto"],
+    ["에어드랍을 받으려면 지갑 연결 후 시드 문구를 입력하세요.", "crypto"],
+    ["Your computer was hacked; install remote support now.", "support"],
+    ["해킹됐으니 원격 앱을 설치하세요.", "support"],
+    ["Buy gift cards and send the codes to settle the bill.", "gift"],
+    ["상품권 코드를 구매해서 보내 주세요.", "gift"],
+    ["An unpaid toll notice says pay now through the link.", "toll"],
+    ["미납 통행료를 지금 링크에서 납부하세요.", "toll"],
+    ["This is the IRS: verify your refund at this address.", "authority"],
+    ["Grandma, my phone is broken; send gift-card codes today.", "family"],
+  ])("recognizes %s as %s", (text, family) => expect(has(text, family)).toBe(true));
+
+  it.each([
+    "The credit union explained how refinancing changes an existing loan.",
+    "중고 카메라는 직접 만나서 상태를 보고 거래했습니다.",
+    "The city posted a grant eligibility guide on its official website.",
+    "I connected my own wallet to a testnet during a security workshop.",
+    "Our IT team installed remote support on company laptops last year.",
+    "We gave a gift card to our teacher at the end of term.",
+    "The toll invoice was paid automatically through my registered account.",
+    "The IRS website explains how to file a tax return.",
+    "Grandma called to say her phone battery was low.",
+  ])("keeps benign twins below HIGH: %s", text => expect(scoreText(text).label).not.toBe("HIGH"));
 });
 
 describe("illegal investment guarantees", () => {

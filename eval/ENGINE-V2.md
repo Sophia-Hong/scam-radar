@@ -103,3 +103,70 @@ with zero benign HIGH results and scam recall **0.849**.
 - The engine still cannot inspect an image, verify a sender, or determine
   whether an unfamiliar live domain is legitimate. REVIEW is the intended
   route for that uncertainty.
+
+## Round 3 — warning scope and received-message escalation
+
+Round 3 keeps automatic HIGH deliberately narrow. It removes locally quoted
+or paraphrased lure text when it appears inside a warning/PSA frame, including
+the immediate explanatory sentence. An explicit product/OSS statement that it
+does not sell signals also caps the notice below HIGH unless a contrastive,
+independent offer follows. These are scope rules, not case-ID exceptions.
+
+For pasted received messages, an action vector (an odd or shortened link,
+callback number, app/remote-install request, payment/gift-card demand, or
+credential/ID-photo request) plus one weak lure, impersonation, or urgency cue
+now reaches REVIEW only. It cannot make a message HIGH by itself. The small
+explicit official-host allowlist includes government, selected courier, bank,
+IRS, and USPS domains; an official-only link without a money or credential
+request does not escalate.
+
+New received-message families cover loan-refinance prepayment, second-hand
+safe-payment links, grant/refund impersonation, wallet-connect/seed phrase
+requests, tech-support remote access, gift-card payment, unpaid tolls, IRS
+impersonation, and grandparent impersonation. Unit tests use newly written
+Korean and English examples and benign twins for every family.
+
+### False-positive result
+
+| Set | Before (HIGH / REVIEW / LOW) | After (HIGH / REVIEW / LOW) |
+| --- | ---: | ---: |
+| DEV red-team benign (36 scorable) | 3 / 7 / 26 | **0 / 7 / 29** |
+| Pinned corpus benign (135) | 0 / 26 / 109 | **0 / 24 / 111** |
+
+The three DEV false HIGHs were removed: the educational quotation, the
+open-source signal-denial notice, and the weakly quoted warning post. No
+benign DEV row and no corpus hard-negative row moved from LOW to REVIEW
+(0 and 0 respectively).
+
+### Real warning set
+
+The before column below is a fresh replay of committed 3e20ac9 against the
+currently present .ref/real-examples.jsonl; it is therefore reproducible
+from this worktree. Counts are HIGH / REVIEW / LOW.
+
+| Category | Before | After |
+| --- | ---: | ---: |
+| Delivery/parcel smishing (28) | 9 / 0 / 19 | 9 / 14 / 5 |
+| Side-job/task scam (8) | 2 / 0 / 6 | 2 / 1 / 5 |
+| Institution impersonation (30) | 7 / 2 / 21 | 5 / 8 / 17 |
+| Romance-investment (4) | 0 / 0 / 4 | 0 / 0 / 4 |
+| Other (3) | 0 / 0 / 3 | 0 / 0 / 3 |
+| Investment / fake-loan app (1) | 0 / 0 / 1 | 0 / 0 / 1 |
+| Family impersonation (6) | 3 / 0 / 3 | 3 / 0 / 3 |
+| Investment/리딩방/fake trading app/pay-to-withdraw (4) | 0 / 0 / 4 | 0 / 1 / 3 |
+| **All real warnings (84)** | **21 / 2 / 61** | **19 / 24 / 41** |
+
+The conservative escalation accounts for **23 LOW → REVIEW** real-warning
+rows. It does not claim a real-world recall increase: redacted or short
+messages remain LOW when they lack both an action vector and a weak supporting
+cue.
+
+### DEV red-team lure result
+
+| Set | Before (HIGH / REVIEW / LOW) | After (HIGH / REVIEW / LOW) |
+| --- | ---: | ---: |
+| Lures (22 scorable) | 4 / 4 / 14 | 4 / 4 / 14 |
+
+The file still contains two intentionally text-empty lure rows, excluded from
+scoring. Final pinned-corpus validation remains HIGH precision **1.000
+(135/135)**, with zero benign HIGH results.
