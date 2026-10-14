@@ -8,10 +8,10 @@ export const runtime = "nodejs";
 
 const limited = memoryLimiter(60_000, 60);
 const Body = z.object({ keys: z.array(z.string().max(220)).max(MAX_KEYS_PER_CHECK).default([]), sig: z.array(z.number()).optional() });
-const EMPTY = { counts: {}, similar: 0, underReview: [] };
+const EMPTY = { counts: {}, similar: 0 };
 
 /**
- * POST /api/community/check {keys, sig?} — 이용자 신고 수(서로 다른 신고자 3명 이상만), 비슷한 신고 글 수, 검토 중인 키.
+ * POST /api/community/check {keys, sig?} — 이용자 신고 수·비슷한 신고 글 수(서로 다른 신고자 3명 이상만).
  * 원문은 받지 않는다(서명만). 장부가 아파도 판독 화면은 그대로 — 빈 결과.
  */
 export async function POST(req: Request) {

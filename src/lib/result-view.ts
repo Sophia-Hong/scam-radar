@@ -9,15 +9,24 @@ import type { GroupCode, Level, Strings } from "./strings";
 const GUARANTEE_CODES = ["term:원금보장", "term:손실보전", "term:확정수익", "term:확정지급", "term:en:profit:guaranteed"];   // 마지막 = 영어 엔진(theo/en-engine)
 
 /**
- * 쉬운 말 징후 최대 3개 — 게시물에 있는 사실로만 쓴다(사람 평가 문장 금지, 율 1791943087).
- * 켜진 신호군을 엔진 순서대로, '원금 보장' 같은 약속 문구가 있으면 맨 앞에. 낮음 단계는 징후를 보이지 않는다.
+ * 쉬운 말 징후 — 하나에 두 줄(사실 + 왜 조심하나), 게시물에 있는 사실로만 (율 #compliance 1791943988·1791944215).
+ * 엔진이 실제로 찾은 것만: '원금 보장' 류 문구 → 맨 앞, 그다음 켜진 신호군을 엔진 순서대로. 다른 채팅방 이동은 텔레그램을
+ * 실제로 찾았을 때만 텔레그램 문장, 아니면 "모르는 채팅방" 문장. 높음·중간인데 켜진 것이 없으면 일반 문장 하나. 최대 3개.
  */
-export function plainSigns(level: Level, groups: { code: string; active: boolean }[], reasons: { code?: string; points: number }[], t: Strings["result"]): string[] {
-  if (level === "LOW") return [];
-  const out: string[] = [];
+export function plainSigns(level: Level, groups: { code: string; active: boolean }[], reasons: { code?: string; points: number }[], telegram: boolean, t: Strings["result"]): [string, string][] {
+  const out: [string, string][] = [];
   if (reasons.some((r) => r.points > 0 && r.code && GUARANTEE_CODES.includes(r.code))) out.push(t.signGuarantee);
-  for (const g of groups) if (g.active && g.code in t.signs) out.push(t.signs[g.code as GroupCode]);
-  return out.length ? out.slice(0, 3) : [t.signFallback];
+  for (const g of groups) {
+    if (!g.active || !(g.code in t.signs)) continue;
+    out.push(g.code === "infrastructure" && !telegram ? t.signChatRoom : t.signs[g.code as GroupCode]);
+  }
+  if (!out.length && level !== "LOW") out.push(t.signFallback);
+  return out.slice(0, 3);
+}
+
+/** 글에서 텔레그램을 실제로 찾았나 — 연락처 키 또는 엔진 근거 코드 */
+export function foundTelegram(keys: string[], reasons: { code?: string; points: number }[]): boolean {
+  return keys.some((k) => k.startsWith("telegram:")) || reasons.some((r) => r.points > 0 && !!r.code && /텔레|telegram|tme/i.test(r.code));
 }
 
 const COMMUNITY_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "url", "line", "wechat", "handle"]);

@@ -114,6 +114,6 @@ export async function buildReport(accountId: string, opts: { admin?: boolean } =
     })),
     rationale: explainReasons(reasons),
     filing: FILING_TARGETS,
-    disclaimer: "이 결과는 공개 게시물을 자동으로 분석해 위험 신호를 보여 주는 참고 정보예요. 이 계정이나 사람이 사기를 저질렀다는 판단이 아니며, 법적 판단도 아니에요. 잘못 표시됐다면 홈 화면의 [검토 요청]으로 알려 주세요.",   // 율 #compliance 1791943087
+    disclaimer: "이 화면은 컴퓨터가 글을 자동으로 살펴본 결과예요. 이 사람이 사기를 쳤다고 정한 것은 아니에요.",   // 율 #compliance 1791943988 (소현 O)
   };
 }

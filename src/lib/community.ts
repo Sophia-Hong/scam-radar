@@ -4,12 +4,11 @@ import { db, schema } from "@/db";
 import { bandKeys, estimateJaccard, JACCARD_THRESHOLD, NUM_PERM } from "@/engine/minhash";
 
 /**
- * 이용자 신고 장부 (테오 10-14 ④·③, 율 #compliance 1791943087 조건 4).
+ * 이용자 신고 장부 (테오 10-14 ④·③, 율 #compliance 1791943087 조건 1~3. 검토 요청 흐름은 소현 지시로 뺐다).
  * - 키: `threads:핸들` 또는 연락처 엔티티 id(`telegram:vip_room` …). 받은 글은 원문 대신 브라우저가 만든 MinHash 서명만.
  * - 신고자: IP 의 HMAC 앞 32자 + 신고 시각. IP 원값·이름·글은 저장하지 않는다. (조건 3)
  * - 같은 신고자 × 같은 키(또는 같은 서명) = 1건. (조건 2)
  * - 화면에 보이는 수 = 서로 다른 신고자 수, 그리고 MIN_DISPLAY 명 미만이면 숫자를 내보내지 않는다. (조건 1)
- * - 검토 요청이 열려 있는 키는 처리될 때까지 집계·배너를 숨긴다. (조건 4)
  * - 스팸: 신고자당 새 등록 시간당 HOURLY_LIMIT, 하루 DAILY_LIMIT. 한 번에 키 MAX_KEYS_PER_POST 개까지.
  */
 export const KEY_TYPES = ["threads", "telegram", "kakao_open", "kakao_channel", "phone", "handle", "url", "line", "wechat"] as const;
@@ -82,25 +81,11 @@ export function ensureTables(): Promise<void> {
       id text PRIMARY KEY, reporter text NOT NULL, sig jsonb NOT NULL, bands text[] NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`);
     await d.execute(sql`CREATE INDEX IF NOT EXISTS community_texts_bands_idx ON community_texts USING gin (bands)`);
     await d.execute(sql`CREATE INDEX IF NOT EXISTS community_texts_reporter_idx ON community_texts (reporter, created_at)`);
-    await d.execute(sql`CREATE TABLE IF NOT EXISTS review_requests (
-      id text PRIMARY KEY, keys text[] NOT NULL, contact text NOT NULL, message text NOT NULL, reporter text NOT NULL,
-      status text NOT NULL DEFAULT 'open', created_at timestamptz NOT NULL DEFAULT now(), handled_at timestamptz, note text)`);
-    await d.execute(sql`CREATE INDEX IF NOT EXISTS review_requests_keys_idx ON review_requests USING gin (keys)`);
   })().catch((e) => { ensured = null; throw e; });
   return ensured;
 }
 
 const textArray = (xs: string[]) => sql`ARRAY[${sql.join(xs.map((x) => sql`${x}`), sql`, `)}]::text[]`;
-
-/** 검토 요청이 열려 있는 키 */
-export async function keysUnderReview(keys: string[]): Promise<string[]> {
-  if (!keys.length) return [];
-  await ensureTables();
-  const t = schema.reviewRequests;
-  const rows = await db().select({ keys: t.keys }).from(t).where(and(eq(t.status, "open"), sql`${t.keys} && ${textArray(keys)}`));
-  const open = new Set(rows.flatMap((r) => r.keys));
-  return keys.filter((k) => open.has(k));
-}
 
 /** 키별 서로 다른 신고자 수(원값) */
 export async function rawCounts(keys: string[]): Promise<Record<string, number>> {
@@ -119,14 +104,14 @@ export async function similarReporters(sig: number[]): Promise<number> {
   return new Set(rows.filter((r) => estimateJaccard(sig, r.sig as number[]) >= JACCARD_THRESHOLD).map((r) => r.reporter)).size;
 }
 
-export type CheckResult = { counts: Record<string, number>; similar: number; underReview: string[] };
+export type CheckResult = { counts: Record<string, number>; similar: number };
 
-/** 화면용 조회 — 숨김 규칙(3명 미만·검토 중)을 적용한 값만 돌려준다 */
+/** 화면용 조회 — 숨김 규칙(서로 다른 신고자 3명 미만)을 적용한 값만 돌려준다 */
 export async function check(keys: string[], sig: number[] | null): Promise<CheckResult> {
-  const [raw, underReview, similar] = await Promise.all([rawCounts(keys), keysUnderReview(keys), sig ? similarReporters(sig) : Promise.resolve(0)]);
+  const [raw, similar] = await Promise.all([rawCounts(keys), sig ? similarReporters(sig) : Promise.resolve(0)]);
   const counts: Record<string, number> = {};
-  for (const [k, n] of Object.entries(raw)) if (!underReview.includes(k) && shown(n)) counts[k] = shown(n);
-  return { counts, similar: shown(similar), underReview };
+  for (const [k, n] of Object.entries(raw)) if (shown(n)) counts[k] = shown(n);
+  return { counts, similar: shown(similar) };
 }
 
 export type RegisterResult = { ok: true; added: number } | { ok: false; reason: "limited" };
@@ -153,15 +138,4 @@ export async function register(keys: string[], sig: number[] | null, reporter: s
     if (textIsNew && sig && textId) await db().insert(tx).values({ id: textId, reporter, sig, bands: bandKeys(sig), createdAt: now }).onConflictDoNothing();
   }
   return { ok: true, added: adding };
-}
-
-/** 검토 요청 — 당사자·이용자가 "잘못 표시됐다"고 알리는 창구. 열려 있는 동안 해당 키의 집계·배너를 숨긴다 */
-export async function requestReview(keys: string[], contact: string, message: string, reporter: string, now = new Date()): Promise<{ ok: true; id: string } | { ok: false; reason: "limited" }> {
-  await ensureTables();
-  const t = schema.reviewRequests;
-  const [{ n }] = await db().select({ n: count() }).from(t).where(and(eq(t.reporter, reporter), gt(t.createdAt, new Date(now.getTime() - 3_600_000))));
-  if (Number(n) >= 5) return { ok: false, reason: "limited" };
-  const id = `RR-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${createHash("sha256").update(`${reporter}|${now.getTime()}|${Math.random()}`).digest("hex").slice(0, 8)}`;
-  await db().insert(t).values({ id, keys, contact, message, reporter, createdAt: now });
-  return { ok: true, id };
 }

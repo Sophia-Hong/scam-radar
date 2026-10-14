@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MIN_DISPLAY, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
 import { accountFromInput } from "@/components/LiveAnalyzer";
 import { minhash } from "@/engine/minhash";
-import { communityKeys, keyLabel, plainSigns, shareUrl } from "./result-view";
+import { communityKeys, foundTelegram, keyLabel, plainSigns, shareUrl } from "./result-view";
 import { STRINGS } from "./strings";
 
 describe("신고 장부 키", () => {
@@ -28,16 +28,22 @@ describe("신고 장부 키", () => {
 
 describe("결과 첫 화면", () => {
   const t = STRINGS.en.result;
-  it("쉬운 징후 = 게시물 사실, 최대 3개, 낮음은 없음", () => {
+  it("쉬운 징후 = 두 줄, 찾은 것만, 최대 3개", () => {
     const groups = [{ code: "impersonation", active: true }, { code: "evidence", active: false }, { code: "infrastructure", active: true }, { code: "coordination", active: true }];
-    expect(plainSigns("HIGH", groups, [], t)).toEqual([t.signs.impersonation, t.signs.infrastructure, t.signs.coordination]);
-    expect(plainSigns("HIGH", groups, [{ code: "term:원금보장", points: 3 }], t)[0]).toBe(t.signGuarantee);
-    expect(plainSigns("LOW", groups, [], t)).toEqual([]);
-    expect(plainSigns("REVIEW", [], [], t)).toEqual([t.signFallback]);
+    expect(plainSigns("HIGH", groups, [], true, t)).toEqual([t.signs.impersonation, t.signs.infrastructure, t.signs.coordination]);
+    expect(plainSigns("HIGH", groups, [], false, t)[1]).toEqual(t.signChatRoom);          // 텔레그램을 못 찾았으면 "모르는 채팅방"
+    expect(plainSigns("HIGH", groups, [{ code: "term:원금보장", points: 3 }], true, t)[0]).toEqual(t.signGuarantee);
+    expect(plainSigns("LOW", [], [], false, t)).toEqual([]);
+    expect(plainSigns("LOW", groups, [], true, t)).toHaveLength(3);                       // 낮음이어도 찾은 것은 보인다
+    expect(plainSigns("REVIEW", [], [], false, t)).toEqual([t.signFallback]);
+    for (const s of plainSigns("HIGH", groups, [], true, t)) expect(s).toHaveLength(2);
+    expect(foundTelegram(["telegram:vip"], [])).toBe(true);
+    expect(foundTelegram([], [{ code: "term:텔레그램", points: 2 }])).toBe(true);
+    expect(foundTelegram(["kakao_open:abc"], [{ code: "term:카카오", points: 2 }])).toBe(false);
   });
   it("단정·사람 평가 표현 없음 (율 1791943087)", () => {
     for (const L of [STRINGS.ko, STRINGS.en]) {
-      const shownText = JSON.stringify([L.result.level, L.result.banner, L.result.signs, L.result.signGuarantee, L.result.signFallback, L.community.warn(5), L.result.similar(5), L.meta.description]);
+      const shownText = JSON.stringify([L.result.level, L.result.banner, L.result.signs, L.result.signGuarantee, L.result.signFallback, L.community.warn(5, "threads"), L.community.warn(5, "url"), L.result.similar(5), L.result.stop, L.result.disclaimer, L.meta.description]);
       expect(shownText).not.toMatch(/사기입니다|사기꾼|사기 계정|is a scam\b|scammer\b|fraudster/i);
     }
     expect(STRINGS.ko.meta.title.replace("Scam Radar", "")).not.toMatch(/사기|scam/i);

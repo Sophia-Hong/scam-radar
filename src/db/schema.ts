@@ -152,20 +152,6 @@ export const communityTexts = pgTable("community_texts", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("community_texts_reporter_idx").on(t.reporter, t.createdAt)]);
 
-/** 검토 요청 — "잘못 표시됐다면 알려 주세요" (율 조건 4). open 인 동안 keys 의 집계·배너를 숨기고 7일 안에 답한다 */
-export const reviewRequests = pgTable("review_requests", {
-  id: text("id").primaryKey(),
-  keys: text("keys").array().notNull(),
-  contact: text("contact").notNull(),
-  message: text("message").notNull(),
-  reporter: text("reporter").notNull(),
-  /** "open" | "resolved" */
-  status: text("status").notNull().default("open"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  handledAt: timestamp("handled_at", { withTimezone: true }),
-  note: text("note"),
-});
-
 export type Account = typeof accounts.$inferSelect;
 export type EntityRow = typeof entities.$inferSelect;
 export type PostEntityRow = typeof postEntities.$inferSelect;

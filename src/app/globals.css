@@ -371,3 +371,11 @@ main { overflow:hidden; }
 }
 .brand, .lang-toggle button, .nav-cta { white-space:nowrap; }
 @media (max-width:600px) { .site-header nav { gap:12px; } .nav-cta { display:none; } }
+/* 율 최종 문구 — 두 줄 징후 · 일반 안내 칸 (#compliance 1791943988·1791944215) */
+.result-signs li b { display:block; font-weight:800; }
+.result-signs li span { display:block; margin-top:4px; font-size:.86em; font-weight:500; color:#45433d; }
+.stop-box { margin-top:18px; padding:16px 18px; background:#e9e7e1; color:var(--ink); }
+.stop-box h3 { margin:0 0 8px; font-size:17px; }
+.stop-box ul { margin:0; padding-left:20px; font-size:16px; line-height:1.6; }
+.stop-box li + li { margin-top:6px; }
+.contact-line { margin:14px 0 0; color:#77756e; font-size:12px; }

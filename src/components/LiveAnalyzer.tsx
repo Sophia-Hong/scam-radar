@@ -6,7 +6,7 @@ import { minhash } from "@/engine/minhash";
 import type { ShownReason } from "./Reasons";
 import { DEMO_HANDLE } from "@/lib/copy";
 import { useLang } from "@/lib/i18n";
-import { communityKeys, keyLabel, plainSigns, shareUrl } from "@/lib/result-view";
+import { communityKeys, foundTelegram, keyLabel, plainSigns, shareUrl } from "@/lib/result-view";
 
 const SAMPLE = "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
 
@@ -27,12 +27,10 @@ type LiveResult = {
   signalGroups: SignalGroup[];
 };
 
-type Check = { counts: Record<string, number>; similar: number; underReview: string[] };
+type Check = { counts: Record<string, number>; similar: number };
 type PanelStatus = "closed" | "open" | "sending" | "done" | "limited" | "failed";
 type Registry = { status: PanelStatus; picked: string[]; withText: boolean };
-type Review = { status: PanelStatus; contact: string; message: string; id?: string };
 const NO_REGISTRY: Registry = { status: "closed", picked: [], withText: false };
-const NO_REVIEW: Review = { status: "closed", contact: "", message: "" };
 
 /** 공유창(모바일) 또는 복사 — 성공 여부만 돌려준다 */
 async function shareOrCopy(title: string, text: string, url: string): Promise<"shared" | "copied" | "failed"> {
@@ -77,9 +75,8 @@ export function LiveAnalyzer() {
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
   const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle");
   const [sharedKeys, setSharedKeys] = useState<string[]>([]);
-  const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0, underReview: [] });
+  const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0 });
   const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
-  const [review, setReview] = useState<Review>(NO_REVIEW);
   const [familyMsg, setFamilyMsg] = useState<"" | "copied" | "failed">("");
   const [shareMsg, setShareMsg] = useState<"" | "copied" | "failed">("");
 
@@ -137,14 +134,13 @@ export function LiveAnalyzer() {
     : (currentServerResult ?? textResult);
   const level = result ? (result.label as keyof typeof TONE) : null;
   const positive = result?.reasons.filter((reason) => reason.points > 0) ?? [];
-  const underReview = handle ? community.underReview.includes(`threads:${handle.toLowerCase()}`) : false;
   const reported = keys.filter((k) => (community.counts[k] ?? 0) > 0).sort((a, b) => (community.counts[b] ?? 0) - (community.counts[a] ?? 0));
-  const signs = level ? plainSigns(level, result!.signalGroups, positive, t.result) : [];
+  const signs = level ? plainSigns(level, result!.signalGroups, positive, foundTelegram(keys, positive), t.result) : [];
   const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0 || sharedKeys.length > 0;
 
   function reset() {
-    setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY); setReview(NO_REVIEW); setShareMsg("");
-    setCommunity({ counts: {}, similar: 0, underReview: [] });
+    setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY); setShareMsg("");
+    setCommunity({ counts: {}, similar: 0 });
   }
 
   async function submit(event?: React.FormEvent<HTMLFormElement>) {
@@ -229,24 +225,6 @@ export function LiveAnalyzer() {
     }
   }
 
-  async function submitReview(contact: string, message: string) {
-    setReview({ status: "sending", contact, message });
-    try {
-      const response = await fetch("/api/review-request", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ keys, contact, message }),
-      });
-      const data = await response.json().catch(() => null);
-      if (response.status === 429) setReview({ status: "limited", contact, message });
-      else if (response.ok && data?.id) setReview({ status: "done", contact, message, id: data.id as string });
-      else setReview({ status: "failed", contact, message });
-    } catch {
-      setReview({ status: "failed", contact, message });
-    }
-  }
-
-  const reviewButton = <button type="button" className="inline-link" onClick={() => setReview({ status: "open", contact: "", message: "" })}>{t.result.reviewLink}</button>;
-
   return (
     <>
       <div className="family-bar">
@@ -280,7 +258,7 @@ export function LiveAnalyzer() {
 
       <section id="result" className="result-area" aria-live="polite">
         {hasAnything && (
-          <div className={`result-card ${level && !underReview ? TONE[level] : "risk-none"}`}>
+          <div className={`result-card ${level ? TONE[level] : "risk-none"}`}>
             {account.status === "known" && (
               <p className="result-account">{t.status.known(account.handle, account.postCount)} <a href={`/report/${encodeURIComponent(`threads:${account.handle.toLowerCase()}`)}`}>{t.status.report}</a></p>
             )}
@@ -289,9 +267,7 @@ export function LiveAnalyzer() {
             )}
             {account.status === "demoFail" && <p className="result-account">{t.status.demoFail}</p>}
 
-            {underReview ? (
-              <div className="verdict verdict-neutral"><p>{t.result.underReview}</p></div>
-            ) : level && (
+            {level && (
               <>
                 <div className="verdict-top">
                   <span>{t.result.level[level]}</span>
@@ -304,26 +280,26 @@ export function LiveAnalyzer() {
                 </div>
               </>
             )}
-            <p className="result-disclaimer">{t.result.disclaimer} {reviewButton}{t.result.disclaimerTail}</p>
+            <p className="result-disclaimer">{t.result.disclaimer}</p>
 
-            {!underReview && (reported.length > 0 || community.similar > 0) && (
+            {(reported.length > 0 || community.similar > 0) && (
               <div className="community-warn" role="alert">
                 <ul>
-                  {reported.slice(0, 3).map((k) => <li key={k}><b>⚠ {t.community.warn(community.counts[k])}</b><span>{keyLabel(k, t.community.kind)}</span></li>)}
+                  {reported.slice(0, 3).map((k) => <li key={k}><b>⚠ {t.community.warn(community.counts[k], k.slice(0, k.indexOf(":")))}</b><span>{keyLabel(k, t.community.kind)}</span></li>)}
                   {community.similar > 0 && <li><b>⚠ {t.result.similar(community.similar)}</b></li>}
                 </ul>
                 <small>{t.community.warnNote}</small>
               </div>
             )}
 
-            {!underReview && signs.length > 0 && (
+            {signs.length > 0 && (
               <div className="result-signs">
                 <h3>{t.result.signsTitle}</h3>
-                <ul>{signs.map((s) => <li key={s}>{s}</li>)}</ul>
+                <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span></li>)}</ul>
               </div>
             )}
 
-            {level && !underReview && (
+            {level && (
               <div className="result-todo">
                 <h3>{t.result.todoTitle}</h3>
                 <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
@@ -331,8 +307,13 @@ export function LiveAnalyzer() {
               </div>
             )}
 
+            <div className="stop-box">
+              <h3>{t.result.stopTitle}</h3>
+              <ul>{t.result.stop.map((line) => <li key={line}>{line}</li>)}</ul>
+            </div>
+
             <div className="result-actions">
-              <button type="button" className="act-share" onClick={shareResult}>{t.share.button}</button>
+              <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
               <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: keys, withText: !!sig })}>{t.community.button}</button>
             </div>
             {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
@@ -379,26 +360,7 @@ export function LiveAnalyzer() {
               </div>
             )}
 
-            {review.status !== "closed" && (
-              <div className="side-panel">
-                <h3>{t.review.title}</h3>
-                {review.status === "done" ? <p>{t.review.done(review.id ?? "")}</p>
-                  : review.status === "limited" ? <p>{t.review.limited}</p>
-                  : review.status === "failed" ? <p>{t.review.failed}</p>
-                  : (
-                    <form onSubmit={(e) => { e.preventDefault(); void submitReview(review.contact, review.message); }}>
-                      <p>{t.review.lead}</p>
-                      <p className="panel-target"><b>{t.review.target}</b> {keys.length ? keys.map((k) => keyLabel(k, t.community.kind)).join(", ") : t.review.targetNone}</p>
-                      <label>{t.review.contact}<input type="email" required value={review.contact} disabled={review.status === "sending"} onChange={(e) => setReview({ ...review, status: "open", contact: e.target.value })} /></label>
-                      <label>{t.review.message}<textarea required rows={3} maxLength={2000} value={review.message} disabled={review.status === "sending"} onChange={(e) => setReview({ ...review, status: "open", message: e.target.value })} /></label>
-                      <div className="panel-buttons"><button type="submit" disabled={review.status === "sending"}>{review.status === "sending" ? t.review.sending : t.review.submit}</button></div>
-                    </form>
-                  )}
-                <button type="button" className="panel-close" onClick={() => setReview(NO_REVIEW)}>{t.review.close}</button>
-              </div>
-            )}
-
-            {result && positive.length > 0 && !underReview && (
+            {result && positive.length > 0 && (
               <details className="result-details">
                 <summary>{t.result.details}</summary>
                 <ul className="result-reasons">
@@ -409,6 +371,7 @@ export function LiveAnalyzer() {
                 <small>{t.result.detailsNote}</small>
               </details>
             )}
+            {t.result.contactLine && <p className="contact-line">{t.result.contactLine}</p>}
           </div>
         )}
       </section>
