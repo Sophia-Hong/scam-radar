@@ -16,8 +16,9 @@ type Result =
 const ENTITY_LABEL: Record<string, string> = {
   telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널",
   phone: "전화번호", handle: "핸들", url: "링크", line: "라인", wechat: "위챗",
+  whatsapp: "왓츠앱", signal: "시그널", email: "이메일",
 };
-const STRONG_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "line", "wechat"]);
+const STRONG_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "line", "wechat", "whatsapp", "signal"]);
 const SOURCE_LABEL: Record<string, string> = { text: "본문", bio: "프로필 소개", externalUrl: "프로필 링크" };
 /** source 는 "text,externalUrl" 처럼 합쳐져 올 수 있다 */
 const sourceLabel = (s: string) => s.split(",").map((x) => SOURCE_LABEL[x] ?? x).join(" · ");

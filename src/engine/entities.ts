@@ -19,7 +19,10 @@ export type EntityType =
   | "handle"
   | "url"
   | "line"
-  | "wechat";
+  | "wechat"
+  | "whatsapp"
+  | "signal"
+  | "email";
 
 export type EntitySource = "text" | "bio" | "externalUrl";
 
@@ -32,8 +35,8 @@ export interface Entity {
   source: EntitySource;
 }
 
-/** 이 타입들만 "같은 운영자" 근거로 쓴다. handle/url 은 너무 흔해서 약한 신호. */
-export const STRONG_ENTITY_TYPES: EntityType[] = ["telegram", "kakao_open", "kakao_channel", "phone", "line", "wechat"];
+/** 이 타입들만 "같은 운영자" 근거로 쓴다. handle/url/email 은 너무 흔해서(고객센터 주소 인용 등) 약한 신호. */
+export const STRONG_ENTITY_TYPES: EntityType[] = ["telegram", "kakao_open", "kakao_channel", "phone", "line", "wechat", "whatsapp", "signal"];
 const STRONG = new Set<EntityType>(STRONG_ENTITY_TYPES);
 
 export function isStrongEntity(type: string): boolean {
@@ -49,6 +52,9 @@ export const ENTITY_TYPE_LABEL: Record<EntityType, string> = {
   url: "링크",
   line: "라인",
   wechat: "위챗",
+  whatsapp: "왓츠앱",
+  signal: "시그널",
+  email: "이메일",
 };
 
 export function entityId(type: string, value: string): string {
@@ -74,6 +80,21 @@ function normalizePhone(s: string): string | null {
   if (d.startsWith("82")) d = "0" + d.slice(2);
   if (/^1[016789]\d{7,8}$/.test(d)) d = "0" + d;
   if (/^0(1[016789]|50\d)\d{7,8}$/.test(d)) return d;
+  return null;
+}
+
+/**
+ * 국제 전화번호. 한국(+82)은 normalizePhone 이 0 으로 되돌려 처리하므로 여기서 제외한다.
+ * "+" 로 시작하면 E.164 꼴(+국가번호…, 8~15자리), 아니면 북미 10자리 (NXX) NXX-XXXX 만 받는다.
+ */
+function normalizeIntlPhone(s: string): string | null {
+  const plus = /^\s*\+/.test(s);
+  const d = s.replace(/\D/g, "");
+  if (plus) {
+    if (d.startsWith("82")) return null;
+    return d.length >= 8 && d.length <= 15 ? `+${d}` : null;
+  }
+  if (/^1?[2-9]\d{2}[2-9]\d{6}$/.test(d)) return `+1${d.slice(-10)}`;
   return null;
 }
 
@@ -117,9 +138,33 @@ const RULES: Rule[] = [
   { type: "phone", re: /(?<![0-9])(?:\+?82[\s.\-)]*)?0?1[016789][\s.\-]?\d{3,4}[\s.\-]?\d{4}(?![0-9])/g, pick: (m) => normalizePhone(m[0]) },
   { type: "phone", re: /(?<![0-9])050\d[\s.\-]?\d{3,4}[\s.\-]?\d{4}(?![0-9])/g, pick: (m) => normalizePhone(m[0]) },
 
+  // ── WhatsApp (wa.me/번호, 그룹 초대, "whatsapp: +1 …") ──
+  { type: "whatsapp", re: /(?:https?:\/\/)?(?:www\.)?wa\s*\.\s*me\s*\/\s*\+?(\d{8,15})/gi, pick: (m) => `+${m[1]}` },
+  { type: "whatsapp", re: /(?:https?:\/\/)?api\s*\.\s*whatsapp\s*\.\s*com\s*\/\s*send\/?\?phone=\+?(\d{8,15})/gi, pick: (m) => `+${m[1]}` },
+  { type: "whatsapp", re: /(?:https?:\/\/)?chat\s*\.\s*whatsapp\s*\.\s*com\s*\/\s*(?:invite\/)?([a-z0-9]{10,40})/gi, pick: (m) => `chat.whatsapp.com/${m[1].toLowerCase()}` },
+  { type: "whatsapp", re: /(?:whatsapp|whats\s*app|watsapp|왓츠앱|왓챕)(?:\s*(?:me|us|number|no\.?|num|at|on|:|：|=|-|>|→|▶)\s*)*(\+?\d[\d\s().-]{7,20}\d)/gi, pick: (m) => normalizeIntlPhone(m[1]) ?? normalizePhone(m[1]) },
+
+  // ── Signal (signal.me/#p/…, signal.group/#…, "signal: name.01") ──
+  { type: "signal", re: /(?:https?:\/\/)?signal\s*\.\s*(me|group)\s*\/\s*#?([a-z0-9_+/=.-]{4,120})/gi, pick: (m) => `signal.${m[1].toLowerCase()}/${trimValue(m[2])}` },
+  { type: "signal", re: /\bsignal(?:\s*(?:username|user|id|:|：|=)\s*)+@?([a-z][a-z0-9_]{2,31}\.\d{2,10})/gi, pick: (m) => trimValue(m[1]) || null },
+
+  // ── 이메일 ──
+  { type: "email", re: /(?<![a-z0-9._%+-])([a-z0-9][a-z0-9._%+-]{0,63}@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,24})(?![a-z0-9-])/gi, pick: (m) => trimValue(m[1]) || null },
+
+  // ── 국제·북미 전화번호 (+82 는 위 한국 규칙이 처리) ──
+  { type: "phone", re: /(?<![\d+])\+(?!82)\d{1,3}[\s.\-]?\(?\d{1,4}\)?(?:[\s.\-]?\d{2,4}){2,4}(?!\d)/g, pick: (m) => normalizeIntlPhone(m[0]) },
+  { type: "phone", re: /(?<![\d+])(?:\+?1[\s.\-]?)?\(?[2-9]\d{2}\)?[\s.\-]\d{3}[\s.\-]\d{4}(?!\d)/g, pick: (m) => normalizeIntlPhone(m[0].replace(/^\s*\+/, "")) },
+
   // ── 링크모음·단축 URL (약한 신호) ──
   { type: "url", re: /(?:https?:\/\/)?(?:www\.)?(linktr\.ee|litt\.ly|lit\.link|bit\.ly|han\.gl|vo\.la|url\.kr|buly\.kr|me2\.kr|tinyurl\.com)\s*\/\s*([a-z0-9_.-]{2,60})/gi, pick: (m) => stripUrl(`${m[1]}/${cutKoreanTail(m[2])}`) || null },
 ];
+
+/**
+ * 약한 신호: 일반 URL. 메신저·단축 링크는 위 규칙이 따로 잡으므로 제외한다.
+ * 값은 프로토콜·www 를 뺀 host+path.
+ */
+const GENERIC_URL = /\b(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
+const URL_HANDLED = /^(?:t\.me|telegram\.me|tlgrm\.me|open\.kakao\.com|pf\.kakao\.com|line\.me|wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com|signal\.me|signal\.group|linktr\.ee|litt\.ly|lit\.link|bit\.ly|han\.gl|vo\.la|url\.kr|buly\.kr|me2\.kr|tinyurl\.com)(?:\/|$)/;
 
 /** 약한 신호: 앞에 채널 단서가 없는 일반 @핸들 */
 const GENERIC_HANDLE = new RegExp(`@(${HANDLE})`, "g");
@@ -187,9 +232,21 @@ function scan(input: string, source: EntitySource, out: Map<string, Entity>) {
         add(out, { type: rule.type, value, raw: m[0].trim(), source });
       }
     }
+    // 일반 URL — 원문 변형에서만 (정규화 텍스트는 혼동문자 폴딩으로 경로가 바뀔 수 있다)
+    if (v === input || v === despace(input)) {
+      GENERIC_URL.lastIndex = 0;
+      for (const m of v.matchAll(GENERIC_URL)) {
+        const value = stripUrl(m[0]);
+        if (!value || !value.includes(".") || URL_HANDLED.test(value)) continue;
+        add(out, { type: "url", value, raw: m[0].trim(), source });
+      }
+    }
     // 일반 @핸들 — 위에서 강한 타입으로 이미 잡힌 값은 넣지 않는다
     GENERIC_HANDLE.lastIndex = 0;
     for (const m of v.matchAll(GENERIC_HANDLE)) {
+      // 이메일의 @도메인 부분은 핸들이 아니다
+      const before = v[(m.index ?? 0) - 1];
+      if (before && /[a-z0-9._%+-]/i.test(before)) continue;
       const value = pickHandle(m[1]);
       if (!value) continue;
       add(out, { type: "handle", value, raw: m[0].trim(), source });

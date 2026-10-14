@@ -105,10 +105,18 @@ function foreignProfileCountry(country?: string | null): boolean {
 
 const TERM_CHOSUNG = TERMS.filter((t) => t.chosung).map((t) => ({ t, cs: choseongSeq(t.term) }));
 
-function findTerms(compact: string): { term: Term; via: "exact" }[] {
-  const out: { term: Term; via: "exact" }[] = [];
+/** 어휘 매칭. 한국어는 compact substring, 영어(re 있음)는 단어 경계 정규식 — 매칭 조각을 함께 돌려준다 */
+function findTerms(n: Normalized): { term: Term; hit: string; at: number; in: "text" | "compact" }[] {
+  const out: { term: Term; hit: string; at: number; in: "text" | "compact" }[] = [];
   for (const t of TERMS) {
-    if (compact.includes(t.term)) out.push({ term: t, via: "exact" });
+    if (t.re) {
+      const where = t.on === "compact" ? "compact" : "text";
+      const m = (where === "compact" ? n.compact : n.text).match(t.re);
+      if (m) out.push({ term: t, hit: m[0], at: m.index ?? 0, in: where });
+    } else {
+      const at = n.compact.indexOf(t.term);
+      if (at >= 0) out.push({ term: t, hit: t.term, at, in: "compact" });
+    }
   }
   return out;
 }
@@ -134,6 +142,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const reasons: Reason[] = [];
   const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0, impersonate: 0 };
   let sawInstitution = false;
+  let sawKoreanInstitution = false;
   let sawCredential = false;
   let sawEvidenceImageClaim = false;
   const institutionHits: string[] = [];
@@ -147,26 +156,31 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     seenLabel.add(key);
     const pts = CAT_WEIGHT[t.cat] * (t.w ?? 1);
     categories[t.cat] += pts;
-    if (t.sub === "institution") { sawInstitution = true; institutionHits.push(t.term); }
-    if (t.sub === "credential") { sawCredential = true; credentialHits.push(t.term); }
-    if (["사원증", "급여명세", "명세서", "재직증명"].includes(t.term)) sawEvidenceImageClaim = true;
+    if (t.sub === "institution") { sawInstitution = true; if (!t.lang) sawKoreanInstitution = true; institutionHits.push(t.lang ? evidence : t.term); }
+    if (t.sub === "credential") { sawCredential = true; credentialHits.push(t.lang ? evidence : t.term); }
+    if (t.evidenceDoc || ["사원증", "급여명세", "명세서", "재직증명"].includes(t.term)) sawEvidenceImageClaim = true;
     matched.push({ term: t.term, cat: t.cat, label: t.label });
     reasons.push({ code: `term:${t.term}`, label: viaLabel ? `${t.label} (${viaLabel})` : t.label, points: Math.round(pts), evidence });
   };
 
   // 1) 정규화 텍스트 어휘 매칭
   const cps = Array.from(n.compact); // 코드포인트 단위 슬라이스 — 이모지 서로게이트 쌍이 잘리면 JSON 이 깨진다
-  for (const { term } of findTerms(n.compact)) {
-    const idx = Array.from(n.compact.slice(0, n.compact.indexOf(term.term))).length;
-    add(term, cps.slice(Math.max(0, idx - 8), idx + Array.from(term.term).length + 8).join(""));
+  const tps = Array.from(n.text);
+  for (const { term, hit, at, in: where } of findTerms(n)) {
+    const src = where === "compact" ? n.compact : n.text;
+    const pts = where === "compact" ? cps : tps;
+    const idx = Array.from(src.slice(0, at)).length;
+    const pad = where === "compact" ? 8 : 16;
+    add(term, pts.slice(Math.max(0, idx - pad), idx + Array.from(hit).length + pad).join("").trim());
   }
   // 2) 초성 매칭 (원문에 호환 자모가 있을 때만)
   for (const { term, token } of findChosungTerms(raw)) {
     add(term, token, "초성 난독화");
   }
   // 3) 정규식 구조 신호
+  const rawLower = raw.toLowerCase();
   for (const p of PATTERNS) {
-    const m = n.text.match(p.re);
+    const m = (p.on === "raw" ? rawLower : n.text).match(p.re);
     if (m) {
       const key = p.cat + ":" + p.label;
       if (seenLabel.has(key)) continue;
@@ -187,7 +201,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // 3b) 프로필 외부 링크가 메신저·링크모음 — 본문과 무관하게 계정 자체가 유입 장치다.
   //     연락채널 신호로 친다(결합 규칙·게이트에 그대로 반영).
   const extUrl = (account.externalUrl ?? "").toLowerCase();
-  if (/t\.me|telegram\.me|open\.kakao|pf\.kakao|linktr\.ee|litt\.ly|bit\.ly|han\.gl|vo\.la|line\.me|wechat/.test(extUrl)) {
+  if (/t\.me|telegram\.me|open\.kakao|pf\.kakao|linktr\.ee|litt\.ly|bit\.ly|han\.gl|vo\.la|line\.me|wechat|wa\.me|whatsapp\.com|signal\.me|signal\.group/.test(extUrl)) {
     reasons.push({ code: "acct:lure-link", label: "프로필 외부 링크가 메신저·링크모음", points: 10, evidence: account.externalUrl! });
     categories.contact = Math.min(CAT_CAP.contact, categories.contact + 10);
     score += 10;
@@ -224,7 +238,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
 
   // 4d) 한국 기관 재직·퇴직 사칭과 프로필 국가가 불일치하는 경우의 보조 신호.
   //     해외 거주자·출장·VPN 등 정상 사례가 많으므로 단독 가점·게이트로는 절대 사용하지 않는다.
-  const countryMismatch = impersonateCombo && foreignProfileCountry(account.profileCountry);
+  const countryMismatch = impersonateCombo && sawKoreanInstitution && foreignProfileCountry(account.profileCountry);
   if (countryMismatch) {
     reasons.push({
       code: "identity:country-mismatch",
@@ -272,14 +286,14 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // 5b) 피해자·경고 맥락 감점 — "리딩방 사기 당한 후기" 는 유인글이 아니다
   let counter = 0;
   let strongCounters = 0;
-  const hitCounters = COUNTER_TERMS.filter((c) => n.compact.includes(c.term));
+  const hitCounters = COUNTER_TERMS.filter((c) => (c.re ? c.re.test(n.text) : n.compact.includes(c.term)));
   for (const c of hitCounters) {
     counter += 12 * c.w;
     if (c.strong) strongCounters++;
   }
   if (counter > 0) {
     const pts = -Math.min(45, Math.round(counter));
-    reasons.push({ code: "counter", label: "피해 경험·경고 맥락 (유인글 아닐 가능성)", points: pts, evidence: hitCounters.map((c) => c.term).join(", ") });
+    reasons.push({ code: "counter", label: "피해 경험·경고 맥락 (유인글 아닐 가능성)", points: pts, evidence: hitCounters.map((c) => (c.re ? c.label : c.term)).join(", ") });
     score += pts;
   }
 
@@ -366,9 +380,9 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const signalGroups: SignalGroup[] = [
     { code: "normalization", label: "숨긴 글자 복원", active: n.techniques.length > 0, evidence: n.techniques },
     { code: "impersonation", label: "재직·퇴직 사칭 서사", active: impersonateCombo, evidence: reasonEvidence(["impersonate:"]) },
-    { code: "evidence", label: "증빙 언급 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "evidence:"]) },
+    { code: "evidence", label: "증빙 언급 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "term:en:evidence:", "evidence:"]) },
     { code: "conversion", label: "투자 유인 전환 구조", active: reasons.some((r) => r.code.startsWith("combo:") || r.code === "cta"), evidence: reasonEvidence(["combo:", "cta"]) },
-    { code: "infrastructure", label: "외부 이동 인프라", active: categories.contact > 0, evidence: reasonEvidence(["term:텔레", "term:카카오", "term:오픈", "acct:lure-link", "pattern:"]) },
+    { code: "infrastructure", label: "외부 이동 인프라", active: categories.contact > 0, evidence: reasonEvidence(["term:텔레", "term:카카오", "term:오픈", "term:telegram", "term:en:contact:", "acct:lure-link", "pattern:"]) },
     { code: "coordination", label: "계정·캠페인 연결", active: clusterAccounts >= 2 || (account.clusterSize ?? 0) >= 3 || (account.distinctTargets ?? 0) >= 3, evidence: reasonEvidence(["spread", "cluster", "spray", "shared-contact"]) },
     { code: "identity", label: "신원·활동 맥락 불일치", active: countryMismatch, evidence: reasonEvidence(["identity:"]) },
   ];
