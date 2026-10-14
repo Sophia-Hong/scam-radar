@@ -70,6 +70,9 @@ const COPY = {
     level: "Warning signs: high", bannerT: "This could be a scam.", bannerS: "Do not send money. Ask your family or your bank first.",
     disclaimer: "A computer checked these posts automatically. This does not mean this person committed fraud.",
     signsTitle: "What looks wrong",
+    aiApplied: "AI check applied",
+    todoTitle: "What to do",
+    todo: ["Do not send money. Do not install any app or file.", "Show this screen to a family member before you do anything.", "Already paid? Call your bank (or 112 in Korea) now and ask them to stop the transfer."],
     signs: [["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
             ["It offers big profits or free tips and tells you to act now.", "Rushing you leaves no time to think."],
             ["It asks you to move to a chat app like Telegram.", "Scams often pull you into a private chat."]],
@@ -77,7 +80,7 @@ const COPY = {
     reportNote: "Account, link or contact — and a similarity signature of the message, never the text itself.",
     nextSees: "The next person who checks it sees:", warn: "⚠ 3 reports about messages like this", warnNote: "(we have not checked these reports)",
     famLead: "Anyone can get a strange investment offer. Send this page to someone you care about.", famBtn: "Share with someone you care about",
-    shareText: "Got a strange investment tip or link? Check it here first.",
+    shareText: "Got a strange investment tip or link? Check it here first. Press and hold the suspicious message to copy it, then open this link and paste it.",   // 제품 공유 문구(테오 1791956461)
     apps: ["Messages", "KakaoTalk", "WhatsApp", "Copy link"],
     end1: `Check before<br>you <em>send money</em>.`, end2: "Free · by LegalFriend",
     endNote: "A computer checks posts automatically. A result does not mean any person committed fraud.",
@@ -94,6 +97,9 @@ const COPY = {
     level: "위험 신호 높음", bannerT: "사기일 수 있어요.", bannerS: "돈을 보내지 마세요. 먼저 가족이나 은행에 물어보세요.",
     disclaimer: "이 화면은 컴퓨터가 글을 자동으로 살펴본 결과예요. 이 사람이 사기를 쳤다고 정한 것은 아니에요.",
     signsTitle: "이런 점이 이상해요",
+    aiApplied: "AI 확인 반영",
+    todoTitle: "이렇게 하세요",
+    todo: ["돈을 보내지 마세요. 앱이나 파일도 설치하지 마세요.", "보내기 전에 가족에게 이 화면을 먼저 보여 주세요.", "이미 보냈다면 바로 은행이나 112에 전화해 지급정지를 요청하세요."],
     signs: [["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
             ["큰 수익이나 공짜 정보를 주겠다며 지금 하라고 해요.", "서두르게 하는 말은 생각할 시간을 빼앗아요."],
             ["텔레그램 같은 채팅방으로 오라고 해요.", "사기는 이렇게 모르는 방으로 데려가는 일이 많아요."]],
@@ -101,7 +107,7 @@ const COPY = {
     reportNote: "계정·링크·연락처를 신고해요. 받은 글은 원문 대신 비슷한 글을 알아보는 서명만 보내요.",
     nextSees: "다음 사람이 확인하면 이렇게 보여요:", warn: "⚠ 비슷한 글을 조심하라는 신고 3건", warnNote: "(저희가 확인한 건 아니에요)",
     famLead: "누구나 이상한 투자 권유를 받을 수 있어요. 소중한 사람에게 이 페이지를 보내 주세요.", famBtn: "소중한 사람에게 보내기",
-    shareText: "이상한 투자 권유나 링크 받으면 여기 먼저 넣어 보세요.",
+    shareText: "이상한 투자 권유나 링크 받으면 여기 먼저 넣어 보세요. 의심되는 문자를 길게 눌러 복사한 뒤, 이 링크에 들어가 붙여넣기 하세요.",
     apps: ["메시지", "카카오톡", "왓츠앱", "링크 복사"],
     end1: `보내기 전에,<br><em>한 번 확인</em>.`, end2: "무료 · LegalFriend",
     endNote: "이 화면은 컴퓨터가 글을 자동으로 살펴본 결과예요. 이 사람이 사기를 쳤다고 정한 것은 아니에요.",
@@ -189,21 +195,27 @@ function render(t) {
       h += tapAt(t, 14.55, cx1 + 6, cy1 + 6);
     }
   }
-  // ③ 결과 — 배너 · 쉬운 징후
+  // ③ 결과 — 제품과 같은 순서(테오 1791970744: AI 우선판 공개 화면): 단계·"AI 확인 반영" → 배너 → 안내 → 이렇게 하세요·보내기·신고 → 징후
   if (t >= 15.2 && t < 25.0) {
     h += caption(t, 15.4, 20.6, COPY.c4, top);
     h += caption(t, 20.8, 24.8, COPY.c5, top);
     const k = ease(p(t, 15.2, 15.8)), out = ease(p(t, 24.4, 25.0));
+    const tk = ease(p(t, 16.3, 16.8)), bk = ease(p(t, 16.8, 17.3));
+    const scroll = (V ? 380 : 210) * inout(p(t, 18.0, 18.9));   // 징후로 내려가는 스크롤(제품과 같이 할 일·버튼이 위)
     let signs = "";
     SIGNS.forEach((s, i) => {
-      const sk = ease(p(t, 17.6 + i * .7, 18.1 + i * .7));
+      const sk = ease(p(t, 18.7 + i * .7, 19.2 + i * .7));
       signs += `<div class="sign" style="margin-top:${px(14)};padding:${px(18)} ${px(20)} ${px(18)} ${px(70)};font-size:${px(V ? 32 : 27)};opacity:${sk};transform:translateX(${(1 - sk) * 40}px)"><i style="left:${px(18)};top:${px(18)};width:${px(36)};height:${px(36)};font-size:${px(22)}">!</i><b style="display:block">${s[0]}</b><span style="display:block;font-weight:500;color:#45433d;font-size:.84em;margin-top:4px">${s[1]}</span></div>`;
     });
-    h += `<div class="abs card" style="left:${ox}px;top:${cy - 40 + (1 - k) * 60}px;width:${cw}px;padding:${px(26)};opacity:${k * (1 - out)}">
-      <div style="font-weight:800;font-size:${px(26)};display:flex;gap:12px;align-items:center">${COPY.level} <span style="display:inline-flex;gap:5px">${`<i style="display:inline-block;width:${px(24)};height:${px(11)};background:var(--ink)"></i>`.repeat(3)}</span></div>
+    const todo = COPY.todo.map((x, i) => `<li style="margin-top:${px(6)}">${i + 1}. ${x}</li>`).join("");
+    h += `<div class="abs" style="left:${ox}px;top:${cy - 40}px;width:${cw}px;height:${(V ? H - cy : H - cy - 10)}px;overflow:hidden;opacity:${k * (1 - out)}">
+      <div class="card" style="padding:${px(26)};transform:translateY(${(1 - k) * 60 - scroll}px)">
+      <div style="font-weight:800;font-size:${px(26)};display:flex;gap:12px;align-items:center">${COPY.level} <span style="display:inline-flex;gap:5px">${`<i style="display:inline-block;width:${px(24)};height:${px(11)};background:var(--ink)"></i>`.repeat(3)}</span><span style="margin-left:auto;font-size:${px(20)};font-weight:700;color:var(--sub)">${COPY.aiApplied}</span></div>
       <div class="banner" style="margin-top:${px(14)};transform:scale(${.96 + .04 * k})"><b style="font-size:${px(V ? 64 : 54)}">${COPY.bannerT}</b><span style="font-size:${px(V ? 32 : 27)}">${COPY.bannerS}</span></div>
       <div style="margin-top:${px(10)};font-size:${px(V ? 21 : 18)};color:var(--sub);line-height:1.45">${COPY.disclaimer}</div>
-      <div style="margin-top:${px(16)};font-weight:800;font-size:${px(V ? 30 : 26)}">${COPY.signsTitle}</div>${signs}</div>`;
+      <div style="margin-top:${px(16)};padding:${px(16)} ${px(20)};background:#f4f2ec;opacity:${tk}"><div style="font-weight:800;font-size:${px(V ? 30 : 26)}">${COPY.todoTitle}</div><ol style="margin:${px(6)} 0 0;padding:0;list-style:none;font-size:${px(V ? 26 : 22)};line-height:1.4">${todo}</ol></div>
+      <div style="margin-top:${px(14)};display:grid;gap:${px(10)};opacity:${bk}"><div class="btn" style="height:${px(V ? 80 : 66)};font-size:${px(V ? 30 : 26)};background:var(--ink);color:#fff">${COPY.famBtn}</div><div class="btn" style="height:${px(V ? 80 : 66)};font-size:${px(V ? 30 : 26)}">${COPY.report}</div></div>
+      <div style="margin-top:${px(20)};font-weight:800;font-size:${px(V ? 30 : 26)}">${COPY.signsTitle}</div>${signs}</div></div>`;
   }
   // ④ 피해자가 다음 사람을 지킨다
   if (t >= 24.6 && t < 30.4) {
