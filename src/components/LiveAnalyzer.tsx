@@ -78,9 +78,10 @@ export function LiveAnalyzer() {
   const [input, setInput] = useState("");
   const [text, setText] = useState("");
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
+  const [limited, setLimited] = useState(false);   // 계정 조회가 같은 IP 하루 20회에 걸림
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
-  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle")   // applied = 서버가 실제 모델 판정을 받았다고 답했을 때만;
+  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error" | "limited">("idle")   // applied = 서버가 실제 모델 판정을 받았다고 답했을 때만;
   const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0 });
   const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
   const [familyMsg, setFamilyMsg] = useState<"" | "copied" | "failed">("");
@@ -114,6 +115,7 @@ export function LiveAnalyzer() {
           signal: controller.signal,
         });
         const data = await response.json();
+        if (response.status === 429) { setAiStatus("limited"); return; }   // 같은 IP 하루 20회 — 규칙 결과는 그대로
         if (!response.ok) throw new Error("analysis failed");
         setServerResult({ input: text, result: data as LiveResult });
         setAiStatus(aiStatusOf(data));
@@ -194,10 +196,11 @@ export function LiveAnalyzer() {
     // 새 대상 — 이전 글·서버 결과·공유 키를 먼저 비운다(새 핸들과 이전 글의 연락처가 한 신고로 섞이지 않게, 카이 ④ 검수 1)
     gen.current += 1;
     setText(""); setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY);
-    setAccount({ status: "loading", handle: h });
+    setAccount({ status: "loading", handle: h }); setLimited(false);
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(h)}`, { cache: "no-store" });
       const data = await response.json().catch(() => null);
+      if (response.status === 429) { setAccount({ status: "idle" }); setLimited(true); return false; }   // 같은 IP 하루 20회
       if (response.ok && data?.found) {
         const postText = Array.isArray(data.posts)
           ? data.posts.slice(0, 8).map((post: { text?: string }) => post.text?.trim()).filter(Boolean).join("\n\n")
@@ -282,6 +285,7 @@ export function LiveAnalyzer() {
             {account.status === "loading" ? t.hero.checking : t.hero.check}
           </button>
         </form>
+        {limited && <p className="act-msg" role="status">{t.result.limited}</p>}
         <div className="checker-links">
           <button type="button" onClick={() => setInput(SAMPLE)}>{t.hero.sample}</button>
           <button type="button" onClick={showDemo}>{t.hero.demo}</button>
@@ -314,7 +318,7 @@ export function LiveAnalyzer() {
                 <div className="verdict-top">
                   <span>{t.result.level[level]}</span>
                   <span className="level-meter" role="img" aria-label={t.result.level[level]}>{[1, 2, 3].map((n) => <i key={n} data-on={n <= STEP[level]} />)}</span>
-                  <span className="engine-state">{aiStatus === "checking" ? t.result.engine.checking : aiStatus === "applied" ? t.result.engine.applied : aiStatus === "error" ? t.result.engine.error : t.result.engine.rule}</span>
+                  <span className="engine-state">{aiStatus === "checking" ? t.result.engine.checking : aiStatus === "applied" ? t.result.engine.applied : aiStatus === "error" ? t.result.engine.error : aiStatus === "limited" ? t.result.engine.limited : t.result.engine.rule}</span>
                 </div>
                 <div className="verdict">
                   <strong>{t.result.banner[level].title}</strong>

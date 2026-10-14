@@ -8,6 +8,7 @@ import { decodeParam, onlyVisible, publicReasons, redactSharedContact, signalGro
 import { resolveAccountId } from "@/lib/resolve";
 import { sharedAccountsOf } from "@/lib/pipeline";
 import { effectiveStatus } from "@/lib/labels";
+import { DAILY_LIMIT_ERROR, reserveCheck } from "@/lib/checklimit";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
   const r = resolveAccountId(decodeParam(id));
   const admin = checkAdmin(req);
+  if (!admin && !(await reserveCheck(req))) return json({ error: DAILY_LIMIT_ERROR }, 429);   // 같은 IP 하루 20회(소현 1791954589)
   const d = db();
   const found = await d.select().from(schema.accounts)
     .where(r.id ? or(eq(schema.accounts.id, r.id), ilike(schema.accounts.handle, r.handle)) : ilike(schema.accounts.handle, r.handle))

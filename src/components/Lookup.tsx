@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useLang } from "@/lib/i18n";
 import Link from "next/link";
 import { ScoreBadge } from "./ScoreBadge";
 import { Reasons, type ShownReason } from "./Reasons";
@@ -32,13 +33,16 @@ export function Lookup() {
   const [loading, setLoading] = useState(false);
   const [res, setRes] = useState<Result | null>(null);
   const [fb, setFb] = useState<string | null>(null);
+  const [limited, setLimited] = useState(false);
+  const { t } = useLang();
 
   async function search(e?: React.FormEvent) {
     e?.preventDefault();
     if (!q.trim()) return;
-    setLoading(true); setRes(null); setFb(null);
+    setLoading(true); setRes(null); setFb(null); setLimited(false);
     try {
       const r = await fetch(`/api/accounts/${encodeURIComponent(q.trim())}`);
+      if (r.status === 429) { setLimited(true); return; }   // 같은 IP 하루 20회
       setRes(await r.json());
     } finally { setLoading(false); }
   }
@@ -56,6 +60,7 @@ export function Lookup() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="@handle 또는 https://www.threads.net/@handle" className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-zinc-900" />
         <button disabled={loading} className="rounded-lg bg-zinc-900 px-5 py-3 font-semibold text-white disabled:opacity-50">{loading ? "조회 중…" : "조회"}</button>
       </form>
+      {limited && <p className="text-sm font-semibold text-zinc-700" role="status">{t.result.limited}</p>}
 
       {res && !res.found && (
         <div className="rounded-lg border border-zinc-200 bg-white p-5">

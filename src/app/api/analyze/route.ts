@@ -5,6 +5,7 @@ import { REVIEW_CHECK_LABEL, reviewApplied, reviewPost } from "@/lib/llm";
 import { publicReasons } from "@/lib/visibility";
 import { signIds } from "@/lib/result-view";
 import { extractEntities } from "@/engine/entities";
+import { DAILY_LIMIT_ERROR, reserveCheck } from "@/lib/checklimit";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,8 @@ const Schema = z.object({
 export async function POST(req: Request) {
   const parsed = Schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
+  // 같은 IP 하루 20회 — 넘으면 엔진·AI 재검 없이 바로 끝(화면은 브라우저 규칙 결과를 그대로 두고 안내만)
+  if (!(await reserveCheck(req))) return json({ error: DAILY_LIMIT_ERROR }, 429);
   const r = scoreText(parsed.data.text, parsed.data.account ?? {});
   let score = r.score;
   let label = r.label;

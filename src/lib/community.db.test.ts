@@ -55,3 +55,19 @@ describe.skipIf(!localTestDb)("AI 하루 상한 — 호출을 시도하면 실�
     await c.release("ai-call", bucket, 2);   // 시험이 쓴 2회는 정리
   });
 });
+
+describe.skipIf(!localTestDb)("같은 IP 하루 20회 — 원자적 카운터 (소현 1791954589, 테오 1791954606)", () => {
+  it("같은 IP 동시 30건 → 정확히 20건만 통과, 다른 IP 는 따로", async () => {
+    process.env.POSTGRES_URL = testUrl;
+    process.env.DATABASE_URL = testUrl;
+    process.env.COMMUNITY_SECRET = process.env.COMMUNITY_SECRET || "dbtest-secret";
+    const cl = await import("./checklimit");
+    const { db } = await import("@/db");
+    const ip = `203.0.113.${Date.now() % 250}`;
+    const req = (addr: string) => new Request("http://x/", { headers: { "x-real-ip": addr } });
+    const got = await Promise.all(Array.from({ length: 30 }, () => cl.reserveCheck(req(ip))));
+    expect(got.filter(Boolean)).toHaveLength(cl.IP_DAILY_CHECKS);
+    expect(await cl.reserveCheck(req(`${ip}9`))).toBe(true);
+    for (const a of [ip, `${ip}9`]) await db().execute(sql`DELETE FROM community_quota WHERE reporter = ${`checks:${cl.checkerId(a, process.env.COMMUNITY_SECRET!)}`}`);
+  });
+});
