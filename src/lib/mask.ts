@@ -44,9 +44,28 @@ export function phonePattern(digits: string): RegExp {
   return new RegExp(`\\(?(?:\\+?82[\\s.\\-()]*|0)?${body}`, "g");
 }
 
-/** 객체 안의 모든 문자열에 maskText 를 적용한 복사본 */
+/**
+ * 이중 안전장치(테오 1791950296): 추출에 기대지 않고 공개 출력 직전에 한국 휴대전화·050 번호 꼴을 한 번 더 덮는다.
+ * 괄호·공백·점·하이픈·+82·국번 0 생략 표기까지. 01x / 050x 로 시작하는 번호만 — 날짜·금액 같은 숫자는 건드리지 않는다.
+ */
+const PHONE_ANYWHERE = [
+  /(?<![0-9])(?:\+\s*82[\s.\-()]*|\(?\s*0)?\(?1[016789]\)?[\s.\-]*\d{3,4}[\s.\-]*\d{4}(?![0-9])/g,
+  /(?<![0-9])\(?050\d\)?[\s.\-]*\d{3,4}[\s.\-]*\d{4}(?![0-9])/g,
+];
+export function maskPhonesAnywhere(text: string): string {
+  let out = text;
+  for (const re of PHONE_ANYWHERE) out = out.replace(re, (m) => {
+    let d = m.replace(/\D/g, "");
+    if (d.startsWith("82")) d = "0" + d.slice(2);
+    if (!d.startsWith("0")) d = "0" + d;
+    return d.length >= 10 ? `${d.slice(0, 3)}-****-${d.slice(-4)}` : m;
+  });
+  return out;
+}
+
+/** 객체 안의 모든 문자열에 maskText(+ 번호 꼴 덮기)를 적용한 복사본 */
 export function maskDeep<T>(value: T, pairs: MaskPair[], skipKeys: string[] = []): T {
-  if (typeof value === "string") return maskText(value, pairs) as T;
+  if (typeof value === "string") return maskPhonesAnywhere(maskText(value, pairs)) as T;
   if (Array.isArray(value)) return value.map((x) => maskDeep(x, pairs, skipKeys)) as T;
   if (value && typeof value === "object" && !(value instanceof Date)) {
     return Object.fromEntries(Object.entries(value).map(([k, x]) => [k, skipKeys.includes(k) ? x : maskDeep(x, pairs, skipKeys)])) as T;

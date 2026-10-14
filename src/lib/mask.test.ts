@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contactPairs, maskContact, maskDeep, maskText } from "./mask";
+import { contactPairs, maskContact, maskDeep, maskPhonesAnywhere, maskText } from "./mask";
 
 describe("연락처 가림", () => {
   it("종류별", () => {
@@ -28,5 +28,22 @@ describe("원문 표기 변형까지 가림 (카이 948d5a7)", () => {
   it("링크: 프로토콜·www 붙은 표기", () => {
     const pairs = contactPairs([{ type: "url", value: "scamsite.xyz" }]);
     expect(maskText("https://www.scamsite.xyz 방문", pairs)).toBe("sc***yz 방문");
+  });
+});
+
+describe("괄호·+82 번호 — 추출과 무관한 이중 가림 (카이 c99c371, 테오 1791950296)", () => {
+  const variants = ["(010)1234-5678", "(010) 1234-5678", "+82 (10) 1234 5678", "+82-10-1234-5678", "010 1234 5678", "10-1234-5678", "(0505) 123 4567"];
+  it("추출 규칙이 괄호 표기도 잡음", async () => {
+    const { extractEntities } = await import("@/engine/entities");
+    for (const v of variants.slice(0, 5)) expect(extractEntities(`문의 ${v}`).some((e) => e.type === "phone" && e.value === "01012345678"), v).toBe(true);
+  });
+  it("연락처 목록이 비어도(추출 실패) 공개 출력엔 원번호 0", () => {
+    for (const v of variants) {
+      const out = maskDeep({ text: `문의는 ${v} 로`, nested: [`${v}`] }, []);
+      expect(JSON.stringify(out), v).not.toMatch(/1234[\s.-]?5678|123[\s.-]?4567/);
+    }
+  });
+  it("날짜·금액은 그대로", () => {
+    expect(maskPhonesAnywhere("2026-10-14 수익 300% 1,000,000원 주문번호 20261014")).toBe("2026-10-14 수익 300% 1,000,000원 주문번호 20261014");
   });
 });

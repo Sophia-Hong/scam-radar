@@ -135,7 +135,7 @@ const RULES: Rule[] = [
   { type: "wechat", re: new RegExp(`(?:위챗|웨이신|wechat|weixin)${SEP}@?(${HANDLE})`, "gi"), pick: (m) => pickHandle(m[1]) },
 
   // ── 전화번호 ──
-  { type: "phone", re: /(?<![0-9])(?:\+?82[\s.\-)]*)?0?1[016789][\s.\-]?\d{3,4}[\s.\-]?\d{4}(?![0-9])/g, pick: (m) => normalizePhone(m[0]) },
+  { type: "phone", re: /(?<![0-9])(?:\+?82[\s.\-()]*)?\(?0?1[016789]\)?[\s.\-]?\d{3,4}[\s.\-]?\d{4}(?![0-9])/g, pick: (m) => normalizePhone(m[0]) },   // 괄호 표기 (010)·+82 (10) 포함(카이 c99c371)
   { type: "phone", re: /(?<![0-9])050\d[\s.\-]?\d{3,4}[\s.\-]?\d{4}(?![0-9])/g, pick: (m) => normalizePhone(m[0]) },
 
   // ── WhatsApp (wa.me/번호, 그룹 초대, "whatsapp: +1 …") ──

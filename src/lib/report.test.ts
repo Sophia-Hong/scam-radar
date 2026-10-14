@@ -40,3 +40,17 @@ describe("publicView 연락처·다른 계정 (율 1791947465)", () => {
     expect(p.account.handle).toBe("sample_me");
   });
 });
+
+describe("공개 리포트까지 — 추출되지 않은 괄호·+82 번호도 원번호 0 (카이 c99c371)", () => {
+  it("contacts 가 비어 있어도 증거 글·요약·근거에서 덮임", () => {
+    const r = {
+      status: "HIGH", effectiveStatus: "HIGH", humanReview: null, reportId: "SR-x", linkedAccounts: [],
+      account: { platform: "threads", handle: "sample_me", url: "u", bio: "상담 (010)1234-5678", externalUrl: null },
+      rationale: [{ code: "pattern:휴대폰 번호", label: "휴대폰 번호", points: 5, evidence: "+82 (10) 1234 5678", what: "w", why: "y", example: "e", benign: "b" }],
+      contacts: [],
+      evidence: [{ text: "연락 (010) 1234-5678 또는 +82 (10) 1234 5678", parentUrl: null }],
+      summary: { text: "유도 수단: (010)1234-5678", generatedBy: "template" },
+    } as unknown as InvestigationReport;
+    expect(JSON.stringify(publicView(r, false))).not.toMatch(/1234[\s.-]?5678/);
+  });
+});
