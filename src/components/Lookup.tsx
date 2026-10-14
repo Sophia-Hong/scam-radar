@@ -2,22 +2,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ScoreBadge } from "./ScoreBadge";
-import { Reasons } from "./Reasons";
+import { Reasons, type ShownReason } from "./Reasons";
 import { HumanVerdict, type HumanReview } from "./HumanVerdict";
-import type { Reason } from "@/engine";
 
-type Post = { id: string; postUrl: string; parentUrl: string | null; kind: string; text: string; postedAt: string | null; capturedAt: string; screenshotUrl: string | null; score: number; label: string; reasons: Reason[]; techniques: string[]; clusterId: string | null };
+type Post = { id: string; postUrl: string; parentUrl: string | null; kind: string; text: string; postedAt: string | null; capturedAt: string; screenshotUrl: string | null; score: number; label: string; reasons: ShownReason[]; techniques: string[]; clusterId: string | null };
 type EntityRef = { id: string; type: string; value: string; source: string };
 type SharedRef = { accountId: string; handle: string; score: number; label: string; via: string };
 type Result =
   | { found: false; message: string }
-  | { found: true; account: { id: string; platform: string; handle: string; displayName: string | null; profileUrl: string; bio: string | null; externalUrl: string | null; followers: number | null; following: number | null; score: number; label: string; reasons: Reason[]; postTotal: number; distinctTargets: number; profileShotUrl: string | null; firstSeen: string; lastSeen: string }; posts: Post[]; entities: EntityRef[]; sharedWith: SharedRef[]; humanLabel: "SCAM" | "NOT_SCAM" | null; humanNote: string | null; reviewedAt: string | null; reviewedBy: string | null; effectiveStatus: string; otherMatches: { id: string; handle: string; score: number; label: string }[] };
+  | { found: true; account: { id: string; platform: string; handle: string; displayName: string | null; profileUrl: string; bio: string | null; externalUrl: string | null; followers: number | null; following: number | null; score: number; label: string; reasons: ShownReason[]; postTotal: number; distinctTargets: number; profileShotUrl: string | null; firstSeen: string; lastSeen: string }; posts: Post[]; entities: EntityRef[]; sharedWith: SharedRef[]; humanLabel: "SCAM" | "NOT_SCAM" | null; humanNote: string | null; reviewedAt: string | null; reviewedBy: string | null; effectiveStatus: string; otherMatches: { id: string; handle: string; score: number; label: string }[] };
 
 const ENTITY_LABEL: Record<string, string> = {
   telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널",
   phone: "전화번호", handle: "핸들", url: "링크", line: "라인", wechat: "위챗",
 };
-const STRONG_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "line", "wechat"]);
 const SOURCE_LABEL: Record<string, string> = { text: "본문", bio: "프로필 소개", externalUrl: "프로필 링크" };
 /** source 는 "text,externalUrl" 처럼 합쳐져 올 수 있다 */
 const sourceLabel = (s: string) => s.split(",").map((x) => SOURCE_LABEL[x] ?? x).join(" · ");
@@ -105,14 +103,13 @@ export function Lookup() {
                 {res.entities.map((e) => (
                   <li key={e.id}>
                     <a href={`/api/entities/${encodeURIComponent(e.id)}`} title={`${sourceLabel(e.source)}에서 확인`}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${STRONG_TYPES.has(e.type) ? "border-red-300 bg-red-50 text-red-900" : "border-zinc-300 bg-zinc-50 text-zinc-600"}`}>
+                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600">
                       <span className="text-zinc-500">{ENTITY_LABEL[e.type] ?? e.type}</span>
                       <span className="font-mono break-all">{e.value}</span>
                     </a>
                   </li>
                 ))}
               </ul>
-              <p className="mt-1 text-xs text-zinc-500">빨간 칩은 계정 연결에 쓰는 강한 신호(메신저·번호)입니다. 회색은 참고용입니다.</p>
             </div>
           )}
 

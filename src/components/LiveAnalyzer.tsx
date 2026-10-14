@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { scoreText, type Label, type Reason, type SignalGroup } from "@/engine";
+import { scoreText, type Label, type SignalGroup } from "@/engine";
+import type { ShownReason } from "./Reasons";
 import { DATA_NOTICE, DEMO_HANDLE, SUPPORT_SCOPE } from "@/lib/copy";
 import { HeroSample } from "./HeroSample";
 
@@ -16,7 +17,7 @@ const LEVEL = {
 type AccountLookup =
   | { status: "idle" }
   | { status: "loading"; handle: string }
-  | { status: "known"; handle: string; profileUrl: string; score: number; label: Label; reasons: Reason[]; postCount: number; profileCountry?: string | null; sharedAccounts: number }
+  | { status: "known"; handle: string; profileUrl: string; score: number; label: Label; reasons: ShownReason[]; signalGroups: SignalGroup[]; postCount: number; profileCountry?: string | null; sharedAccounts: number }
   | { status: "paste"; handle: string; profileUrl: string }
   | { status: "unsupported" }
   | { status: "error"; message: string };
@@ -24,7 +25,7 @@ type AccountLookup =
 type LiveResult = {
   score: number;
   label: Label;
-  reasons: Reason[];
+  reasons: ShownReason[];
   signalGroups: SignalGroup[];
   modelReview?: { verdict: "scam" | "benign" | "unsure"; confidence: number; rationale: string; model: string } | null;
 };
@@ -87,7 +88,7 @@ export function LiveAnalyzer() {
 
   const currentServerResult = serverResult?.input === text ? serverResult.result : null;
   const result = account.status === "known" && !manualOverride
-    ? { score: account.score, label: account.label, reasons: account.reasons, signalGroups: groupsFromReasons(account.reasons) }
+    ? { score: account.score, label: account.label, reasons: account.reasons, signalGroups: account.signalGroups }
     : (currentServerResult ?? textResult);
   const level = result ? LEVEL[result.label] : null;
   const reasons = result?.reasons.filter((reason) => reason.points > 0).slice(0, 4) ?? [];
@@ -135,6 +136,7 @@ export function LiveAnalyzer() {
           score: Number(data.account.score ?? 0),
           label: (["LOW", "REVIEW", "HIGH"].includes(data.account.label) ? data.account.label : "LOW") as Label,
           reasons: Array.isArray(data.account.reasons) ? data.account.reasons : [],
+          signalGroups: Array.isArray(data.account.signalGroups) ? data.account.signalGroups : [],
           postCount: Number(data.account.postTotal ?? data.posts?.length ?? 0),
           profileCountry: data.account.profileCountry,
           sharedAccounts: Array.isArray(data.sharedWith) ? data.sharedWith.length : 0,
@@ -217,7 +219,7 @@ export function LiveAnalyzer() {
         <div className="analyzer-input">
           <div className="section-kicker"><span /> 2단계 · 문구 판독</div>
           <h2 id="analyzer-title">의심되는 글을 붙여넣으세요.</h2>
-          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 규칙 엔진이 바로 분석하고, 애매한 경우에만 AI가 한 번 더 검토합니다."}</p>
+          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 규칙 엔진이 바로 분석하고, 일부 글은 보조 AI가 한 번 더 볼 수 있습니다."}</p>
           <div className="textarea-wrap">
             <textarea
               value={text}
@@ -258,8 +260,8 @@ export function LiveAnalyzer() {
                 <h3>감지 근거 {reasons.length}개</h3>
                 {reasons.length ? (
                   <ul>
-                    {reasons.map((reason) => (
-                      <li key={reason.code}>
+                    {reasons.map((reason, i) => (
+                      <li key={i}>
                         <span aria-hidden="true">●</span>
                         <div><strong>{reason.label}</strong>{reason.evidence && <small>“{reason.evidence}”</small>}</div>
                       </li>
@@ -277,17 +279,4 @@ export function LiveAnalyzer() {
       </div>
     </section>
   );
-}
-
-function groupsFromReasons(reasons: Reason[]): SignalGroup[] {
-  const has = (...prefixes: string[]) => reasons.some((reason) => prefixes.some((prefix) => reason.code.startsWith(prefix)) && reason.points > 0);
-  return [
-    { code: "normalization", label: "숨긴 글자 복원", active: has("obfuscation"), evidence: [] },
-    { code: "impersonation", label: "재직·퇴직 사칭", active: has("impersonate:"), evidence: [] },
-    { code: "evidence", label: "증빙 언급 정황", active: has("evidence:", "term:사원증", "term:급여명세", "term:재직증명"), evidence: [] },
-    { code: "conversion", label: "투자 유인 전환", active: has("combo:", "cta"), evidence: [] },
-    { code: "infrastructure", label: "외부 이동 인프라", active: has("acct:lure-link", "term:텔레", "term:카카오", "term:오픈"), evidence: [] },
-    { code: "coordination", label: "계정·캠페인 연결", active: has("spread", "spray", "cluster", "shared-contact"), evidence: [] },
-    { code: "identity", label: "신원 맥락 불일치", active: has("identity:"), evidence: [] },
-  ];
 }

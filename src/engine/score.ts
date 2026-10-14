@@ -264,7 +264,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     }
     if (cta > 0) {
       const pts = Math.min(14, Math.round(cta));
-      reasons.push({ code: "cta", label: "행동 유도 문구 (연락채널·사칭 구조 동반)", points: pts, evidence: ctaLabels.join(", ") });
+      reasons.push({ code: "cta", label: "행동 유도 문구", points: pts, evidence: ctaLabels.join(", ") });
       score += pts;
     }
   }
@@ -340,7 +340,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   else if (strongCounters === 1) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
   // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
   if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
-    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정 (사람 검토)", `팔로워 ${account.followers}`);
+    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정", `팔로워 ${account.followers}`);
   }
 
   // 8) HARD GATE — 다음 셋 중 하나는 있어야 HIGH 가 된다.

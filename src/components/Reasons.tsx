@@ -1,11 +1,13 @@
-import type { Reason } from "@/engine";
-import { explainReason } from "@/engine/explain";
+import { explainReason, type Explanation } from "@/engine/explain";
+
+/** 화면에 그리는 근거 한 줄 — 관리자·브라우저 판독은 내부 `code`, 공개 응답은 서버가 붙인 설명(what·why…)과 순번 `id` 만 갖는다 */
+export type ShownReason = { code?: string; id?: string; label: string; points: number; evidence?: string | null } & Partial<Explanation>;
 
 /** 처음 몇 개는 펼쳐서, 나머지는 접어서 보여 준다 */
 const EXPANDED_BY_DEFAULT = 3;
 
-function Explain({ code, label, evidence }: { code: string; label: string; evidence?: string }) {
-  const x = explainReason(code, label, evidence);
+function Explain({ r }: { r: ShownReason }) {
+  const x = r.what ? (r as ShownReason & Explanation) : explainReason(r.code ?? "", r.label, r.evidence ?? undefined);
   return (
     <dl className="mt-2 space-y-2 text-[13px] leading-relaxed text-zinc-700">
       <div><dt className="font-semibold text-zinc-900">무엇이 감지됐나</dt><dd>{x.what}</dd></div>
@@ -16,7 +18,7 @@ function Explain({ code, label, evidence }: { code: string; label: string; evide
   );
 }
 
-export function Reasons({ reasons }: { reasons: Reason[] }) {
+export function Reasons({ reasons }: { reasons: ShownReason[] }) {
   if (!reasons?.length) return <p className="text-sm text-zinc-500">감지된 신호 없음</p>;
   const positive = reasons.filter((r) => r.points > 0).length;
   return (
@@ -36,20 +38,20 @@ export function Reasons({ reasons }: { reasons: Reason[] }) {
           );
           if (i < EXPANDED_BY_DEFAULT) {
             return (
-              <li key={r.code + i} className="px-3 py-3">
+              <li key={r.id ?? `${r.code}-${i}`} className="px-3 py-3">
                 {head}
-                <div className="ml-[3.25rem]"><Explain code={r.code} label={r.label} evidence={r.evidence} /></div>
+                <div className="ml-[3.25rem]"><Explain r={r} /></div>
               </li>
             );
           }
           return (
-            <li key={r.code + i} className="px-3 py-2">
+            <li key={r.id ?? `${r.code}-${i}`} className="px-3 py-2">
               <details>
                 <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                   {head}
                   <span className="ml-[3.25rem] text-xs text-zinc-400">자세히 보기</span>
                 </summary>
-                <div className="ml-[3.25rem]"><Explain code={r.code} label={r.label} evidence={r.evidence} /></div>
+                <div className="ml-[3.25rem]"><Explain r={r} /></div>
               </details>
             </li>
           );

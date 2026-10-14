@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { adminValueOk } from "./auth";
-import { canView, decodeParam, isSyntheticAccountId, isSyntheticHandle, onlyVisible, redactSharedContact, reportApiHref, SYNTHETIC_ID_SQL } from "./visibility";
+import { scoreText } from "@/engine";
+import { canView, decodeParam, isSyntheticAccountId, isSyntheticHandle, onlyVisible, publicReasons, redactSharedContact, signalGroupsFromReasons, reportApiHref, SYNTHETIC_ID_SQL } from "./visibility";
 
 describe("공개 경계 — 합성 데모 계정만 공개", () => {
   it("합성 핸들만 공개로 본다", () => {
@@ -100,5 +101,29 @@ describe("관리자 값 검사", () => {
   it("비프로덕션 + 토큰 없음은 로컬 개발이라 통과", () => {
     delete env.ADMIN_TOKEN; env.NODE_ENV = "development";
     expect(adminValueOk(undefined)).toBe(true);
+  });
+});
+
+// 공개 응답에는 내부 규칙 코드·가점 크기가 실리지 않는다 (카이 GASA 검수, 테오 10-14)
+describe("publicReasons", () => {
+  const r = scoreText("급등주 종목 무료로 공개합니다. 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77", { followers: 500000 });
+
+  it("code 를 싣지 않고 순번 id·방향·설명만 싣는다", () => {
+    const pub = publicReasons(r.reasons);
+    expect(pub.length).toBe(r.reasons.length);
+    for (const [i, p] of pub.entries()) {
+      expect(p).not.toHaveProperty("code");
+      expect(p.id).toBe(`s${i + 1}`);
+      expect([-1, 0, 1]).toContain(p.points);
+      expect(p.what && p.why && p.example && p.benign).toBeTruthy();
+    }
+    expect(JSON.stringify(pub)).not.toMatch(/\b(gate|veto|combo|impersonate|term|pattern|acct|llm):/);
+  });
+
+  it("신호군은 서버에서 계산한 이름·켜짐만", () => {
+    const groups = signalGroupsFromReasons(r.reasons);
+    expect(groups).toHaveLength(7);
+    expect(groups.find((g) => g.code === "infrastructure")?.active).toBe(true);
+    expect(groups.every((g) => g.evidence.length === 0)).toBe(true);
   });
 });

@@ -52,7 +52,7 @@ export default function AnalyzePage() {
             <span className="ml-auto text-zinc-400">변형률 {(r.normalized.obfuscationRatio * 100).toFixed(0)}%</span>
           </div>
         </div>
-        {r.needsLlmReview && <p className="text-xs text-zinc-500">애매한 구간입니다 — 홈 화면의 판독과 서버 수집 파이프라인에서는 이 구간에만 AI가 한 번 더 봅니다. 이 페이지는 AI를 쓰지 않습니다.</p>}
+        <p className="text-xs text-zinc-500">홈 화면의 판독과 서버 수집 파이프라인에서는 일부 글을 보조 AI가 다시 볼 수 있습니다. 이 페이지는 AI를 쓰지 않습니다.</p>
       </div>
     </div>
   );

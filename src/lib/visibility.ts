@@ -1,3 +1,5 @@
+import { explainReason, type SignalGroup } from "@/engine";
+
 /**
  * 공개 경계 — 누구에게나 열리는 조회에는 **합성 데모 계정만** 나온다 (Kai 훑기 1번, 테오 10-05).
  * 실제로 수집한 계정의 리포트·원문·연결 정보는 관리자(ADMIN_TOKEN 쿠키/Bearer)만 본다. `noindex` 는 접근 제어가 아니다.
@@ -69,7 +71,38 @@ export function decodeParam(raw: string): string {
   return s.trim();
 }
 
+/** 공개 응답에 나가는 근거 한 줄 — 내부 규칙 코드(gate:*·veto:*·combo:* …)는 싣지 않는다 (카이 GASA 검수, 테오 10-14). 설명문은 서버에서 붙여 보낸다. */
+export interface PublicReason {
+  /** 응답 안에서만 쓰는 순번(s1, s2 …) — 규칙과 무관한 불투명 표시용 id */
+  id: string;
+  label: string;
+  /** 방향만: +1 / 0 / -1 */
+  points: number;
+  evidence?: string;
+  what: string;
+  why: string;
+  example: string;
+  benign: string;
+}
+
 /** 공개 응답의 신호별 점수는 방향(+1 / 0 / -1)만 — 크기(가점·감점)는 내보내지 않는다 (규칙 비공개, 소현 10-05 "규칙은 프론트에 하지 말고"). 화면은 부호만 쓴다. */
-export function publicReasons<T extends { points: number }>(reasons: T[]): T[] {
-  return reasons.map((r) => ({ ...r, points: Math.sign(r.points) }));
+export function publicReasons(reasons: { code: string; label: string; points: number; evidence?: string | null }[]): PublicReason[] {
+  return reasons.map((r, i) => {
+    const evidence = r.evidence ?? undefined;
+    return { id: `s${i + 1}`, label: r.label, points: Math.sign(r.points), evidence, ...explainReason(r.code, r.label, evidence) };
+  });
+}
+
+/** 계정 조회 화면의 신호군 — 내부 코드로 계산해 결과(이름·켜짐)만 내보낸다. 근거 문장은 싣지 않는다. */
+export function signalGroupsFromReasons(reasons: { code: string; points: number }[]): SignalGroup[] {
+  const has = (...prefixes: string[]) => reasons.some((r) => r.points > 0 && prefixes.some((p) => r.code.startsWith(p)));
+  return [
+    { code: "normalization", label: "숨긴 글자 복원", active: has("obfuscation"), evidence: [] },
+    { code: "impersonation", label: "재직·퇴직 사칭", active: has("impersonate:"), evidence: [] },
+    { code: "evidence", label: "증빙 언급 정황", active: has("evidence:", "term:사원증", "term:급여명세", "term:재직증명"), evidence: [] },
+    { code: "conversion", label: "투자 유인 전환", active: has("combo:", "cta"), evidence: [] },
+    { code: "infrastructure", label: "외부 이동 인프라", active: has("acct:lure-link", "term:텔레", "term:카카오", "term:오픈"), evidence: [] },
+    { code: "coordination", label: "계정·캠페인 연결", active: has("spread", "spray", "cluster", "shared-contact"), evidence: [] },
+    { code: "identity", label: "신원 맥락 불일치", active: has("identity:"), evidence: [] },
+  ];
 }

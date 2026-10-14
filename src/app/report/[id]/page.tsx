@@ -7,7 +7,6 @@ import { hasDb } from "@/db";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Reasons } from "@/components/Reasons";
 import { HumanVerdict } from "@/components/HumanVerdict";
-import type { Reason } from "@/engine";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +85,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         ) : (
           <ul className="flex flex-wrap gap-2 text-sm">
             {r.contacts.map((c) => (
-              <li key={c.id} className={`rounded-md border px-2 py-1 ${c.strong ? "border-red-300 bg-red-50 text-red-900" : "border-zinc-300 bg-zinc-50 text-zinc-700"}`}>
+              <li key={c.id} className="rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1 text-zinc-700">
                 <span className="text-xs text-zinc-500">{c.typeLabel}</span>{" "}
                 <span className="font-mono break-all">{c.value}</span>
                 <span className="ml-1 text-xs text-zinc-500">({sourceLabel(c.source)})</span>
@@ -133,7 +132,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">6. 감지된 신호와 설명</h2>
-        <Reasons reasons={r.rationale as Reason[]} />
+        <Reasons reasons={r.rationale} />
       </section>
 
       <section>

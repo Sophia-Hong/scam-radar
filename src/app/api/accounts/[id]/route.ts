@@ -1,7 +1,7 @@
 import { desc, eq, or, ilike } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { checkAdmin, json } from "@/lib/auth";
-import { decodeParam, onlyVisible, publicReasons, redactSharedContact } from "@/lib/visibility";
+import { decodeParam, onlyVisible, publicReasons, redactSharedContact, signalGroupsFromReasons } from "@/lib/visibility";
 import { resolveAccountId } from "@/lib/resolve";
 import { sharedAccountsOf } from "@/lib/pipeline";
 import { effectiveStatus } from "@/lib/labels";
@@ -33,14 +33,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const sharedWith = onlyVisible(shared.sharedWith, (s) => s.accountId, admin);
   // 공개 열람자에게는 근거 문장·요약문에 적힌 실계정 id 도 가린다 (연결 계정이 걸러졌으면 요약문은 비움)
   const trimmed = sharedWith.length !== shared.sharedWith.length;
+  const accReasons = redactSharedContact((acc.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[]);
+  // 공개: 근거는 방향·설명만(내부 코드 없음), 신호군은 서버에서 계산한 결과만
   const shownAccount = admin ? acc : {
     ...acc,
-    reasons: publicReasons(redactSharedContact((acc.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[])),
+    reasons: publicReasons(accReasons),
+    signalGroups: signalGroupsFromReasons(accReasons),
     summary: trimmed ? null : acc.summary,
   };
   return json({
     found: true, account: shownAccount,
-    posts: admin ? posts : posts.map((p) => ({ ...p, reasons: publicReasons(((p.reasons ?? []) as { points: number }[])) })),   // 공개: 신호 방향만
+    posts: admin ? posts : posts.map((p) => ({ ...p, reasons: publicReasons(((p.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[])) })),   // 공개: 신호 방향·설명만
     entities, sharedWith,
     // 표시 라벨은 사람 판단이 있으면 그것이 최종 (src/lib/labels.ts 한 곳에서 결정)
     humanLabel: acc.humanLabel,

@@ -24,13 +24,13 @@ export interface InvestigationReport {
   /** 내용 — 내용 요약 (관측 사실 위주) */
   summary: { text: string; generatedBy: string };
   /** 유도 수단 — 본문·프로필에서 확인된 실제 연락처 */
-  contacts: { id: string; type: string; typeLabel: string; value: string; source: string; strong: boolean }[];
+  contacts: { id: string; type: string; typeLabel: string; value: string; source: string; strong?: boolean }[];
   /** 같은 연락처를 쓰는 다른 계정 (동일 운영자·조직 정황) */
   linkedAccounts: SharedAccount[];
   /** 증거 캡쳐 */
   evidence: { postUrl: string; parentUrl: string | null; kind: string; postedAt: string | null; capturedAt: string; capture: string | null; text: string; score: number; techniques: string[]; clusterId: string | null }[];
   /** 근거 — 코드·라벨·점수에 더해 사람이 읽을 설명(무엇이/왜/예시/정상 사용) */
-  rationale: { code: string; label: string; points: number; evidence?: string; what: string; why: string; example: string; benign: string }[];
+  rationale: { code?: string; id?: string; label: string; points: number; evidence?: string; what: string; why: string; example: string; benign: string }[];
   /** 신고처 안내 — 자동 제출이 아니라 사람이 마지막 단계를 수행 */
   filing: { name: string; url: string; note: string }[];
   disclaimer: string;
@@ -53,7 +53,9 @@ export function publicView(report: InvestigationReport, admin: boolean): Investi
   const trimmed = linked.length !== report.linkedAccounts.length;
   return {
     ...report,
-    rationale: report.rationale.map((r) => ({ ...r, points: Math.sign(r.points) })),   // 공개 JSON: 신호 방향만, 크기(가점·감점) 비공개 (소현 10-05)
+    // 공개 JSON: 신호 방향만, 크기(가점·감점) 비공개 (소현 10-05). 내부 규칙 코드·연락처 강도 구분도 싣지 않는다 (카이 GASA 검수, 테오 10-14)
+    rationale: report.rationale.map(({ code: _code, ...r }, i) => ({ ...r, id: `s${i + 1}`, points: Math.sign(r.points) })),
+    contacts: report.contacts.map(({ strong: _strong, ...c }) => c).sort((a, b) => a.type.localeCompare(b.type) || a.value.localeCompare(b.value)),
     linkedAccounts: linked,
     summary: trimmed ? { text: "이 계정과 같은 연락처를 쓰는 계정 중 공개 범위 밖의 계정이 있어 요약문을 공개 화면에서 생략했습니다.", generatedBy: "withheld" } : report.summary,
   };

@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { checkAdmin, json } from "@/lib/auth";
 import { decodeParam, onlyVisible } from "@/lib/visibility";
-import { ENTITY_TYPE_LABEL, isStrongEntity, type EntityType } from "@/engine";
+import { ENTITY_TYPE_LABEL, type EntityType } from "@/engine";
 
 export const runtime = "nodejs";
 
@@ -51,7 +51,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     entity: {
       id: ent.id, type: ent.type, value: ent.value,
       typeLabel: ENTITY_TYPE_LABEL[ent.type as EntityType] ?? ent.type,
-      strong: isStrongEntity(ent.type),
       firstSeen: ent.firstSeen, lastSeen: ent.lastSeen,
       // 공개 열람자에게는 보이는(합성) 계정 기준 수 — 실계정 수가 새지 않게
       accountCount: admin ? ent.accountCount : accounts.length, postCount: admin ? ent.postCount : posts.length,
