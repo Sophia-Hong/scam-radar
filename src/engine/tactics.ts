@@ -154,9 +154,15 @@ const INVESTMENT_SOLICITATION = /(?:\b\d+(?:\.\d+)?\s*%\b|(?:월|연|daily|weekl
 const INSTITUTIONAL_DISCLOSURE = /(?:예금자\s*보호|예금보험공사|예금\s*보험|보험.{0,50}(?:약관|상품|설명|보장)|fdic|deposit\s+insurance|insured\s+(?:savings|deposit)|insurance\s+policy|(?:bank|은행).{0,50}(?:disclosure|약관|상품\s*설명|설명서)|(?:disclosure|약관|상품\s*설명|설명서).{0,50}(?:bank|은행)|principal[-\s]*protected\s+note)/i;
 
 export function hasIllegalInvestmentGuarantee(text: string): boolean {
-  if (INSTITUTIONAL_DISCLOSURE.test(text)) return false;
-  return (ILLEGAL_GUARANTEE.test(text) && INVESTMENT_SOLICITATION.test(text)) ||
-    (LOSS_COMPENSATION.test(text) && INVESTMENT_CONTEXT.test(text) && INVESTMENT_SOLICITATION.test(text));
+  // A disclosure only describes its own sentence or clause.  Treating one
+  // institutional phrase as a post-wide exemption lets a solicitation hide
+  // behind an unrelated disclosure prefix.
+  const eligibleGuaranteeText = text
+    .split(/[.!?;；\n]+/)
+    .filter((clause) => !INSTITUTIONAL_DISCLOSURE.test(clause))
+    .join(" ");
+  return (ILLEGAL_GUARANTEE.test(eligibleGuaranteeText) && INVESTMENT_SOLICITATION.test(text)) ||
+    (LOSS_COMPENSATION.test(eligibleGuaranteeText) && INVESTMENT_CONTEXT.test(text) && INVESTMENT_SOLICITATION.test(text));
 }
 
 export function illegalGuaranteeEvidence(text: string): string | undefined {

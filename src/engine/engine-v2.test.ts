@@ -252,6 +252,11 @@ describe("illegal investment guarantees", () => {
     expect(scoreText(text).label).toBe("LOW");
   });
 
+  it("limits institutional disclosure to its own sentence or clause", () => {
+    expect(scoreText("예금자보호 제도 안내입니다. 월 20% 확정 수익 투자 추천합니다.").label).toBe("HIGH");
+    expect(scoreText("FDIC deposit insurance disclosure; guaranteed returns from this investment package, contact us to invest.").label).toBe("HIGH");
+  });
+
   it("requires solicitation context before a guarantee opens the HIGH gate", () => {
     const result = scoreText("이번 주 리딩방에서 코인 투자금 원금 보장과 월 수익률을 제공합니다. 텔레그램으로 문의하세요.");
     expect(result.label).toBe("HIGH");

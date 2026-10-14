@@ -164,7 +164,15 @@ const RULES: Rule[] = [
  * 값은 프로토콜·www 를 뺀 host+path.
  */
 const GENERIC_URL = /\b(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
+// Deliberately require an obfuscation marker for bare domains so ordinary
+// prose is not treated as a destination. Protocol-prefixed hxxp(s) forms are
+// destinations in their own right and may keep ordinary dots.
+const OBFUSCATED_PROTOCOL_URL = /\bhxxps?\s*:\s*\/\s*\/\s*[^\s<>"'`]+/gi;
+const OBFUSCATED_BARE_URL = /\b[a-z0-9-]+(?:\s*(?:\[\s*\.\s*\]|\(\s*dot\s*\)|[．。]|\s+\.\s+)\s*[a-z0-9-]+)+(?:\s*\/\s*[a-z0-9_~!$&'()*+,;=:@%/?#.-]*)?/gi;
+const DEOBFUSCATED_URL = /\b(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,24}(?:\/[a-z0-9_~!$&'()*+,;=:@%/?#.-]*)?/gi;
+const OBFUSCATION_MARKER = /hxxps?\s*:|\[\s*\.\s*\]|\(\s*dot\s*\)|[．。]|[​-‏⁠-⁤﻿­︀-️᠎]/i;
 const URL_HANDLED = /^(?:t\.me|telegram\.me|tlgrm\.me|open\.kakao\.com|pf\.kakao\.com|line\.me|wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com|signal\.me|signal\.group|linktr\.ee|litt\.ly|lit\.link|bit\.ly|han\.gl|vo\.la|url\.kr|buly\.kr|me2\.kr|tinyurl\.com)(?:\/|$)/;
+const PLAUSIBLE_TLD = /\.(?:com|net|org|edu|gov|mil|co|io|ai|app|dev|info|biz|xyz|online|site|me|tv|cc|kr|jp|cn|uk|de|fr|au|ca|us|at|ly|gl|gd|link|pro|vip)$/i;
 
 /** 약한 신호: 앞에 채널 단서가 없는 일반 @핸들 */
 const GENERIC_HANDLE = new RegExp(`@(${HANDLE})`, "g");
@@ -189,6 +197,18 @@ function pickHandle(s: string): string | null {
 /** normalize() 가 남기는 구분자 주변 공백을 지운 변형: "t . me / xxx" → "t.me/xxx" */
 function despace(s: string): string {
   return s.replace(/\s*([.\-_/:@+])\s*/g, "$1");
+}
+
+function deobfuscateUrl(s: string): string {
+  return s
+    .replace(/\[\s*\.\s*\]|\(\s*dot\s*\)/gi, ".")
+    .replace(/[．。]/g, ".")
+    .replace(/\s*([./:])\s*/g, "$1")
+    .replace(/^hxxp/i, "http");
+}
+
+function hasPlausibleHost(value: string): boolean {
+  return PLAUSIBLE_TLD.test(value.split("/")[0]);
 }
 
 /**
@@ -221,6 +241,19 @@ function scan(input: string, source: EntitySource, out: Map<string, Entity>) {
   const variants = [input, n.text, despace(input), despace(n.text), cs, despace(cs), csRaw, despace(csRaw)];
   const seenVariant = new Set<string>();
 
+  // Some disguises (notably zero-width and full-width dots) collapse during
+  // normalization. Scan that canonical form only when the original carried a
+  // concrete obfuscation marker, keeping ordinary prose out of URL extraction.
+  if (OBFUSCATION_MARKER.test(input)) {
+    const canonical = deobfuscateUrl(n.text);
+    DEOBFUSCATED_URL.lastIndex = 0;
+    for (const m of canonical.matchAll(DEOBFUSCATED_URL)) {
+      const value = stripUrl(m[0]);
+      if (!value || !hasPlausibleHost(value) || URL_HANDLED.test(value)) continue;
+      add(out, { type: "url", value, raw: m[0].trim(), source });
+    }
+  }
+
   for (const v of variants) {
     if (!v || seenVariant.has(v)) continue;
     seenVariant.add(v);
@@ -238,6 +271,17 @@ function scan(input: string, source: EntitySource, out: Map<string, Entity>) {
       for (const m of v.matchAll(GENERIC_URL)) {
         const value = stripUrl(m[0]);
         if (!value || !value.includes(".") || URL_HANDLED.test(value)) continue;
+        add(out, { type: "url", value, raw: m[0].trim(), source });
+      }
+    }
+    // Obfuscated URLs are scanned in normalized variants too: normalize()
+    // removes zero-width characters, while this conversion restores common
+    // hxxp and dot disguises without altering any presentation-layer masking.
+    for (const re of [OBFUSCATED_PROTOCOL_URL, OBFUSCATED_BARE_URL]) {
+      re.lastIndex = 0;
+      for (const m of v.matchAll(re)) {
+        const value = stripUrl(deobfuscateUrl(m[0]));
+        if (!value || !hasPlausibleHost(value) || URL_HANDLED.test(value)) continue;
         add(out, { type: "url", value, raw: m[0].trim(), source });
       }
     }

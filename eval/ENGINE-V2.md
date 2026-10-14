@@ -249,3 +249,23 @@ HIGH gate.
 | DEV red-team benign HIGH | 0 | **0** |
 | Pinned corpus HIGH precision / recall | 1.000 / 0.849 | **1.000 / 0.849** |
 | On cases benign HIGH / lure HIGH | 0 / 8; 2 / 2 | **0 / 8; 2 / 2** |
+
+## Round 7 — disclosure scope and obfuscated delivery links
+
+Institutional disclosure exclusions are now evaluated per sentence or
+semicolon/newline-delimited clause, rather than across a whole message. This
+keeps ordinary deposit-insurance, FDIC, and policy/disclosure explanations out
+of the prohibited-guarantee route while allowing a separate guaranteed-return
+solicitation to score normally.
+
+The engine URL extractor now recognizes `hxxp(s)://` plus bracketed, spaced,
+`(dot)`, zero-width, and full-width-dot domain disguises as weak `url`
+entities. Bare domains still require an obfuscation marker and a plausible TLD,
+so prose such as `e.g.` and decimal numbers is not promoted to a link.
+
+| Check | Round 7 |
+| --- | ---: |
+| Pinned corpus HIGH precision / recall | **1.000 / 0.849** |
+| DEV red-team benign HIGH | **0 / 36** |
+| On cases benign HIGH / lure HIGH | **0 / 8; 2 / 2** |
+| Real examples (84), HIGH + REVIEW | **44 / 84** |
