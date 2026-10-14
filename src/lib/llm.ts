@@ -162,7 +162,7 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
     return await cached<ReviewVerdict>("review", key, async () => {
       const result = await generateText({
         ...modelConfig(["feature:scam-review", "tier:mvp"]),
-        maxOutputTokens: 120,
+        maxOutputTokens: 400,   // 120 이면 JSON 이 잘려 응답 불가가 된다(카이 실제 문자 84건 중 48건 — 출력 상한) — 잘릴 때만 더 쓰므로 비용 차이는 작다
         output: Output.object({ schema: ReviewSchema }),
         system: REVIEW_SYSTEM,
         prompt: reviewPrompt(text, reasonLabels, context),
