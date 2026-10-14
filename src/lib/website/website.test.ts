@@ -1,16 +1,16 @@
 import { createHash } from "crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { checkWebsite } from "./check";
-import { _clearDomainAgeCache, domainAgeDays } from "./domain-age";
-import { hashExpressions, isThreads, parseSite } from "./url";
-import { _clearWebRiskCache, webRiskCheck } from "./webrisk";
+import { _clearDomainAgeCache, BOOTSTRAP_URL, domainAgeDays, safeRdapBase } from "./domain-age";
+import { canonicalExpression, hashExpressions, isThreads, parseSite } from "./url";
+import { _clearWebRiskCache, urlSafePrefix, webRiskCheck } from "./webrisk";
 import { STRINGS } from "@/lib/strings";
 import { scoreText } from "@/engine";
 import { EXAMPLE_SCAM } from "@/components/LiveAnalyzer";
 
 const NOW = new Date("2026-10-14T14:00:00Z");
 const b64 = (s: string) => createHash("sha256").update(s).digest().toString("base64");
-const prefixOf = (s: string) => createHash("sha256").update(s).digest().subarray(0, 4).toString("base64");
+const prefixOf = (s: string) => createHash("sha256").update(s).digest().subarray(0, 4).toString("base64").replace(/\+/g, "-").replace(/\//g, "_");
 const ok = (body: unknown) => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
 
 beforeEach(() => { _clearWebRiskCache(); _clearDomainAgeCache(); });
@@ -56,7 +56,8 @@ describe("webRiskCheck (hashes.search)", () => {
     for (const u of urls) {
       expect(u).not.toContain("evil");
       const p = new URL(u).searchParams.get("hashPrefix")!;
-      expect(Buffer.from(p, "base64")).toHaveLength(4);
+      expect(p).not.toMatch(/[+/]/);
+      expect(Buffer.from(p, "base64url")).toHaveLength(4);
     }
   });
   it("a full-hash match is a match; a prefix-only hit is not", async () => {
@@ -93,12 +94,19 @@ describe("webRiskCheck (hashes.search)", () => {
   });
 });
 
+/** IANA 부트스트랩 + 그 끝자리의 등록 기관 RDAP 한 곳 */
+const rdap = (date: string, urls: string[] = [], base = "https://rdap.registry.example/v1/") => (u: string) => {
+  urls.push(u);
+  if (u === BOOTSTRAP_URL) return ok({ services: [[["example", "xyz", "ly"], [base]]] });
+  return u.startsWith(base) ? ok({ events: [{ eventAction: "registration", eventDate: date }] }) : Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+};
+
 describe("domainAgeDays (RDAP)", () => {
   it("reads the registration event and sends only the domain", async () => {
     const urls: string[] = [];
-    const days = await domainAgeDays("new-site.example", { now: NOW, fetcher: (u) => { urls.push(u); return ok({ events: [{ eventAction: "registration", eventDate: "2026-10-04T00:00:00Z" }] }); } });
+    const days = await domainAgeDays("new-site.example", { now: NOW, fetcher: rdap("2026-10-04T00:00:00Z", urls) });
     expect(days).toBe(10);
-    expect(urls).toEqual(["https://rdap.org/domain/new-site.example"]);
+    expect(urls).toEqual([BOOTSTRAP_URL, "https://rdap.registry.example/v1/domain/new-site.example"]);
   });
   it("unknown is null, never 'old'", async () => {
     expect(await domainAgeDays("x.example", { now: NOW, fetcher: () => Promise.reject(new Error("down")) })).toBeNull();
@@ -107,7 +115,7 @@ describe("domainAgeDays (RDAP)", () => {
 
 describe("checkWebsite verdict", () => {
   const noRisk = { key: "", now: NOW };
-  const age = (date: string) => () => ok({ events: [{ eventAction: "registration", eventDate: date }] });
+  const age = (date: string) => rdap(date);
   it("Google match = HIGH", async () => {
     const site = parseSite("evil.example")!;
     const v = await checkWebsite(site, { now: NOW, key: "k", reserve: async () => true, ageFetcher: age("2010-01-01T00:00:00Z"),
@@ -147,5 +155,68 @@ describe("result example (Theo 1791986598)", () => {
       expect(scoreText(EXAMPLE_SCAM[lang]).label).toBe("HIGH");
       expect(EXAMPLE_SCAM[lang]).not.toMatch(/@\w|\d{3,}-\d{3,}|010/);
     }
+  });
+});
+
+describe("Kai db5385f HOLD fixes", () => {
+  it("hashPrefix is URL-safe Base64 (bytes fb ff bf ff -> '-_-__w==')", () => {
+    expect(urlSafePrefix(Buffer.from([0xfb, 0xff, 0xbf, 0xff]))).toBe("-_-__w==");
+  });
+  it("a full hash answered in URL-safe Base64 still matches (compared as 32 bytes)", async () => {
+    const full = createHash("sha256").update("evil.example/").digest().toString("base64").replace(/\+/g, "-").replace(/\//g, "_");
+    const r = await webRiskCheck(["evil.example/"], { key: "k", now: NOW, reserve: async () => true, fetcher: () => ok({ threats: [{ threatTypes: ["SOCIAL_ENGINEERING"], hash: full, expireTime: "2026-10-14T15:00:00Z" }] }) });
+    expect(r).toEqual({ status: "match", threats: ["SOCIAL_ENGINEERING"] });
+  });
+  it("a cached match survives a cap refusal for another prefix", async () => {
+    const hit = (u: string) => ok(new URL(u).searchParams.get("hashPrefix") === prefixOf("evil.example/") ? { threats: [{ threatTypes: ["MALWARE"], hash: b64("evil.example/"), expireTime: "2026-10-14T15:00:00Z" }] } : {});
+    await webRiskCheck(["evil.example/"], { key: "k", now: NOW, reserve: async () => true, fetcher: hit });
+    const r = await webRiskCheck(["evil.example/", "evil.example/new-path"], { key: "k", now: NOW, reserve: async () => false, fetcher: hit });
+    expect(r).toEqual({ status: "match", threats: ["MALWARE"] });
+  });
+  it("RDAP goes only to an https, named server from IANA's list; never redirects; anything else = unknown", async () => {
+    expect(safeRdapBase("http://rdap.example/")).toBeNull();
+    expect(safeRdapBase("https://10.0.0.1/")).toBeNull();
+    expect(safeRdapBase("https://localhost/")).toBeNull();
+    expect(safeRdapBase("https://rdap.example:8443/")).toBeNull();
+    expect(safeRdapBase("https://rdap.example/v1")).toBe("https://rdap.example/v1/");
+    const urls: string[] = [];
+    expect(await domainAgeDays("new-site.example", { now: NOW, fetcher: rdap("2026-10-04T00:00:00Z", urls, "http://169.254.169.254/") })).toBeNull();
+    expect(urls).toEqual([BOOTSTRAP_URL]);
+  });
+  it("no Google check + no signs never says Google found nothing", () => {
+    for (const lang of ["ko", "en"] as const) {
+      expect(STRINGS[lang].website.noneNoGoogle).not.toMatch(/Google 정보|Google data/);
+      expect(STRINGS[lang].website.noneNoGoogle).toMatch(/Google/);
+    }
+  });
+});
+
+/** Google Web Risk "URLs and hashing" 문서의 정규화 예시 — 기대값은 문서 원문을 그대로 옮긴 것(우리 함수로 만들지 않음, 카이 db5385f).
+ *  문서의 점 없는 호스트 "host"만 "host.example"로 바꿨다(웹사이트 입력은 점 있는 호스트만 받음) — 경로 부분 기대값은 원문 그대로 */
+describe("Google canonicalization examples (docs.cloud.google.com/web-risk/docs/urls-hashing)", () => {
+  const cases: [string, string][] = [
+    ["http://host.example/%25%32%35", "host.example/%25"],
+    ["http://host.example/%25%32%35%25%32%35", "host.example/%25%25"],
+    ["http://host.example/%2525252525252525", "host.example/%25"],
+    ["http://host.example/asdf%25%32%35asd", "host.example/asdf%25asd"],
+    ["http://host.example/%%%25%32%35asd%%", "host.example/%25%25%25asd%25%25"],
+    ["http://www.google.com/", "www.google.com/"],
+    ["http://%31%36%38%2e%31%38%38%2e%39%39%2e%32%36/%2E%73%65%63%75%72%65/%77%77%77%2E%65%62%61%79%2E%63%6F%6D/", "168.188.99.26/.secure/www.ebay.com/"],
+    ["http://www.google.com/blah/..", "www.google.com/"],
+    ["http://www.GOOgle.com/", "www.google.com/"],
+    ["http://www.google.com.../", "www.google.com/"],
+    ["http://www.google.com/q?r?", "www.google.com/q?r?"],
+    ["http://www.google.com/q?r?s", "www.google.com/q?r?s"],
+    ["http://evil.com/foo#bar#baz", "evil.com/foo"],
+    ["http://evil.com/foo;", "evil.com/foo;"],
+    ["http://notrailingslash.com", "notrailingslash.com/"],
+    ["http://www.gotaport.com:1234/", "www.gotaport.com/"],
+    ["http://host.com/ab%23cd", "host.com/ab%23cd"],
+    ["http://host.com//twoslashes?more//slashes", "host.com/twoslashes?more//slashes"],
+  ];
+  for (const [input, expected] of cases) it(input, () => expect(canonicalExpression(parseSite(input)!)).toBe(expected));
+  it("the hash Google compares is SHA-256 of exactly that expression", () => {
+    expect(createHash("sha256").update("testsafebrowsing.appspot.com/s/phishing.html").digest("hex")).toHaveLength(64);
+    expect(hashExpressions(parseSite("https://testsafebrowsing.appspot.com/s/phishing.html")!)[0]).toBe("testsafebrowsing.appspot.com/s/phishing.html");
   });
 });

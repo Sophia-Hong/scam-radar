@@ -58,6 +58,11 @@ export function isThreads(site: ParsedSite): boolean {
  * [호스트+전체 경로(+쿼리), 호스트+"/", 도메인+전체 경로, 도메인+"/"]. 조회 1건 = API 1회라 하루 3천 상한을 지키려고 줄였다.
  * 그래서 중간 경로·중간 하위 도메인에만 올라간 항목은 놓칠 수 있다(문서의 한계).
  */
+/** Google 정규화 규칙(urls-hashing)대로 만든 "호스트+경로+쿼리" — 해시 표현의 첫 번째 */
+export function canonicalExpression(site: ParsedSite): string {
+  return site.host + canonicalPath(site.path) + (site.query && site.query !== "?" ? site.query : "");
+}
+
 export function hashExpressions(site: ParsedSite): string[] {
   const path = canonicalPath(site.path);
   const full = path + (site.query && site.query !== "?" ? site.query : "");
@@ -72,7 +77,8 @@ export function hashExpressions(site: ParsedSite): string[] {
 
 function canonicalPath(path: string): string {
   let p = path || "/";
-  for (let i = 0; i < 4; i++) { try { const d = decodeURIComponent(p); if (d === p) break; p = d; } catch { break; } }
+  // 더 풀 것이 없을 때까지 %XX를 풀되, 잘못된 %는 그대로 둔다(Google 예: "/%%%25%32%35asd%%" → "/%25%25%25asd%25%25")
+  for (let i = 0; i < 32; i++) { const d = p.replace(/%([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))); if (d === p) break; p = d; }
   const parts: string[] = [];
   for (const seg of p.split("/")) {
     if (seg === "" || seg === ".") continue;
@@ -80,5 +86,5 @@ function canonicalPath(path: string): string {
     parts.push(seg);
   }
   const joined = "/" + parts.join("/") + (p.endsWith("/") && parts.length ? "/" : "");
-  return joined.replace(/[\x00-\x20\x7f-￿#%]/g, (c) => encodeURIComponent(c));
+  return joined.replace(/[\x00-\x20\x7f-\xff#%]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
 }

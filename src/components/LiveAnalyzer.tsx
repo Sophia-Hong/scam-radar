@@ -593,7 +593,7 @@ function SiteCard({ site }: { site: SiteState }) {
             ) : sg.kind === "age" ? <li key={i}><b>{w.age(sg.days)}</b></li> : <li key={i}><b>{w.url[sg.sign]}</b></li>)}
           </ul>
         </div>
-      ) : <p className="result-account">{w.none}</p>}
+      ) : <p className="result-account">{v.google === "clear" ? w.none : w.noneNoGoogle}</p>}
       <div className="result-todo">
         <h3>{t.result.todoTitle}</h3>
         <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>

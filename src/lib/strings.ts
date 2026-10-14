@@ -61,6 +61,7 @@ const ko = {
     age: (n: number) => n < 30 ? `만든 지 ${n}일 된 주소예요. 새로 만든 주소는 사기에 자주 쓰여요.` : `만든 지 ${n}일(약 ${Math.round(n / 30)}개월) 된 주소예요. 아직 새 주소예요.`,
     url: { punycode: "다른 글자를 흉내 낸 주소일 수 있어요(xn-- 로 시작하는 부분이 있어요).", "ip-host": "이름 대신 숫자(IP)로 된 주소예요.", "risky-tld": "사기에 자주 쓰이는 끝자리(도메인 끝)예요.", shortener: "줄인 주소라 실제로 어디로 가는지 알 수 없어요.", userinfo: "주소 앞에 다른 이름을 끼워 넣은 모양이에요(@가 들어 있어요)." },
     none: "Google 정보와 주소 확인에서 뚜렷한 위험 신호는 못 찾았어요. 그래도 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",
+    noneNoGoogle: "주소 모양과 등록일에서 뚜렷한 위험 신호는 못 찾았어요. Google 확인은 하지 못했어요. 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",   // 미조회 ≠ Google에서 못 찾음(카이 db5385f HOLD 3)
     googleSkipped: "오늘은 Google 확인을 하지 못했어요. 주소 모양과 등록일만 봤어요.",
     limited: "오늘 확인 횟수를 다 썼어요. 내일 다시 해 주세요.",
     failed: "웹사이트를 확인하지 못했어요. 잠시 뒤 다시 해 주세요.",
@@ -77,7 +78,7 @@ const ko = {
     details: [
       ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요. 올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
       ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com). Google LLC (미국 회사) — 웹사이트 주소를 바꾼 암호값의 앞부분만, 위험 사이트 확인용"],   // 율 1791986341·1791986630(hashes.search)
-      ["웹사이트 확인", "사이트 이름(도메인)만 공개 등록 정보 조회처(rdap.org)에 보내 만든 날짜를 봐요."],   // 율 1791986630: §28-8 이전 아님, 투명성 한 줄
+      ["웹사이트 확인", "사이트 이름(도메인)만 그 도메인 등록 기관의 공개 등록 정보 조회처(RDAP, IANA 공식 목록)에 보내 만든 날짜를 봐요."],   // 율 1791986630: §28-8 이전 아님, 투명성 한 줄
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사 · privacy@vercel.com). 저희 서버가 Vercel에서 돌아가서, 글은 Vercel을 거쳐 Anthropic으로 가요. Vercel AI Gateway를 거칠 때도 있어요."],   // 율 1791966604 — 직접 호출·Gateway 둘 다 맞게
       ["언제·어떻게", "글을 넣을 때마다 바로, 암호화 통신(HTTPS)으로"],
@@ -293,6 +294,7 @@ const en: Strings = {
     age: (n: number) => n < 30 ? `This address was created ${n} days ago. New addresses are often used for scams.` : `This address was created ${n} days ago (about ${Math.round(n / 30)} months). It is still new.`,
     url: { punycode: "The address may imitate other letters (part of it starts with xn--).", "ip-host": "The address is a number (IP) instead of a name.", "risky-tld": "The ending of this address is often used for scams.", shortener: "It is a shortened link, so you can't see where it really goes.", userinfo: "Another name is squeezed in front of the address (it contains @)." },
     none: "No clear warning signs from Google data or the address itself. Still, check again before entering money or personal details.",
+    noneNoGoogle: "No clear warning signs from the address or its registration date. We couldn't check with Google. Check again before entering money or personal details.",
     googleSkipped: "We couldn't check with Google today. Only the address and its registration date were checked.",
     limited: "You've used today's checks. Please try again tomorrow.",
     failed: "We couldn't check the website. Please try again shortly.",
@@ -308,7 +310,7 @@ const en: Strings = {
     details: [
       ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught. Screenshots you upload, as they are (names, numbers and faces in them are sent too). Discarded right after the check; never stored."],
       ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com). Google LLC (US company) — only the first part of a scrambled code made from the website address, to check for risky sites"],
-      ["Website check", "Only the site name (domain) is sent to a public registration lookup (rdap.org) to see when it was created."],
+      ["Website check", "Only the site name (domain) is sent to the public registration lookup (RDAP, from IANA's official list) of that domain's registry to see when it was created."],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company · privacy@vercel.com). Our server runs on Vercel, so your text passes through Vercel on its way to Anthropic. Sometimes it also goes through Vercel AI Gateway."],
       ["When and how", "Each time you paste, right away, over an encrypted connection (HTTPS)"],

@@ -25,6 +25,10 @@ export type Reserve = (units: number) => Promise<boolean>;
 export type Fetcher = (url: string) => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest();
+/** hashPrefix 쿼리 값 = URL용 Base64(+/ 대신 -_, 끝 = 채움 유지) — Google REST 명세(카이 db5385f HOLD 1) */
+export const urlSafePrefix = (prefix: Buffer) => prefix.toString("base64").replace(/\+/g, "-").replace(/\//g, "_");
+/** 응답의 전체 해시는 문자열이 아니라 32바이트로 비교한다(일반·URL용 Base64 둘 다 받아들임) */
+const decodeHash = (h: string | undefined) => (h ? Buffer.from(h.replace(/-/g, "+").replace(/_/g, "/"), "base64") : Buffer.alloc(0));
 
 async function dbReserve(units: number, now: Date): Promise<boolean> {
   const { ensureTables, reserve } = await import("@/lib/community");
@@ -37,35 +41,42 @@ export async function webRiskCheck(expressions: string[], opts: { key?: string; 
   if (!key) return { status: "skipped", reason: "no-key" };
   const now = opts.now ?? new Date();
   const hashes = expressions.map((e) => sha256(e));
-  const prefixes = [...new Set(hashes.map((h) => h.subarray(0, 4).toString("base64")))];
-  const missing = prefixes.filter((p) => (cache.get(p)?.until ?? 0) <= now.getTime());
+  const keyOf = (h: Buffer) => h.subarray(0, 4).toString("hex");
+  const prefixes = [...new Map(hashes.map((h) => [keyOf(h), h.subarray(0, 4)])).entries()];
+  const live = (k: string) => (cache.get(k)?.until ?? 0) > now.getTime();
+  const missing = prefixes.filter(([k]) => !live(k));
+  // 캐시에 이미 있는 위험 일치는 다른 앞자리의 상한·오류와 상관없이 먼저 지킨다(카이 db5385f HOLD 2)
+  const matched = () => {
+    const found = new Set<ThreatType>();
+    for (const h of hashes) {
+      const k = keyOf(h);
+      if (!live(k)) continue;
+      for (const t of cache.get(k)?.threats ?? []) if (decodeHash(t.hash).equals(h)) for (const tt of t.threatTypes ?? []) if ((THREAT_TYPES as readonly string[]).includes(tt)) found.add(tt as ThreatType);
+    }
+    return found;
+  };
+  const skip = (reason: "limit" | "no-db" | "error"): WebRiskResult => { const f = matched(); return f.size ? { status: "match", threats: [...f] } : { status: "skipped", reason }; };
   if (missing.length) {
-    if (!opts.reserve && !(opts.dbAvailable ?? hasDb)) return { status: "skipped", reason: "no-db" };
+    if (!opts.reserve && !(opts.dbAvailable ?? hasDb)) return skip("no-db");
     let ok: boolean;
-    try { ok = await (opts.reserve ? opts.reserve(missing.length) : dbReserve(missing.length, now)); } catch { return { status: "skipped", reason: "error" }; }
-    if (!ok) return { status: "skipped", reason: "limit" };
-    const fetcher: Fetcher = opts.fetcher ?? ((u) => fetch(u, { signal: AbortSignal.timeout(4000) }));
+    try { ok = await (opts.reserve ? opts.reserve(missing.length) : dbReserve(missing.length, now)); } catch { return skip("error"); }
+    if (!ok) return skip("limit");
+    const fetcher: Fetcher = opts.fetcher ?? ((u) => fetch(u, { signal: AbortSignal.timeout(4000), redirect: "error" }));
     try {
-      for (const p of missing) {
-        const qs = new URLSearchParams({ hashPrefix: p, key });
+      for (const [p, raw] of missing) {
+        const qs = new URLSearchParams({ hashPrefix: urlSafePrefix(raw), key });
         for (const t of THREAT_TYPES) qs.append("threatTypes", t);
         const res = await fetcher(`https://webrisk.googleapis.com/v1/hashes:search?${qs}`);
-        if (!res.ok) return { status: "skipped", reason: "error" };
+        if (!res.ok) return skip("error");
         const body = (await res.json()) as { threats?: Threat[]; negativeExpireTime?: string };
         const threats = body.threats ?? [];
         const times = [body.negativeExpireTime, ...threats.map((t) => t.expireTime)].map((t) => (t ? Date.parse(t) : NaN)).filter(Number.isFinite);
         cache.set(p, { threats, until: times.length ? Math.min(...times) : now.getTime() + 5 * 60_000 });
         if (cache.size > 5000) for (const [k, v] of cache) if (v.until <= now.getTime()) cache.delete(k);
       }
-    } catch { return { status: "skipped", reason: "error" }; }
+    } catch { return skip("error"); }
   }
-  const found = new Set<ThreatType>();
-  for (const h of hashes) {
-    const full = h.toString("base64");
-    for (const t of cache.get(h.subarray(0, 4).toString("base64"))?.threats ?? []) {
-      if (t.hash === full) for (const tt of t.threatTypes ?? []) if ((THREAT_TYPES as readonly string[]).includes(tt)) found.add(tt as ThreatType);
-    }
-  }
+  const found = matched();
   return found.size ? { status: "match", threats: [...found] } : { status: "clear" };
 }
 
