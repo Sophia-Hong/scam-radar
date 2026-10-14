@@ -33,3 +33,16 @@ describe("AI 공급자 선택", () => {
     expect(llm.usageCost(undefined)).toBeUndefined();
   });
 });
+
+describe("고지 '거쳐 가는 곳'·'보관' = 율 문구(1791966604), 직접·Gateway 둘 다 맞게", () => {
+  it("한·영", async () => {
+    const { STRINGS } = await import("./strings");
+    const ko = Object.fromEntries(STRINGS.ko.notice.details), en = Object.fromEntries(STRINGS.en.notice.details);
+    expect(ko["거쳐 가는 곳"]).toBe("Vercel Inc. (미국 회사 · privacy@vercel.com). 저희 서버가 Vercel에서 돌아가서, 글은 Vercel을 거쳐 Anthropic으로 가요. Vercel AI Gateway를 거칠 때도 있어요.");
+    expect(ko["보관"]).toMatch(/^저희 서버\(Vercel\)에는 원문이 남지 않아요\(판정 결과와 체크 항목만 저장\)\./);
+    expect(ko["보관"]).toMatch(/AI Gateway를 거칠 때도 Vercel은 요청이 끝나면 바로 지우고 프롬프트·출력을 보관하지 않아요 \(Vercel 문서 vercel\.com\/docs\/ai-gateway\/security-and-compliance\/zdr\)$/);
+    expect(en["Passes through"]).toBe("Vercel Inc. (US company · privacy@vercel.com). Our server runs on Vercel, so your text passes through Vercel on its way to Anthropic. Sometimes it also goes through Vercel AI Gateway.");
+    expect(en["Retention"]).toMatch(/^Our servers \(on Vercel\) keep no original text/);
+    expect(en["Retention"]).toMatch(/When AI Gateway is used, Vercel deletes the data right after the request and does not keep prompts or outputs/);
+  });
+});
