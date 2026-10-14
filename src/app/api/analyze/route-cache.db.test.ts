@@ -17,15 +17,24 @@ vi.mock("ai", async (orig) => ({
 
 describe.skipIf(!localTestDb)("캡처 재조회 일관성·누출 (실제 캐시)", () => {
   const tag = `capdb${Date.now()}`;
+  const ownKeys: string[] = [];   // 이 시험이 만든 행만 지운다(카이 03e14cc)
   afterAll(async () => {
+    if (!ownKeys.length) return;
     const { db } = await import("@/db");
-    await db().execute(sql`DELETE FROM llm_cache WHERE kind = 'review-img' AND created_at > now() - interval '10 minutes'`);
+    for (const k of ownKeys) await db().execute(sql`DELETE FROM llm_cache WHERE key = ${k}`);
   });
   it("두 번 올려도 같은 응답, 모델은 1회, 응답·캐시에 캡처 글자 없음", async () => {
     process.env.POSTGRES_URL = testUrl; process.env.DATABASE_URL = testUrl; process.env.AI_GATEWAY_API_KEY = "test-not-used";
     process.env.COMMUNITY_SECRET = process.env.COMMUNITY_SECRET || "dbtest-secret";
     const { POST } = await import("./route");
+    const llm = await import("@/lib/llm");
     const img = "data:image/png;base64," + Buffer.from(tag).toString("base64").padEnd(400, "A");
+    const { db } = await import("@/db");
+    // 구형 v2 행(28a7e44: derived 없음)을 같은 입력으로 심어 둔다 — v3 는 이 행을 읽지 않아야 한다
+    const v2 = llm.cacheRowKey("review-img", llm.imageReviewKey("", [img], [], "review-img-v2"));
+    const v3 = llm.cacheRowKey("review-img", llm.imageReviewKey("", [img], []));
+    ownKeys.push(v2, v3);
+    await db().execute(sql`INSERT INTO llm_cache (key, kind, result, model) VALUES (${v2}, 'review-img', ${JSON.stringify({ verdict: "unsure", confidence: 0.4, checks: [], model: "anthropic/claude-sonnet-5.5" })}::jsonb, 'anthropic/claude-sonnet-5.5') ON CONFLICT DO NOTHING`);
     const call = async () => (await POST(new Request("http://x/api/analyze", { method: "POST", headers: { "content-type": "application/json", "x-real-ip": `198.18.${Date.now() % 200}.9` }, body: JSON.stringify({ text: "", images: [img] }) }))).json();
     const first = await call();
     const second = await call();
@@ -34,9 +43,9 @@ describe.skipIf(!localTestDb)("캡처 재조회 일관성·누출 (실제 캐시
     expect(first.label).not.toBe("LOW");   // 캡처 속 글자로 만든 규칙 단계가 결합에 쓰였다(AI unsure)
     const leak = /110123456789|0123456789|2468|1357|vip_room_qq|원금보장 확정수익/;
     expect(JSON.stringify(first)).not.toMatch(leak);
-    const { db } = await import("@/db");
-    const rows = ((await db().execute(sql`SELECT result::text AS r FROM llm_cache WHERE kind = 'review-img' AND created_at > now() - interval '10 minutes'`)) as unknown as { rows: { r: string }[] }).rows;
-    expect(rows.length).toBeGreaterThan(0);
+    const rows = ((await db().execute(sql`SELECT result::text AS r FROM llm_cache WHERE key = ${v3}`)) as unknown as { rows: { r: string }[] }).rows;
+    expect(rows.length).toBe(1);
+    expect(JSON.parse(rows[0].r).derived).toBeTruthy();   // v3 행에는 파생값이 있다
     for (const row of rows) expect(row.r).not.toMatch(leak);
   });
 });

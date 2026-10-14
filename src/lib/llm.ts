@@ -65,8 +65,11 @@ function servedModel(result: { response?: { modelId?: string } }): string {
   return result.response?.modelId || MODEL_NAME;
 }
 
+/** llm_cache 행 키 — 캐시 키에 모델 이름이 들어간다(모델을 바꾸면 옛 판정이 섞이지 않게) */
+export const cacheRowKey = (kind: string, key: string) => `${kind}:${fnv1a64(MODEL_NAME)}:${key}`;
+
 export async function cached<T>(kind: string, key: string, fn: () => Promise<T>, units = 1): Promise<T> {
-  const k = `${kind}:${fnv1a64(MODEL_NAME)}:${key}`;   // 캐시 키에 모델 — 모델을 바꾸면 옛 판정(예: gemini)이 섞이지 않는다(테오 1791949447)
+  const k = cacheRowKey(kind, key);   // 캐시 키에 모델 — 모델을 바꾸면 옛 판정(예: gemini)이 섞이지 않는다(테오 1791949447)
   if (!hasDb) throw new AiBudgetExhausted("no database — budget cannot be enforced");   // fail-closed
   const hit = await db().select().from(schema.llmCache).where(eq(schema.llmCache.key, k)).limit(1);
   if (hit[0]) return hit[0].result as T;
@@ -192,10 +195,15 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
 const ReviewImageSchema = ReviewSchema.extend({ image_text: z.string().max(2000) });
 export interface ImageDerived { ruleLabel: "HIGH" | "REVIEW" | "LOW"; ruleScore: number; signs: string[]; coordination: boolean }
 export type ImageReview = ReviewVerdict & { derived?: ImageDerived };
-export async function reviewPostWithImages(text: string, images: string[], reasonLabels: string[], derive: (imageText: string) => ImageDerived): Promise<ImageReview> {
-  const { createHash } = await import("crypto");
+/** v3 = 캐시 값에 파생값(derived)이 들어간 판. v2 행(28a7e44, derived 없음)을 읽으면 재조회 결과가 달라져서 올림(카이 03e14cc HOLD) */
+export const IMAGE_REVIEW_VERSION = "review-img-v3";
+export function imageReviewKey(text: string, images: string[], reasonLabels: string[], version = IMAGE_REVIEW_VERSION): string {
+  const { createHash } = require("crypto") as typeof import("crypto");
   const imageKey = images.map((img) => createHash("sha256").update(img).digest("hex")).join(",");
-  const key = fnv1a64(`review-img-v2|${text}|${imageKey}|${reasonLabels.join("|")}`);
+  return fnv1a64(`${version}|${text}|${imageKey}|${reasonLabels.join("|")}`);
+}
+export async function reviewPostWithImages(text: string, images: string[], reasonLabels: string[], derive: (imageText: string) => ImageDerived): Promise<ImageReview> {
+  const key = imageReviewKey(text, images, reasonLabels);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, checks: [], model: "template" };
   try {
     return await cached<ImageReview>("review-img", key, async () => {
