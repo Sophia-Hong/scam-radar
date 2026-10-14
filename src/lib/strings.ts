@@ -120,7 +120,7 @@ const ko = {
     limited: "잠시 후 다시 시도해 주세요. 신고는 시간당 횟수가 정해져 있어요.",
     failed: "지금은 신고할 수 없어요. 잠시 후 다시 시도해 주세요.",
     textKey: "받은 글(서명만)",
-    kind: { threads: "Threads 계정", telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널", phone: "전화번호", handle: "아이디", url: "링크", line: "라인", wechat: "위챗" } as Record<string, string>,
+    kind: { threads: "Threads 계정", telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널", phone: "전화번호", handle: "아이디", url: "링크", line: "라인", wechat: "위챗", whatsapp: "왓츠앱", signal: "시그널" } as Record<string, string>,
   },
   report: {
     kicker: "투자 유인 신호 · 참고 리포트",
@@ -287,7 +287,7 @@ const en: Strings = {
     limited: "Please try again later — reports are limited per hour.",
     failed: "We couldn't send the report right now. Please try again shortly.",
     textKey: "The message (signature only)",
-    kind: { threads: "Threads account", telegram: "Telegram", kakao_open: "KakaoTalk open chat", kakao_channel: "KakaoTalk channel", phone: "Phone", handle: "Username", url: "Link", line: "LINE", wechat: "WeChat" },
+    kind: { threads: "Threads account", telegram: "Telegram", kakao_open: "KakaoTalk open chat", kakao_channel: "KakaoTalk channel", phone: "Phone", handle: "Username", url: "Link", line: "LINE", wechat: "WeChat", whatsapp: "WhatsApp", signal: "Signal" },
   },
   report: {
     kicker: "Investment-lure signals · reference report",

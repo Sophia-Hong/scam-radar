@@ -29,7 +29,7 @@ export function foundTelegram(keys: string[], reasons: { code?: string; points: 
   return keys.some((k) => k.startsWith("telegram:")) || reasons.some((r) => r.points > 0 && !!r.code && /텔레|telegram|tme/i.test(r.code));
 }
 
-const COMMUNITY_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "url", "line", "wechat", "handle"]);
+const COMMUNITY_TYPES = new Set(["telegram", "kakao_open", "kakao_channel", "phone", "url", "line", "wechat", "whatsapp", "signal", "handle"]);   // email 은 신고 키로 쓰지 않음(개인 주소일 수 있음)
 export const MAX_KEYS = 5;
 
 /** 신고 장부 조회·등록 키 — 확인한 Threads 계정 + 글 속 연락처·링크. 원문은 키에 들어가지 않는다 */

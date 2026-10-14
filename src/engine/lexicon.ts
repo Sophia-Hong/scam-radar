@@ -2,6 +2,8 @@
  * 리딩방 유인 어휘 사전. 모든 항목은 normalize().compact 기준(소문자·구분자 제거)으로 매칭된다.
  * category 별 가중치는 score.ts 에서 결정. 여기서는 어휘와 사람이 읽을 라벨만.
  */
+import { EN_TERMS, EN_PATTERNS, EN_COUNTER_TERMS, EN_VETO_PATTERNS, EN_CTA_PATTERNS, EN_OFFER_PATTERN } from "./lexicon-en";
+
 export type Category = "contact" | "invest" | "profit" | "urgency" | "link" | "free" | "impersonate";
 
 /** impersonate 범주의 하위 구분 — 기관명 vs 재직·증빙 주장. 결합 규칙(score.ts)이 이 둘을 구분한다 */
@@ -17,6 +19,14 @@ export interface Term {
   w?: number;
   /** impersonate 범주 전용 하위 구분 */
   sub?: ImpersonateSub;
+  /** 정규식 매칭 (영어 어휘). 있으면 `term` 은 식별자이고 substring 매칭 대신 이 식으로 찾는다 */
+  re?: RegExp;
+  /** re 를 어디에 대나 — 기본 normalize().text, "compact" 면 구분자 제거형 */
+  on?: "text" | "compact";
+  /** 어휘 언어. 없으면 한국어 */
+  lang?: "en";
+  /** 사원증·급여명세처럼 신분 증빙 문서를 내세우는 어휘 */
+  evidenceDoc?: boolean;
 }
 
 export const TERMS: Term[] = [
@@ -264,13 +274,16 @@ export const TERMS: Term[] = [
   { term: "linktr.ee", cat: "link", label: "링크트리" },
   { term: "linktree", cat: "link", label: "링크트리" },
   { term: "litt.ly", cat: "link", label: "링크 모음" },
+
+  // ── 영어 (lexicon-en.ts) ──
+  ...EN_TERMS,
 ];
 
 /**
  * 피해자·경고 맥락 — 유인글이 아니라 유인글을 *경고*하는 글. 감점.
  * `strong` 은 "이 글을 쓴 사람이 유인 당사자일 리 없다" 에 가까운 어휘다.
  */
-export const COUNTER_TERMS: { term: string; label: string; w: number; strong?: boolean }[] = [
+export const COUNTER_TERMS: { term: string; label: string; w: number; strong?: boolean; re?: RegExp }[] = [
   { term: "사기당", label: "피해 경험 서술", w: 1.2, strong: true },
   { term: "사기였", label: "피해 경험 서술", w: 1.2, strong: true },
   { term: "사기입니다", label: "사기 단정", w: 1.2, strong: true },
@@ -312,6 +325,7 @@ export const COUNTER_TERMS: { term: string; label: string; w: number; strong?: b
   { term: "예방", label: "예방 캠페인", w: 0.8 },
   { term: "구분법", label: "식별법 안내", w: 1.0, strong: true },
   { term: "체크리스트", label: "식별법 안내", w: 0.8 },
+  ...EN_COUNTER_TERMS,
 ];
 
 /**
@@ -356,6 +370,7 @@ export const VETO_PATTERNS: { re: RegExp; label: string; cap: number }[] = [
     label: "타로·점술 맥락 (투자 리딩 아님)",
     cap: 39,
   },
+  ...EN_VETO_PATTERNS,
 ];
 
 /** 유인 문구를 *인용*하는 글(풍자·해설·연구)은 유인글이 아니다 */
@@ -373,16 +388,19 @@ export const CTA_PATTERNS: { re: RegExp; label: string; w: number }[] = [
   { re: /(주세요|남겨주시면|남기시면|보내주시면|해주시면)/, label: "회신 요구", w: 0.8 },
   { re: /(확인해\s*주?세요|참고해\s*주?세요|클릭|타고\s*들어)/, label: "링크 클릭 유도", w: 0.9 },
   { re: /(팔로우|좋아요|구독).{0,12}(하시면|하면|해주시면|누르시면|남기신)/, label: "팔로우·좋아요 조건부 제공", w: 1.2 },
+  ...EN_CTA_PATTERNS,
 ];
 
 /**
  * 제공·상담 제안 — 사칭형 결합 규칙에서 "기관명 + 재직 주장" 뒤에 붙는 "정보 드릴게요/상담해 드려요".
  * 부탁·질문("알려주세요")은 제외하고 *제공*하는 쪽 표현만 잡는다. 직원 잡담과 갈리는 지점이다.
  */
-export const OFFER_PATTERN = /(공유\s*(해|합니다|드|할게|해요|중)|알려\s*드|드립니다|드려요|드릴게|도와\s*드|상담\s*(은|받|신청|가능|해\s*드|원하)|문의\s*(는|주|해|바랍|남겨)|추천\s*(해\s*드|드립)|풀어\s*드|말씀\s*드|정보\s*(를|도)?\s*(드|공유|나눠)|댓글\s*(남겨|주|달아)|디엠|dm)/;
+export const OFFER_PATTERN_KO = /(공유\s*(해|합니다|드|할게|해요|중)|알려\s*드|드립니다|드려요|드릴게|도와\s*드|상담\s*(은|받|신청|가능|해\s*드|원하)|문의\s*(는|주|해|바랍|남겨)|추천\s*(해\s*드|드립)|풀어\s*드|말씀\s*드|정보\s*(를|도)?\s*(드|공유|나눠)|댓글\s*(남겨|주|달아)|디엠|dm)/;
 
-/** 정규식 기반 구조 신호 */
-export const PATTERNS: { re: RegExp; cat: Category; label: string; w?: number }[] = [
+export const OFFER_PATTERN = new RegExp(`${OFFER_PATTERN_KO.source}|${EN_OFFER_PATTERN.source}`);
+
+/** 정규식 기반 구조 신호. `on: "raw"` 는 원문 소문자에 대고 찾는다 (normalize 가 '@' 를 접기 때문) */
+export const PATTERNS: { re: RegExp; cat: Category; label: string; w?: number; on?: "raw" }[] = [
   { re: /\d{2,4}\s*%/, cat: "profit", label: "퍼센트 수익률 제시" },
   { re: /\d+\s*(배|倍)/, cat: "profit", label: "N배 수익 제시" },
   { re: /\d+\s*(만원|만|천만|억)/, cat: "profit", label: "금액 제시", w: 0.6 },
@@ -390,4 +408,5 @@ export const PATTERNS: { re: RegExp; cat: Category; label: string; w?: number }[
   { re: /https?:\/\/|www\./, cat: "link", label: "외부 링크", w: 0.5 },
   { re: /01[016789][-.\s]?\d{3,4}[-.\s]?\d{4}/, cat: "contact", label: "휴대폰 번호" },
   { re: /[\u{1F4B0}\u{1F4B5}\u{1F4B8}\u{1F4C8}\u{1F680}\u{1F525}\u{1F4AF}]{2,}/u, cat: "urgency", label: "수익 이모지 반복", w: 0.5 },
+  ...EN_PATTERNS,
 ];

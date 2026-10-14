@@ -12,7 +12,7 @@ import { bandKeys, estimateJaccard, JACCARD_THRESHOLD, NUM_PERM } from "@/engine
  *   서로 다른 연결 MIN_DISTINCT_CONNECTIONS 곳 미만이면 숫자를 보이지 않음. (조건 1)
  * - 스팸: 신고자당 새 등록 시간당 HOURLY_LIMIT, 하루 DAILY_LIMIT. 한 번에 키 MAX_KEYS_PER_POST 개까지.
  */
-export const KEY_TYPES = ["threads", "telegram", "kakao_open", "kakao_channel", "phone", "handle", "url", "line", "wechat"] as const;
+export const KEY_TYPES = ["threads", "telegram", "kakao_open", "kakao_channel", "phone", "handle", "url", "line", "wechat", "whatsapp", "signal"] as const;
 export const MAX_KEYS_PER_POST = 5;
 export const MAX_KEYS_PER_CHECK = 10;
 export const HOURLY_LIMIT = 10;
