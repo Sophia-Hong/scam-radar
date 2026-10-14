@@ -1,5 +1,5 @@
 import { activeContext } from "./context";
-import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence, receivedActionSignals, type TacticHit } from "./tactics";
+import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence, receivedActionSignals, receivedTopicSignals, type TacticHit } from "./tactics";
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
 import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
@@ -230,6 +230,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const taskRecruitment = tactics.some(t => t.family === "task") && tactics.some(t => t.family === "recruiter");
   const legacyReceivedCombo = financialDemand && tactics.length >= 2;
   const receivedActions = receivedActionSignals(n.text);
+  const receivedTopics = receivedTopicSignals(n.text);
   const receivedLure = tactics.some(t => ["delivery", "authority", "family", "task", "romance"].includes(t.family));
   const receivedImpersonation = tactics.some(t => ["authority", "family", "recruiter"].includes(t.family));
   const hasReceivedAction = receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.money || receivedActions.credential;
@@ -459,9 +460,11 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // but is not enough to accuse a sender automatically.  This deliberately
   // promotes only LOW results to REVIEW; all existing HIGH paths still need
   // their independent corroboration above.
+  const receivedTopic = Object.values(receivedTopics).some(Boolean);
+  const reviewActionVector = receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.money;
   const weakReceivedCue = receivedActions.urgency || receivedLure || receivedImpersonation ||
     tactics.some(t => ["loan", "marketplace", "grant", "crypto", "support", "gift", "toll", "pressure"].includes(t.family));
-  if (hasReceivedAction && weakReceivedCue && score < THRESHOLD_REVIEW) {
+  if ((hasReceivedAction && weakReceivedCue || receivedTopic && reviewActionVector) && score < THRESHOLD_REVIEW) {
     const points = THRESHOLD_REVIEW - score;
     reasons.push({ code: "received:escalation", label: "받은 메시지의 행동 요청과 약한 유인 정황", points });
     score = THRESHOLD_REVIEW;

@@ -276,3 +276,25 @@ describe("Round 5 conjunctive received-message evidence", () => {
     "상품 리뷰를 하루 30분만 하면 고수익을 드립니다. 텔레그램으로 지금 답장하세요.",
   ])("keeps scam twin at HIGH or REVIEW: %s", text => expect(["HIGH", "REVIEW"]).toContain(scoreText(text).label));
 });
+
+describe("Round 6 received-message recovery", () => {
+  it.each([
+    "Hi Mum, this is my new number. Please send £850 today.",
+    "Dad, my temporary number is new. Can you transfer $850 for my bill?",
+    "Mum, my phone is broken. Could you wire €850 today?",
+    "엄마 새 번호야. 5만원 이체해줘.",
+    "아빠 휴대전화 고장 나서 임시 번호야. 50000원 보내줘.",
+  ])("recognizes currency-denominated family money requests: %s", text => expect(has(text, "family")).toBe(true));
+
+  it("treats failed delivery and address-update language as delivery pressure", () => {
+    expect(has("USPS: your package could not be delivered. Update your address at https://usps-redelivery.top/a", "delivery")).toBe(true);
+  });
+
+  it.each(["지검 수사관", "지방검찰청 검사", "검찰청 수사관", "금감원 조사관", "금융감독원 직원", "경찰청 사이버수사대 수사관", "법원 등기 담당자"])("recognizes authority topic: %s", text => expect(has(text, "authority")).toBe(true));
+
+  it("keeps a simple-work/high-pay task sign even before a move-to-chat request", () => {
+    const result = scoreText("재택 부업 하루 30분, 상품 리뷰만 쓰면 일당 15만원");
+    expect(result.label).toBe("REVIEW");
+    expect(result.tactics.some(t => t.family === "task")).toBe(true);
+  });
+});

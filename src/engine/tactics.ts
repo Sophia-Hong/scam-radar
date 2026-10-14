@@ -24,7 +24,7 @@ const RULES: { family: TacticFamily; label: string; points: number; re: RegExp }
   { family: "toll", label: "미납 통행료 납부 요구", points: 18,
     re: /(?:미납\s*(?:통행료|하이패스)|통행료\s*미납)[^.!?\n]{0,55}(?:납부|결제|링크|지금)|\b(?:unpaid toll|toll (?:payment|violation))\b[^.!?\n]{0,55}\b(?:pay|link|now|notice)\b/ },
   { family: "authority", label: "공공기관 담당자라는 주장", points: 18,
-    re: /\b(?:i am|i'm|this is|on behalf of|representing)\b[^.!?\n]{0,35}\b(?:police|fbi|irs|tax office|central bank|financial regulator)\b|\b(?:police|prosecutor|court|fss|financial supervisor|tax office|health insurance|government benefit|online banking|traffic fine)\b|(?:검찰|경찰|금융감독원|금감원|국세청|한국은행|법원|건강보험|민원24|경찰청|지방청|교통민원|도로교통)\s*(?:(?:소속|의)\s*)?(?:수사관|검사|담당자|직원|조사관)?|(?:검찰|경찰|금융감독원|금감원|국세청|한국은행)입니다/ },
+    re: /\b(?:i am|i'm|this is|on behalf of|representing)\b[^.!?\n]{0,35}\b(?:police|fbi|irs|tax office|central bank|financial regulator)\b|\b(?:police|prosecutor|court|fss|financial supervisor|tax office|health insurance|government benefit|online banking|traffic fine)\b|(?:지검|지방검찰청|검찰청|검찰|경찰청\s*사이버수사대|경찰|금융감독원|금감원|국세청|한국은행|법원\s*등기|법원|건강보험|민원24|경찰청|지방청|교통민원|도로교통)\s*(?:(?:소속|의)\s*)?(?:수사관|검사|담당자|직원|조사관)?|(?:검찰|경찰|금융감독원|금감원|국세청|한국은행|지검|지방검찰청|검찰청)입니다/ },
   { family: "secrecy", label: "주변에 알리지 말라는 요구", points: 24,
     re: /\b(?:don't|do not|never) (?:tell|inform|discuss (?:this )?with) (?:anyone|anybody|your (?:family|bank|friends|spouse))\b|\bkeep (?:this|our (?:investment|arrangement)) (?:a secret|between us)\b|(?:가족|은행|친구|아무)[^.!?\n]{0,24}(?:말하지\s*마|알리지\s*마|비밀)|은행.{0,16}물어보면.{0,40}(?:라고|이라|말씀|말해)/ },
   { family: "withdrawal", label: "출금 전 추가 납부 요구", points: 30,
@@ -59,8 +59,18 @@ export interface ReceivedActionSignals {
   urgency: boolean;
 }
 
+export interface ReceivedTopicSignals {
+  delivery: boolean;
+  authority: boolean;
+  family: boolean;
+  task: boolean;
+  loan: boolean;
+}
+
 const OFFICIAL_LINK = /(?:^|\.)(?:go\.kr|gov\.kr|gov|cjlogistics\.com|epost\.go\.kr|hanjin\.com|lottegls\.com|lottegl?ogis\.com|ups\.com|fedex\.com|dhl\.com|usps\.com|usps\.gov|irs\.gov|kbstar\.com|shinhan\.com|wooribank\.com|ibk\.co\.kr|nhbank\.com|kebhana\.com)$/i;
 const URL = /(?:https?|hxxps?):\/\/([^\s/\]>*]+)|\b([a-z0-9-]+\.(?:com|co|kr|info|net|at|gd|ly))\b/gi;
+const MONEY_ACTION = "(?:send|transfer|pay|wire|lend|입금|송금|보내(?:줘|주세요|라)?|이체)";
+const MONEY_AMOUNT = "(?:[£$€₩]\\s*\\d[\\d,.]*|\\d[\\d,.]*\\s*(?:만원|원))";
 
 /**
  * Received-message actions are deliberately narrower than generic words such
@@ -77,7 +87,7 @@ export function receivedActionSignals(text: string): ReceivedActionSignals {
   }
   const callback = /(?:\b(?:call|phone|reply|text|whatsapp|telegram)\b[^.!?\n]{0,30}(?:\+?\d[\d -]{6,}\d|here|now|yes|interested)|(?:전화|연락|문자|카톡|텔레그램)[^.!?\n]{0,30}(?:\d{2,4}[- ]?\d{3,4}[- ]?\d{4}|추가|주세요|바람|답장)|\b\+?\d{1,3}[ -]?\(?\d{2,4}\)?[ -]?\d{3,4}[ -]?\d{4}\b)/.test(lower);
   const install = /\b(?:install|download|sideload)\b[^.!?\n]{0,50}\b(?:app|apk|software|application|anydesk|teamviewer)\b|(?:앱|apk|어플|원격\s*(?:제어|접속))[^.!?\n]{0,35}(?:설치|다운로드)|(?:설치|다운로드)[^.!?\n]{0,35}(?:앱|apk|어플|원격)/.test(lower);
-  const money = /\b(?:pay|payment|transfer|send money|deposit|fee|fine|gift[- ]cards?|daily pay)\b|(?:입금|송금|납부|결제|수수료|벌금|상품권|수리비|환급)/.test(lower);
+  const money = new RegExp(`\\b(?:pay|payment|transfer|send money|deposit|gift[- ]cards?|daily pay)\\b|(?:입금|송금|납부|결제|벌금|상품권|수리비|환급)|\\b(?:fee|fine)\\b[^.!?\\n]{0,35}\\b(?:pay|send|transfer|deposit)\\b|\\b(?:pay|send|transfer|deposit)\\b[^.!?\\n]{0,35}\\b(?:fee|fine)\\b|(?:수수료|관세|통관비)[^.!?\\n]{0,35}(?:입금|송금|납부|결제|보내|이체)|(?:입금|송금|납부|결제|보내|이체)[^.!?\\n]{0,35}(?:수수료|관세|통관비)|${MONEY_ACTION}[^.!?\\n]{0,35}${MONEY_AMOUNT}|${MONEY_AMOUNT}[^.!?\\n]{0,35}${MONEY_ACTION}`, "i").test(lower);
   const credential = /\b(?:verify|confirm|re-?confirm|log ?in|identity|password|access details|otp)\b|(?:인증|본인확인|신분증|카드\s*(?:사진|정보)|비밀번호|로그인)/.test(lower);
   const urgency = /\b(?:now|immediately|urgent|today|shortly|pending|failed|unable|within \d+ (?:minutes?|hours?)|\d+ hours?|expires? in)\b|(?:긴급|즉시|오늘\s*안|보류|취소|지연|불일치|반송|배송\s*중단|\d+\s*(?:시간|분)\s*(?:이내|안)|바로|최대한\s*빨리)/.test(lower);
   return { link, callback, install, money, credential, urgency };
@@ -85,13 +95,26 @@ export function receivedActionSignals(text: string): ReceivedActionSignals {
 
 const FAMILY_MEMBER = /\b(?:mum|mom|dad|mother|father|grandma|grandpa|grandmother|grandfather|son|daughter)\b|(?:엄마|아빠|할머니|할아버지|딸인데|아들인데)/i;
 const CHANGED_NUMBER = /\b(?:new|temporary) number\b|\bphone (?:is )?(?:broken|damaged)\b|(?:새\s*번호|임시\s*(?:번호|폰)|(?:폰|핸드폰|휴대전화|액정).{0,12}(?:고장|깨))/i;
-const MONEY_REQUEST = /(?:\b(?:send|transfer|pay|buy|install)\b[^.!?\n]{0,35}\b(?:money|cash|gift cards?|codes?|account|otp|app)\b|\b(?:money|cash|gift cards?|codes?|account|otp|app)\b[^.!?\n]{0,35}\b(?:send|transfer|pay|buy|install)\b|(?:돈|상품권|기프트\s*카드|코드|신분증|카드\s*사진|계좌|otp|인증번호|앱)[^.!?\n]{0,35}(?:보내|송금|입금|사|구매|설치|줘|주세요|달라)|(?:보내|송금|입금|사|구매|설치)[^.!?\n]{0,35}(?:돈|상품권|기프트\s*카드|코드|신분증|카드\s*사진|계좌|otp|인증번호|앱))/i;
+const MONEY_REQUEST = new RegExp(`(?:\\b(?:send|transfer|pay|buy|install)\\b[^.!?\\n]{0,35}\\b(?:money|cash|gift cards?|codes?|account|otp|app)\\b|\\b(?:money|cash|gift cards?|codes?|account|otp|app)\\b[^.!?\\n]{0,35}\\b(?:send|transfer|pay|buy|install)\\b|(?:돈|상품권|기프트\\s*카드|코드|신분증|카드\\s*사진|계좌|otp|인증번호|앱)[^.!?\\n]{0,35}(?:보내|송금|입금|사|구매|설치|줘|주세요|달라)|(?:보내|송금|입금|사|구매|설치)[^.!?\\n]{0,35}(?:돈|상품권|기프트\\s*카드|코드|신분증|카드\\s*사진|계좌|otp|인증번호|앱)|${MONEY_ACTION}[^.!?\\n]{0,35}${MONEY_AMOUNT}|${MONEY_AMOUNT}[^.!?\\n]{0,35}${MONEY_ACTION})`, "i");
 const DELIVERY_WORDING = /\b(?:parcel|package|delivery|redelivery|shipping|track(?:ing)?|customs)\b|(?:택배|배송|운송장|수령|배달|우체국|화물|통관|배송주소|우편번호)/i;
-const DELIVERY_PRESSURE = /\b(?:failed delivery|address (?:does not )?match|fee|customs|deadline|suspend(?:ed|ion)?)\b|(?:배송\s*(?:실패|중단|보류)|주소\s*(?:불일치|오류)|(?:수수료|관세|통관비).{0,20}(?:납부|결제|미납)|마감|기한|계정\s*(?:정지|중단))/i;
+const DELIVERY_PRESSURE = /\b(?:failed delivery|could not be delivered|address (?:does not )?match|update your address|fee|customs|deadline|suspend(?:ed|ion)?)\b|(?:배송\s*(?:실패|중단|보류)|주소\s*(?:불일치|오류)|(?:수수료|관세|통관비).{0,20}(?:납부|결제|미납)|마감|기한|계정\s*(?:정지|중단))/i;
 const LOAN_CONTEXT = /(?:저금리|대환\s*대출|기존\s*대출|신용\s*등급)|\b(?:low[- ]interest|refinanc(?:e|ing)|existing loan|credit score)\b/i;
 const LOAN_FEE_OR_REPAYMENT = /(?:(?:수수료|선납)[^.!?\n]{0,20}(?:먼저\s*)?(?:입금|납부|내|지불)|(?:기존\s*)?대출[^.!?\n]{0,20}(?:먼저\s*)?(?:상환|갚)|(?:입금|납부|내|지불)[^.!?\n]{0,20}(?:수수료|선납)|(?:상환|갚)[^.!?\n]{0,20}(?:기존\s*)?대출|\b(?:fee|prepay|deposit)\b[^.!?\n]{0,20}\b(?:pay|send|first|before)\b|\b(?:repay|pay off)\b[^.!?\n]{0,20}\b(?:existing loan|loan)\b|\b(?:pay|send)\b[^.!?\n]{0,20}\b(?:fee|prepay|deposit)\b)/i;
-const TASK_WORDING = /\b(?:product (?:reviews?|ratings?)|(?:liking|like|rate|review(?:ing)?) (?:videos?|products?)|task (?:completion|orders?)|order completion|complete (?:\w+ ){0,3}(?:tasks?|orders?))\b|(?:상품|제품).{0,12}(?:리뷰|평점)|리뷰.{0,15}(?:알바|부업)|좋아요.{0,15}(?:알바|부업|수익)|(?:작업|주문).{0,12}(?:완료|수행)/i;
+const TASK_WORDING = /\b(?:product (?:reviews?|ratings?)|(?:liking|like|rate|review(?:ing)?) (?:videos?|products?)|task (?:completion|orders?)|order completion|complete (?:\w+ ){0,3}(?:tasks?|orders?))\b|(?:상품|제품).{0,12}(?:리뷰|평점)|리뷰.{0,15}(?:알바|부업)|좋아요.{0,15}(?:알바|부업|수익)|(?:재택\s*)?(?:알바|부업).{0,24}(?:리뷰|평점|일당|수익)|(?:작업|주문).{0,12}(?:완료|수행)/i;
 const TASK_MOVE_OR_MONEY = /(?:\b(?:message|reply|contact|join)\b[^.!?\n]{0,35}\b(?:telegram|whatsapp|kakao|chat)\b|\b(?:telegram|whatsapp|kakao|chat)\b[^.!?\n]{0,35}\b(?:message|reply|contact|join)\b|\b(?:deposit|pay|transfer|money|fee)\b|(?:텔레그램|카카오(?:톡)?|카톡|오픈채팅).{0,35}(?:문의|답장|연락|오세요|참여)|(?:입금|송금|충전|보증금|선결제|수수료|돈))/i;
+const AUTHORITY_WORDING = /\b(?:police|prosecutor|fbi|irs|tax office|central bank|financial regulator|court|fss|financial supervisor|health insurance|government benefit|online banking|traffic fine)\b|(?:지검|지방검찰청|검찰청|검찰|경찰청\s*사이버수사대|경찰|금융감독원|금감원|국세청|한국은행|법원\s*등기|법원|건강보험|민원24|경찰청|지방청|교통민원|도로교통|수사관|검사|조사관)/i;
+
+/** Topics alone are not automatic findings. With a concrete received-message
+ * action, they are enough to route a message to REVIEW for a second look. */
+export function receivedTopicSignals(text: string): ReceivedTopicSignals {
+  return {
+    delivery: DELIVERY_WORDING.test(text),
+    authority: AUTHORITY_WORDING.test(text),
+    family: FAMILY_MEMBER.test(text) && CHANGED_NUMBER.test(text),
+    task: TASK_WORDING.test(text),
+    loan: LOAN_CONTEXT.test(text),
+  };
+}
 
 /** Structured received-message tactics. Every hit carries the facts the UI needs
  * to support its plain-language sign; matching never rests on a topic word alone. */
@@ -105,7 +128,7 @@ function structuredTactics(text: string): TacticHit[] {
   if (family.memberClaim && family.changedNumber && family.moneyRequest) hits.push({ family: "family", label: "가족·지인 사칭 가능성", points: 18, evidence: "가족 주장·번호 변경·요청", signals: { family } });
   if (delivery.authorityOrDelivery && delivery.unofficialLink && delivery.pressure) hits.push({ family: "delivery", label: "배송·수령 관련 안내", points: 18, evidence: "배송·비공식 연락처·압박", signals: { delivery } });
   if (LOAN_CONTEXT.test(text) && loan.feeOrRepaymentRequest) hits.push({ family: "loan", label: "대환대출 전 선납·수수료 요구", points: 24, evidence: "대출·선납 또는 상환 요청", signals: { loan } });
-  if (task.easyMoneyPitch && task.moneyOrMoveRequest) hits.push({ family: "task", label: "간단한 작업으로 수익을 준다는 제안", points: 18, evidence: "간단 작업·고수익·행동 요청", signals: { task } });
+  if (task.easyMoneyPitch) hits.push({ family: "task", label: "간단한 작업으로 수익을 준다는 제안", points: 18, evidence: task.moneyOrMoveRequest ? "간단 작업·고수익·행동 요청" : "간단 작업·고수익", signals: { task } });
   return hits;
 }
 

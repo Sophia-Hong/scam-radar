@@ -225,3 +225,27 @@ no longer escalate without the requested action evidence; this is deliberate
 to remove false-HIGH risk. Added twins cover a no-money family number update,
 official courier tracking delay, insurance terms disclosure, bank loan ad with
 no fee request, ordinary part-time job, and corresponding scams.
+
+## Round 6 — REVIEW recovery with strict HIGH retained
+
+Round 6 restores the received-message REVIEW route without loosening the
+automatic HIGH conjunction. A delivery, authority, family-number-change,
+task, or loan topic paired with a concrete action vector (an unofficial link,
+callback number, install request, or money request) is sent to REVIEW when it
+would otherwise be LOW. This is intentionally a review path, not an automatic
+finding. Existing HIGH conditions remain unchanged.
+
+Family money requests now recognize `send`, `transfer`, `pay`, `wire`, and
+`lend` with £, $, €, 원, or 만원 amounts, plus Korean 입금/송금/보내줘/이체
+forms. Delivery wording includes failed delivery and address-update pressure;
+the authority topic includes prosecution, financial-supervision, cyber-police,
+and court-registration variants. A simple-work/high-pay task pitch produces
+its supported sign even without a move-to-chat request; it does not bypass the
+HIGH gate.
+
+| Check | Before Round 6 | Round 6 |
+| --- | ---: | ---: |
+| Real examples (84), HIGH + REVIEW | 27 / 84 | **44 / 84** (7 HIGH, 37 REVIEW) |
+| DEV red-team benign HIGH | 0 | **0** |
+| Pinned corpus HIGH precision / recall | 1.000 / 0.849 | **1.000 / 0.849** |
+| On cases benign HIGH / lure HIGH | 0 / 8; 2 / 2 | **0 / 8; 2 / 2** |
