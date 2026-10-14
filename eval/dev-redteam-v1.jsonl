@@ -1,0 +1,60 @@
+{"id":"K-S01","text":"내일 시초가에 맞춰 볼 종목표를 준비했어요. 공개 댓글에는 남기기 어려워요. 프로필 첫 버튼에서 이어 받아 주세요.","label":"lure","note":"합성 유인: 비공개 방으로 이동시킨 뒤 유료 종목 제공"}
+{"id":"K-S02","text":"지난 손실을 되돌릴 수 있는 다음 움직임을 정리했습니다. 여기에는 전부 적지 못해요. 관심 있는 분은 상단 연결에서 따로 받아보세요.","label":"lure","note":"합성 유인: 손실 복구 미끼와 외부 이동"}
+{"id":"K-S03","text":"가상 한빛증권 리서치팀 출신입니다. 오늘 장의 진입 위치를 정리했지만 공개 글에는 못 씁니다. 프로필 안내를 따라오시면 자료를 드립니다.","label":"lure","note":"합성 유인: 허위 금융기관 경력과 외부 이동"}
+{"id":"K-S04","text":"숫자로 약속하지 않겠습니다. 다만 내일 오전에 움직일 종목은 이미 추렸어요. 이 글 아래가 아니라 계정 소개에 적힌 방에서 설명할게요.","label":"lure","note":"합성 유인: 완곡한 종목 선행 정보와 방 이동"}
+{"id":"K-S05","text":"종 목 정 보를 먼저 받으실 분은 ㅌ ㄹ ㄱ ㄹ @demo_room 에서 확인하세요. 공개 글엔 자료를 오래 두지 않습니다.","label":"lure","note":"합성 유인: 띄어쓰기와 초성 변형"}
+{"id":"K-S06","text":"원 금 보 장 자료는 카·카·오 오·픈·채·팅의 시험용 방에서 드립니다. 여기서 링크를 누르지 않아도 프로필에 있습니다.","label":"lure","note":"합성 유인: 단어 사이 공백·가운뎃점 변형"}
+{"id":"K-S07","text":"가상 증권사 재 직 중. 사 원 증 보여 드려요. 다 음 종 목은 ㅌ.ㅔ.ㄹ.ㅔ.그.램 @demo_note에서만 알려 드립니다.","label":"lure","note":"합성 유인: 신분 사칭·연락처 난독화"}
+{"id":"K-S08","text":"이번 주 수 익 인 증 자료와 다음 매 수 표를 받으려면 프 로 필 링 크를 보세요. 선 착 순으로 안내합니다.","label":"lure","note":"합성 유인: 띄어쓰기 변형과 프로필 이동"}
+{"id":"K-S09","text":"오늘 자료는 카드 한 장에 담았습니다.","label":"lure","note":"합성 유인: 핵심 문구가 이미지 안에만 있음; 이미지 본문은 엔진 입력에서 제외"}
+{"id":"K-S10","text":"","label":"lure","note":"합성 유인: 텍스트 없는 캡처"}
+{"id":"K-S11","text":"화면에 적힌 안내를 봐 주세요.","label":"lure","note":"합성 유인: 연락처가 캡처 안에만 있음"}
+{"id":"K-S12","text":"설명은 사진에만 적었습니다.","label":"lure","note":"합성 유인: 신분 증빙과 제안이 캡처 안에만 있음"}
+{"id":"K-B01","text":"[가상 한빛증권 안내] 투자에는 원금 손실 위험이 있습니다. 수익을 보장하지 않습니다. 계좌 관련 문의는 공식 앱 고객지원에서 확인하세요.","label":"benign","note":"합성 정상글: 가상 증권사의 위험 고지"}
+{"id":"K-B02","text":"[시험용 증권사 공지] 오늘 서비스 점검으로 주문 화면이 늦게 열릴 수 있습니다. 매수·매도 주문 전에 공식 앱 공지를 확인하세요. 종목 추천은 하지 않습니다.","label":"benign","note":"합성 정상글: 서비스 안내"}
+{"id":"K-B03","text":"텔레그램에서 '급등주 무료 제공, 원금 보장'이라며 입금을 요구했습니다. 저는 피해를 봤습니다. 같은 문구를 보면 돈을 보내지 말고 1332에 상담하세요.","label":"benign","note":"합성 정상글: 피해 경험과 경고"}
+{"id":"K-B04","text":"[가상 경제뉴스 인용] '무료 리딩방으로 오세요, 내일 급등주 알려드립니다'라는 사기 문구가 퍼지고 있습니다. 출처: 시험용 보도자료. 실제 투자 제안이 아닙니다.","label":"benign","note":"합성 정상글: 인용 보도"}
+{"id":"K-B05","text":"주식 데이터 알림 봇을 텔레그램으로 만들었습니다. 공개 데이터 API가 보내는 가격 변화를 시험하는 코드입니다. 매매 지시나 수익 약속은 없습니다.","label":"benign","note":"합성 정상글: 개발 기록"}
+{"id":"K-B06","text":"타로 리딩 무료 체험을 엽니다. 연애운·재회운 상담은 카카오채널 demo_tarot으로 문의해 주세요. 주식이나 코인 종목을 알려 주는 방은 아닙니다.","label":"benign","note":"합성 정상글: 점술의 리딩"}
+{"id":"K-B07","text":"가상 한빛증권에 재직 중입니다. 이번 달 급여명세서가 늦게 나왔네요. 직원 복지와 사내 식당 얘기만 하는 개인 계정입니다.","label":"benign","note":"합성 정상글: 직원 일상"}
+{"id":"K-B08","text":"[가상 소비자 캠페인] '수익 보장, 손실 보전'을 약속하며 오픈채팅으로 오라는 투자 광고를 조심하세요. 피해가 있으면 경찰 또는 1332에 문의하세요.","label":"benign","note":"합성 정상글: 피해 예방 캠페인"}
+{"id":"K-B09","text":"사기 광고 문구 데이터셋을 분석합니다. 예시: '무료 종목 추천, 텔레그램 입장, 원금 보장'. 이는 연구용 인용이며 투자자를 모집하지 않습니다.","label":"benign","note":"합성 정상글: 연구용 인용"}
+{"id":"K-B10","text":"주식 초보자 무료 스터디를 엽니다. 공개 강의에서 재무제표 읽는 법을 배우고, 종목 추천이나 매수·매도 지시는 하지 않습니다. 문의는 DM으로 주세요.","label":"benign","note":"합성 정상글: 투자 교육 모집"}
+{"id":"K-B11","text":"[가상 증권사 공지] 투자 원금 손실 가능. 공식 앱 점검 안내를 여러 직원 계정이 같은 문구로 공유합니다. 출처: 사내 공지.","label":"benign","note":"합성 정상글: 조직의 동일한 공지 대량 공유"}
+{"id":"K-B12","text":"리딩방이 '수익 인증 300%, 프로필 링크로 오세요'라고 유도하는 수법을 설명하는 영상입니다. 실제 종목 제안은 없습니다.","label":"benign","note":"합성 정상글: 대형 교육 계정의 사기 수법 해설"}
+{"id":"K-B13","text":"[가상 한빛증권 고객 세미나] 무료 종목분석 사례 발표를 듣고 싶은 고객은 공식 앱 안의 라이브 강의실로 입장하세요. 개별 종목 추천이나 수익 보장은 하지 않습니다.","label":"benign","note":"합성 정상글: 증권사의 고객 교육 세미나"}
+{"id":"K-B14","text":"[가상 한빛증권 채용 안내] 수익률 분석팀 직무 설명회에 참여하려면 채용 페이지 링크를 확인하세요. 지원 상담은 공식 채용 채널에서만 합니다.","label":"benign","note":"합성 정상글: 금융기관 채용 공지"}
+{"id":"K-B15","text":"오늘 무료 주식 스터디에서는 '급등주 무료방' 광고가 어떻게 사람을 끌어들이는지 분석합니다. 오픈채팅에 입장하면 사기 문구 데이터셋만 볼 수 있습니다. 매매 권유는 없습니다.","label":"benign","note":"합성 정상글: 투자 사기 교육 모임"}
+{"id":"K-B16","text":"텔레그램으로 종목 가격 알림을 받는 오픈소스 봇을 공개합니다. 프로필 링크에 코드와 사용법이 있고, 무료방은 개발자 질문용입니다. 매수 신호를 판매하지 않습니다.","label":"benign","note":"합성 정상글: 개발자 도구 공지"}
+{"id":"K-B17","text":"이 문장을 보셨나요: '내일 종목 드립니다, 수익 확정, 프로필 링크로 오세요'. 이런 유인에는 답하지 마세요. 가족에게 이 경고를 공유해 주세요.","label":"benign","note":"합성 정상글: 인용 형식이 약한 피해 예방 글"}
+{"id":"K-B18","text":"가상 증권사 공식 안내: 무료 투자정보 웨비나 링크는 프로필에 있습니다. 발표 자료는 과거 시장 사례만 다룹니다. 여러 직원이 같은 공지를 올렸습니다.","label":"benign","note":"합성 정상글: 정상 안내의 다계정 반복"}
+{"id":"E-S01","text":"I have a list of stocks to watch at tomorrow's open. I can't leave the entry notes in public comments. Pick them up through the first button on my profile.","label":"lure","note":"Synthetic lure: moves to a paid private stock room"}
+{"id":"E-S02","text":"There is a way to recover last week's trading losses. I cannot write the whole plan here. Ask for the private notes from the link at the top of my account.","label":"lure","note":"Synthetic lure: loss recovery pretext and off-platform move"}
+{"id":"E-S03","text":"I used to work on the research desk at Example Securities (fictional). I have tomorrow's entry levels, but cannot put them in a public post. Follow my profile instructions for the sheet.","label":"lure","note":"Synthetic lure: false professional background"}
+{"id":"E-S04","text":"No big promises here. The next movers are already on my desk. The details are in the private room mentioned in my bio, not under this post.","label":"lure","note":"Synthetic lure: implied advance picks and private room"}
+{"id":"E-S05","text":"Get the s t o c k p i c k s on T e l e g r a m @demo_room. The list won't stay on this public page.","label":"lure","note":"Synthetic lure: spacing obfuscation"}
+{"id":"E-S06","text":"G u a r a n t e e d returns are explained in the W h a t s A p p group linked on my profile. Join before the market opens.","label":"lure","note":"Synthetic lure: spaced profit claim and messenger"}
+{"id":"E-S07","text":"Fictional brokerage employee here. My I D badge proves it. The next s t o c k entry is only on t • me / demo_note.","label":"lure","note":"Synthetic lure: impersonation and obfuscated link"}
+{"id":"E-S08","text":"P r o f i t results and the next b u y list are at the l i n k in my b i o. Limited places in the private room.","label":"lure","note":"Synthetic lure: spaced words and indirect link"}
+{"id":"E-S09","text":"Today's details are on the card below.","label":"lure","note":"Synthetic lure: decisive terms only in image"}
+{"id":"E-S10","text":"","label":"lure","note":"Synthetic lure: image-only post"}
+{"id":"E-S11","text":"Please read the screenshot for the instructions.","label":"lure","note":"Synthetic lure: contact only in screenshot"}
+{"id":"E-S12","text":"The offer is on the image.","label":"lure","note":"Synthetic lure: forged credential and offer only in screenshot"}
+{"id":"E-B01","text":"[Fictional Example Securities notice] Investing involves the risk of loss. We do not guarantee returns. For account help, use customer support inside the official app.","label":"benign","note":"Synthetic benign: licensed-broker-style risk notice"}
+{"id":"E-B02","text":"[Fictional broker notice] Order screens may be slow during today's maintenance. Check the official app before placing a buy or sell order. This is not stock advice.","label":"benign","note":"Synthetic benign: service maintenance"}
+{"id":"E-B03","text":"Someone on Telegram promised free stock picks and guaranteed returns, then asked me to pay. I was harmed. Please do not send money to messages like that; report them to your bank.","label":"benign","note":"Synthetic benign: victim warning"}
+{"id":"E-B04","text":"[Fictional news excerpt] 'Join the free trading room for tomorrow's stock picks' is a common scam line. Source: test press release. This post is not an investment invitation.","label":"benign","note":"Synthetic benign: reporting a quote"}
+{"id":"E-B05","text":"I built an open-source Telegram bot that sends price alerts from public stock-market data. It does not give trading advice or promise returns.","label":"benign","note":"Synthetic benign: developer project"}
+{"id":"E-B06","text":"Free tarot reading this weekend. Ask about relationships in the demo chat room; this has nothing to do with stocks or crypto.","label":"benign","note":"Synthetic benign: non-investment meaning of reading"}
+{"id":"E-B07","text":"I work at fictional Example Securities. The payroll slip arrived late this month. This is my personal note about office lunch and employee benefits.","label":"benign","note":"Synthetic benign: employee diary"}
+{"id":"E-B08","text":"[Fictional consumer alert] Beware ads that promise guaranteed profits and send people to private chat rooms. If you have lost money, contact your bank and report it.","label":"benign","note":"Synthetic benign: consumer safety campaign"}
+{"id":"E-B09","text":"Our research dataset includes this quoted scam line: 'free stock picks, join Telegram, guaranteed returns'. We study the wording; we do not recruit investors.","label":"benign","note":"Synthetic benign: academic quotation"}
+{"id":"E-B10","text":"Join our free public workshop on reading financial statements. Questions by DM are welcome, but we do not recommend specific stocks or give buy signals.","label":"benign","note":"Synthetic benign: financial education"}
+{"id":"E-B11","text":"[Fictional brokerage notice] Investments can lose value. Our official app maintenance update is being shared by several staff accounts.","label":"benign","note":"Synthetic benign: repeated official maintenance notice"}
+{"id":"E-B12","text":"This video explains the scam tactic 'I made 300% profit, follow my profile link for picks'. It is a warning, not an offer.","label":"benign","note":"Synthetic benign: large educational account"}
+{"id":"E-B13","text":"[Fictional Example Securities webinar] Our free live session explains historic stock-analysis examples inside the official app. It is not personal advice and guarantees no return.","label":"benign","note":"Synthetic benign: broker education webinar"}
+{"id":"E-B14","text":"[Fictional Example Securities careers] The returns-analysis team is holding a recruiting session. See the careers page in our bio for job applications, not investment tips.","label":"benign","note":"Synthetic benign: financial-sector hiring notice"}
+{"id":"E-B15","text":"Our free stock-scam workshop studies how 'hot stock tips in a private chat' ads work. The open chat contains only research examples and no trading calls.","label":"benign","note":"Synthetic benign: scam education chat"}
+{"id":"E-B16","text":"An open-source Telegram stock price alert bot is in my profile link. The free room is for developer questions; we do not sell buy signals.","label":"benign","note":"Synthetic benign: tool announcement with negated trade signals"}
+{"id":"E-B17","text":"If you see 'Tomorrow's picks, guaranteed gains, join through my bio', do not reply or send money. Please share this warning with family.","label":"benign","note":"Synthetic benign: warning with weak quotation markers"}
+{"id":"E-B18","text":"Fictional brokerage official notice: our free investment-information webinar is linked from the profile. Several staff share the same notice; no stock pick is being offered.","label":"benign","note":"Synthetic benign: benign multi-account repetition"}
