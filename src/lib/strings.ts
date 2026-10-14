@@ -18,7 +18,8 @@ export function langFrom(cookie: string | undefined, acceptLanguage: string | nu
 
 const ko = {
   meta: { title: "Scam Radar — 돈 보내기 전에 확인", description: "받은 투자 권유 글·링크·계정을 넣으면 위험 신호가 있는지, 어떤 점이 이상한지, 지금 무엇을 하면 되는지 쉬운 말로 알려 드립니다. 자동 분석은 참고용이며 법적 판단이 아닙니다." },
-  learn: { title: "이렇게 속여요", example: "실제 사례", caseImage: "공식 경고 자료에 실린 사례",   // 율 1791962420 — 재구성 예시도 있어 '실제 화면'이 아님 todo: "이렇게 하세요", source: "출처", back: "← 받은 글 확인하러 가기" },
+  // caseImage = 율 1791962420 — 재구성 예시도 있어 '실제 화면'이 아님
+  learn: { title: "이렇게 속여요", example: "실제 사례", caseImage: "공식 경고 자료에 실린 사례", todo: "이렇게 하세요", source: "출처", back: "← 받은 글 확인하러 가기" },
   layout: { navCheck: "확인하기", navCriteria: "무엇을 보나", navCta: "지금 확인", footer: "자동 분석 결과는 참고용이며 법적 판단이 아닙니다. 특정 계정이나 사람을 사기로 단정하지 않습니다." },
   family: {
     lead: "누구나 이상한 투자 권유를 받을 수 있어요. 소중한 사람에게 이 페이지를 보내 주세요.",
