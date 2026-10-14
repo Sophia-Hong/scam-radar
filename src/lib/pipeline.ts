@@ -4,6 +4,7 @@ import { put } from "@vercel/blob";
 import { db, schema } from "@/db";
 import { normalize, exactKey, minhash, bandKeys, jaccard, scoreText, fnv1a64, JACCARD_THRESHOLD, extractEntities, entityId, entityLabel, STRONG_ENTITY_TYPES, type Label, type Reason, type Entity } from "@/engine";
 import { REVIEW_CHECK_LABEL, reviewEvidenceImage, reviewPost } from "./llm";
+import { isSyntheticAccountId } from "./visibility";
 import { accountIdOf } from "./ids";
 export { accountIdOf };
 
@@ -202,9 +203,15 @@ export async function recomputeSharedContact(d: Dbh, accountIds: string[]): Prom
   return out;
 }
 
-export async function ingest(payload: IngestPayload): Promise<IngestResult> {
+/** 예약된 합성 계정 ID 로는 시드(fixture) 경로만 쓸 수 있다 — 같은 핸들의 실계정이 수집돼 공개 목록에 섞이지 않게(카이 392ac60) */
+export function reservedIdRejected(accountId: string, opts: { fixture?: boolean } = {}): boolean {
+  return isSyntheticAccountId(accountId) && !opts.fixture;
+}
+
+export async function ingest(payload: IngestPayload, opts: { fixture?: boolean } = {}): Promise<IngestResult> {
   const d = db();
   const accountId = accountIdOf(payload.platform, payload.author.handle);
+  if (reservedIdRejected(accountId, opts)) throw new Error(`reserved synthetic account id: ${accountId} (fixture seed only)`);
   const postId = fnv1a64(`${payload.platform}|${payload.postUrl}`);
 
   // 0) URL 기준 정확 중복 → 즉시 반환 (재수집 비용 0)

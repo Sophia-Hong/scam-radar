@@ -8,6 +8,7 @@ export const maxDuration = 30;
 /**
  * POST /api/ingest — 수집기가 게시물 1건 또는 배열을 보냄
  * Authorization: Bearer <INGEST_TOKEN>
+ * x-ingest-source: fixture — 시드(collector/fixtures)만. 예약된 합성 계정 ID 는 이 표식이 있을 때만 받는다(공개 목록 오염 방지)
  */
 export async function POST(req: Request) {
   if (!checkIngestToken(req)) return json({ error: "unauthorized" }, 401);
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   for (const it of items) {
     const parsed = IngestSchema.safeParse(it);
     if (!parsed.success) { results.push({ error: parsed.error.flatten() }); continue; }
-    try { results.push(await ingest(parsed.data)); }
+    try { results.push(await ingest(parsed.data, { fixture: req.headers.get("x-ingest-source") === "fixture" })); }
     catch (e) { results.push({ error: (e as Error).message }); }
   }
   return json(Array.isArray(body) ? results : results[0]);

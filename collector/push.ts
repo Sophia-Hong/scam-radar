@@ -16,6 +16,8 @@ const MAX_SHOT_BYTES = 3.5 * 1024 * 1024; // Vercel 요청 본문 4.5MB 제한 �
 
 const root = process.argv[2] ?? path.join("collector", "inbox");
 const move = !process.argv[2];
+/** 시드 폴더(collector/fixtures)를 올릴 때만 fixture 표식 — 예약된 합성 계정 ID 는 이 경로로만 들어간다(카이 392ac60) */
+const FIXTURE = path.resolve(root).startsWith(path.resolve("collector", "fixtures"));
 
 function walk(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -58,7 +60,7 @@ function load(file: string): CollectedItem | CollectedItem[] {
 async function send(batch: CollectedItem[]) {
   const res = await fetch(`${API_BASE}/api/ingest`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}) },
+    headers: { "content-type": "application/json", ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}), ...(FIXTURE ? { "x-ingest-source": "fixture" } : {}) },
     body: JSON.stringify(batch),
   });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);

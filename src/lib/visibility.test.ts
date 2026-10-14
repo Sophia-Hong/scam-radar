@@ -127,3 +127,13 @@ describe("publicReasons", () => {
     expect(groups.every((g) => g.evidence.length === 0)).toBe(true);
   });
 });
+
+describe("수집 입구 — 예약된 합성 ID 는 시드만 (카이 392ac60)", () => {
+  it("예약 ID + 일반 수집 = 거부, 시드 = 허용, 일반 ID = 허용", async () => {
+    const { reservedIdRejected } = await import("./pipeline");
+    expect(reservedIdRejected("threads:sample_vipstock77")).toBe(true);
+    expect(reservedIdRejected("threads:sample_vipstock77", { fixture: true })).toBe(false);
+    expect(reservedIdRejected("threads:real_user")).toBe(false);
+    expect(reservedIdRejected("threads:sample_new_real")).toBe(false);   // 목록 밖 같은 접두어는 받되 공개는 안 됨
+  });
+});
