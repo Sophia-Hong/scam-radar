@@ -40,21 +40,21 @@ const ko = {
   },
   // 국외 이전 고지(개인정보 보호법 §28-8, 율 #compliance 1791950335·1791951502 최종 · 테오 1791950346). 보관·나라는 두 회사 현재 문서 원문에서(율 대조)
   notice: {
-    lead: "넣은 글은 저장하지 않아요. 애매한 글만 미국 AI 회사(Anthropic)에 보내 한 번 더 확인해요. 보내기 싫으면",
+    lead: "넣은 글은 저장하지 않아요. 넣은 글은 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 보내기 전에 전화번호·계좌번호·이메일은 가려요. 보내기 싫으면",   // 율 1791957681
     aiOffButton: "AI 없이 확인",
     leadTail: "을 쓰세요.",
     more: "자세히",
-    aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요(AI 재검·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
-    aiOffUndo: "AI 재검 다시 켜기",
+    aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요(AI 확인·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
+    aiOffUndo: "AI 확인 다시 켜기",
     details: [
       ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
       ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com)"],
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사, AI Gateway · privacy@vercel.com)"],
-      ["언제·어떻게", "다시 확인할 때 바로, 암호화 통신(HTTPS)으로"],
-      ["목적", "사기 신호를 한 번 더 확인"],
+      ["언제·어떻게", "글을 넣을 때마다 바로, 암호화 통신(HTTPS)으로"],
+      ["목적", "사기 신호 확인"],
       ["보관", "저희 서버에는 원문이 남지 않아요(판정 결과와 체크 항목만 저장). Anthropic은 받은 지 30일 안에 자동으로 지워요. 이용 정책 위반으로 걸린 글은 최대 2년, 법이 정하면 더 길게 보관할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996866). Vercel AI Gateway는 요청이 끝나면 바로 영구 삭제하고 프롬프트·출력을 보관하지 않아요 (Vercel 문서 vercel.com/docs/ai-gateway/security-and-compliance/zdr)"],
-      ["거부", "‘AI 없이 확인’을 쓰면 글이 브라우저 밖으로 나가지 않아요. 대신 AI 재검은 없어요."],
+      ["거부", "‘AI 없이 확인’을 쓰면 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요."],
     ] as [string, string][],
   },
   status: {
@@ -71,7 +71,8 @@ const ko = {
       REVIEW: { title: "조심하세요.", sub: "돈을 보내기 전에 가족이나 은행에 먼저 물어보세요." },
       LOW: { title: "뚜렷한 위험 신호는 못 찾았어요.", sub: "그래도 돈 이야기가 나오면 가족이나 은행에 먼저 물어보세요." },
     } as Record<Level, { title: string; sub: string }>,
-    engine: { checking: "AI가 한 번 더 보는 중…", applied: "AI 재검토 반영", error: "AI 재검토 못 함 · 규칙 결과", rule: "자동 분석", limited: "오늘 검사 횟수를 다 썼어요. 내일 다시 해 주세요" },
+    aiUnavailable: "지금은 AI 확인을 못 해서 AI 없이 확인한 결과예요. 놓치는 사기가 많을 수 있어요.",   // 율 1791957681
+    engine: { checking: "AI가 확인 중…", applied: "AI 확인 반영", error: "AI 확인 못 함", rule: "자동 분석", limited: "오늘 검사 횟수를 다 썼어요. 내일 다시 해 주세요" },
     limited: "오늘 검사 횟수를 다 썼어요. 내일 다시 해 주세요.",
     signsTitle: "이런 점이 이상해요",
     noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
@@ -182,11 +183,11 @@ const ko = {
   analyze: {
     title: "텍스트 분석",
     lead: "게시물·댓글을 붙여 넣으면 어떤 신호가 있는지 바로 계산합니다.",
-    notice: "이 페이지는 AI를 쓰지 않아요. 입력한 글은 브라우저 밖으로 나가지 않아요. (홈 화면에서는 애매한 글만 미국 AI 회사(Anthropic)에 보내 한 번 더 확인해요.)",
+    notice: "이 페이지는 AI를 쓰지 않아요. 입력한 글은 브라우저 밖으로 나가지 않아요. (홈 화면에서는 넣은 글을 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 보내기 전에 전화번호·계좌번호·이메일은 가려요.)",
     followers: "팔로워 수(선택)", cluster: "동일 문구 반복 수(선택)", spread: "같은 문구 쓴 계정 수(선택)",
     sample: (i: number) => `샘플 ${i}`,
     normalized: "정규화 결과", noObf: "난독화 없음", ratio: (n: number) => `변형률 ${n}%`,
-    ai: "홈 화면의 판독과 서버 수집 파이프라인에서는 일부 글을 보조 AI가 다시 볼 수 있습니다. 이 페이지는 AI를 쓰지 않습니다.",
+    ai: "홈 화면에서는 넣은 글을 모두 AI가 확인합니다. 서버 수집 파이프라인에서는 일부 글을 AI가 다시 볼 수 있습니다. 이 페이지는 AI를 쓰지 않습니다.",
     samples: [
       "급등주 종목 무료로 공개합니다 🚀🚀 수익인증 300% 선착순 20명 ㅌㄹㄱㄹ @stock_king77",
       "요즘 물린 분들 많죠? 복구 도와드려요. 프로필 링크 참고하세요 Ｔеlеgrаm 문의",
@@ -243,21 +244,21 @@ const en: Strings = {
     scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
   },
   notice: {
-    lead: "We don't store what you paste. Only unclear messages are sent to a US AI company (Anthropic) for a second look. Don't want that? Use",
+    lead: "We don't store what you paste. Everything you paste is sent to a US AI company (Anthropic) to be checked, with phone numbers, account numbers and emails masked first. If you don't want that, use",
     aiOffButton: "Check without AI",
     leadTail: ".",
     more: "Details",
-    aiOffOn: "Checking without AI — what you paste stays in your browser (no AI second look, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
-    aiOffUndo: "Turn the AI second look back on",
+    aiOffOn: "Checking without AI — your text never leaves your browser, but more scams may be missed (no AI check, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
+    aiOffUndo: "Turn the AI check back on",
     details: [
       ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught."],
       ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com)"],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company, AI Gateway · privacy@vercel.com)"],
-      ["When and how", "At the moment of the re-check, over an encrypted connection (HTTPS)"],
-      ["Purpose", "A second look for scam signs"],
+      ["When and how", "Each time you paste, right away, over an encrypted connection (HTTPS)"],
+      ["Purpose", "Checking for scam signs"],
       ["Retention", "Our servers keep no original text (only the verdict and checklist items). Anthropic: deleted within 30 days of receipt; up to 2 years if flagged for a usage-policy violation, or longer if the law requires (privacy.claude.com/en/articles/7996866). Vercel AI Gateway: user data is immediately and permanently deleted after requests are completed; prompts and outputs are not retained (vercel.com/docs/ai-gateway/security-and-compliance/zdr)"],
-      ["Opt out", "Use “Check without AI” and your text never leaves your browser. There is no AI second look in that mode."],
+      ["Opt out", "Use “Check without AI”: your text never leaves your browser, but more scams may be missed."],
     ],
   },
   status: {
@@ -274,7 +275,8 @@ const en: Strings = {
       REVIEW: { title: "Be careful.", sub: "Before you send money, ask your family or your bank first." },
       LOW: { title: "No clear warning signs found.", sub: "If money comes up, still ask your family or your bank first." },
     },
-    engine: { checking: "AI taking a second look…", applied: "AI second look applied", error: "AI unavailable · rule result", rule: "Automated check", limited: "You've used today's checks. Please try again tomorrow" },
+    aiUnavailable: "AI checking is unavailable right now, so this result is without AI. More scams may be missed.",
+    engine: { checking: "AI is checking…", applied: "AI check applied", error: "AI check unavailable", rule: "Automated check", limited: "You've used today's checks. Please try again tomorrow" },
     limited: "You've used today's checks. Please try again tomorrow.",
     signsTitle: "What looks wrong",
     noSigns: "No clear warning signs found.",
@@ -387,11 +389,11 @@ const en: Strings = {
   analyze: {
     title: "Text analysis",
     lead: "Paste a post or comment and see which signals it has, instantly.",
-    notice: "This page uses no AI. What you type never leaves your browser. (On the home page, only unclear messages are sent to a US AI company (Anthropic) for a second look.)",
+    notice: "This page uses no AI. What you type never leaves your browser. (On the home page, everything you paste is sent to a US AI company (Anthropic) to be checked, with phone numbers, account numbers and emails masked first.)",
     followers: "Followers (optional)", cluster: "Times the same text repeats (optional)", spread: "Accounts using the same text (optional)",
     sample: (i: number) => `Sample ${i}`,
     normalized: "Normalized text", noObf: "No disguised text", ratio: (n: number) => `${n}% altered`,
-    ai: "On the home page and in the server collection pipeline, some messages may get a second look from an AI assistant. This page does not use AI.",
+    ai: "On the home page, everything you paste is checked by AI. In the server collection pipeline, some messages may get a second look from AI. This page does not use AI.",
     samples: [
       "I'm a senior analyst at a big brokerage. Guaranteed returns, no risk. Limited spots — join our free Telegram group t.me/alpha_signals77 now",
       "Lost money on stocks lately? I can help you recover it. DM me on T e l e g r a m, link in bio",

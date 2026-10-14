@@ -43,7 +43,7 @@ async function shareOrCopy(title: string, text: string, url: string): Promise<"s
 }
 
 /** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
-/** 서버 응답 → 화면 상태. "AI 재검토 반영"은 서버가 실제 모델 판정을 받았다고 답했을 때만, 키 없음·상한·실패는 "못 함 · 규칙 결과"(카이 1fe5e41) */
+/** 서버 응답 → 화면 상태. "AI 확인 반영"은 서버가 실제 모델 판정을 받았다고 답했을 때만, 키 없음·상한·실패는 "못 함 · 규칙 결과"(카이 1fe5e41) */
 export function aiStatusOf(data: unknown): "applied" | "error" {
   return (data as { ai?: string } | null)?.ai === "applied" ? "applied" : "error";
 }
@@ -103,7 +103,7 @@ export function LiveAnalyzer() {
   const gen = useRef(0);
 
   useEffect(() => {
-    if (aiOff || !textResult || !textResult.needsLlmReview || known) return;
+    if (aiOff || !textResult || known) return;   // AI 우선(소현 O 1791958205): 붙여넣은 글은 모두 AI 확인 — 규칙 결과를 먼저 띄우고 AI 결과로 갱신
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setAiStatus("checking");
@@ -134,8 +134,9 @@ export function LiveAnalyzer() {
   }, [handle, text, known]);
   // 비슷한 신고 글 대조용 서명 — 브라우저에서 계산하고 원문은 보내지 않는다. 계정 조회(여러 글을 이은 것)는 대조하지 않는다
   const sig = useMemo(() => (text.trim() && !known ? minhash(text) : null), [text, known]);
-  // 신고 수는 지금 화면의 엔진 판정이 중간 이상일 때만 보인다(서버가 강제, 테오 1791948637·율 1791948645) — 판정이 바뀌면 다시 묻는다
-  const engineLevel = (account.status === "known" ? account.label : (serverResult?.input === text ? serverResult.result.label : textResult?.label)) ?? undefined;
+  // 신고 수는 *규칙(엔진) 판정*이 중간 이상일 때만 보인다(서버가 강제, 테오 1791948637·율 1791948645).
+  // AI 우선 뒤에도 카이 주입 시험 결과가 나올 때까지는 AI 를 섞지 않은 규칙 단계로 묻는다(테오 1791958217, 율 ②-3) — 서버 결과(AI 결합)가 아니라 브라우저 엔진 결과
+  const engineLevel = (account.status === "known" ? account.label : textResult?.label) ?? undefined;
   const checkBody = useMemo(() => (keys.length || sig ? JSON.stringify({ keys, sig: sig ?? undefined, level: engineLevel }) : ""), [keys, sig, engineLevel]);
 
   // 이용자 신고 수·비슷한 신고 글·검토 중 여부 — 입력이 정해질 때마다 한 번
@@ -317,6 +318,8 @@ export function LiveAnalyzer() {
             )}
             {account.status === "demoFail" && <p className="result-account">{t.status.demoFail}</p>}
 
+            {/* AI 확인 못 함(하루 상한·장애·IP 상한) — 결과 위에 율 문구. 규칙만으로는 놓치는 사기가 많아 '깨끗'으로 읽히지 않게(율 1791957681) */}
+            {level && !known && !aiOff && (aiStatus === "error" || aiStatus === "limited") && <p className="ai-unavailable" role="status">{t.result.aiUnavailable}</p>}
             {level && (
               <>
                 <div className="verdict-top">

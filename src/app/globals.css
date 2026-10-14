@@ -407,3 +407,6 @@ main { overflow:hidden; }
 .criteria-fold[open] .criteria-fold-summary span { display:inline-block; transform:rotate(90deg); }
 .criteria-fold > section { margin-top:24px; }
 @media (max-width:900px) { .criteria-fold-summary { margin-inline:16px; } }
+
+/* AI 확인 못 함 경고 — 결과 위(율 1791957681) */
+.ai-unavailable { margin:0 0 12px; padding:12px 14px; background:#fff3cd; color:#5c4200; border:2px solid #b07d00; font-size:17px; font-weight:800; line-height:1.5; word-break:keep-all; }
