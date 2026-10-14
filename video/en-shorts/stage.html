@@ -64,9 +64,10 @@ const COPY = {
     msg: "I'm a senior analyst at a big brokerage. Guaranteed returns, no risk. Limited spots — join our free Telegram group t.me/alpha_signals77 now",
     badge: "staff ID photo",
     c1: `He says he works at<br>a <em>big brokerage</em>.`, c2: `Then posts it from<br><em>dozens of accounts</em>.`,
-    c3: `Before you send money,<br><em>paste it here</em>.`, c4: `A plain answer.<br>No jargon.`, c5: `Signs anyone<br><em>can understand</em>.`,
+    c3: `Before you send money,<br><em>upload a screenshot</em>.`, c4: `A plain answer.<br>No jargon.`, c5: `Signs anyone<br><em>can understand</em>.`,
     c6: `If you were scammed,<br><em>warn the next person</em>.`, c7: `Share it with someone<br>you <em>care about</em>.`,
-    inputTitle: "Before you send money, paste what you received here", go: "Check",
+    inputTitle: "Before you send money, put the message you received here", go: "Check",
+    upload: "📷 Upload screenshots", uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.", noticeShort: "We don't store what you paste or upload.",
     level: "Warning signs: high", bannerT: "This could be a scam.", bannerS: "Do not send money. Ask your family or your bank first.",
     disclaimer: "A computer checked these posts automatically. This does not mean this person committed fraud.",
     signsTitle: "What looks wrong",
@@ -91,9 +92,10 @@ const COPY = {
     msg: "대형 증권사 애널리스트입니다. 원금보장 확정수익, 손실 없습니다. 선착순 마감 — 무료 텔레그램방 t.me/alpha_signals77 지금 입장하세요",
     badge: "사원증 사진",
     c1: `대형 증권사<br><em>직원이라고</em> 합니다.`, c2: `같은 글을<br><em>여러 계정</em>에 올립니다.`,
-    c3: `돈 보내기 전에,<br><em>여기 넣어 보세요</em>.`, c4: `쉬운 말로<br>바로 답합니다.`, c5: `누구나 <em>알아듣는</em><br>징후.`,
+    c3: `돈 보내기 전에,<br><em>캡처를 올려 보세요</em>.`, c4: `쉬운 말로<br>바로 답합니다.`, c5: `누구나 <em>알아듣는</em><br>징후.`,
     c6: `피해를 당했다면,<br><em>다음 사람에게 경고</em>.`, c7: `<em>소중한 사람</em>에게<br>보내 주세요.`,
-    inputTitle: "돈 보내기 전에, 받은 글을 여기 넣어 보세요", go: "확인하기",
+    inputTitle: "돈 보내기 전에, 받은 메시지를 여기 넣어 보세요", go: "확인하기",
+    upload: "📷 캡처 올리기", uploadNote: "다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.", noticeShort: "넣은 글과 캡처는 저장하지 않아요.",
     level: "위험 신호 높음", bannerT: "사기일 수 있어요.", bannerS: "돈을 보내지 마세요. 먼저 가족이나 은행에 물어보세요.",
     disclaimer: "이 화면은 컴퓨터가 글을 자동으로 살펴본 결과예요. 이 사람이 사기를 쳤다고 정한 것은 아니에요.",
     signsTitle: "이런 점이 이상해요",
@@ -127,9 +129,8 @@ if (CASE_ID) {
 if (CASE) for (const [k, f] of [["c1", "caption1"], ["c2", "caption2"]]) if (CASE[`${f}_${LANG}`]) COPY[k] = CASE[`${f}_${LANG}`];
 const TYPE_A = 10.0, TYPE_B = 14.0;
 const SIGNS = COPY.signs;
-window.KEYS = [];
-for (let i = 0; i < MSG.length; i += 2) if (MSG[i] !== " ") window.KEYS.push(+(TYPE_A + (TYPE_B - TYPE_A) * i / MSG.length).toFixed(3));
-window.POPS = [5.6, 9.2, 14.6, 15.4, 17.6, 18.3, 19.0, 25.6, 26.4, 30.6, 34.4];
+window.KEYS = [];   // 캡처 먼저(공개판 08e4b56) — 타이핑 없음
+window.POPS = [5.6, 9.2, 10.95, 14.6, 15.4, 17.6, 18.3, 19.0, 25.6, 26.4, 30.6, 34.4];
 window.T = T;
 
 const cursorSVG = `<svg viewBox="0 0 34 44"><path d="M2,2 L2,36 L11,28 L17,42 L23,39 L17,26 L30,26 Z" fill="#11110f" stroke="#fff" stroke-width="2.5"/></svg>`;
@@ -176,24 +177,21 @@ function render(t) {
     }
     h += post(ox, cy + (1 - k) * 60, cw, `opacity:${k * (1 - out)}`);
   }
-  // ② 붙여넣기 — 타이핑 → 확인하기
+  // ② 캡처 먼저(소현 1791972094, 공개판 08e4b56): [캡처 올리기] 누름 → 사진 칩 → 신분증 안내·저장 안 함 고지 → [확인하기] 누름. 커서 위치는 렌더 뒤 실제 버튼 위치로(아래 render 끝)
   if (t >= 9.0 && t < 15.6) {
     h += caption(t, 9.2, 15.4, COPY.c3, top);
     const k = ease(p(t, 9.0, 9.6)), out = ease(p(t, 15.0, 15.6));
-    const n = Math.floor(MSG.length * p(t, TYPE_A, TYPE_B));
-    const blink = (Math.floor(t * 2) % 2 === 0) || (t > TYPE_A && t < TYPE_B);
-    const by = cy + (V ? 560 : 470);
+    const chipK = ease(p(t, 11.3, 11.8)), noteK = ease(p(t, 11.6, 12.1)), goK = ease(p(t, 12.4, 12.9));
+    const upPress = 1 - .05 * Math.sin(Math.PI * p(t, 10.95, 11.25)), goPress = 1 - .05 * Math.sin(Math.PI * p(t, 14.55, 14.85));
     h += `<div class="abs" style="left:${ox}px;top:${cy + (1 - k) * 60}px;width:${cw}px;opacity:${k * (1 - out)}">
       <div class="card" style="padding:${px(28)}">
         <div style="font-weight:800;font-size:${px(V ? 40 : 34)};line-height:1.2;margin-bottom:${px(18)}">${COPY.inputTitle}</div>
-        <div class="input" style="border:3px solid var(--ink);font-size:${px(V ? 36 : 30)};min-height:${px(V ? 300 : 250)}">${MSG.slice(0, n)}<span class="caret" style="height:${px(V ? 40 : 34)};opacity:${blink ? 1 : 0}"></span></div>
-        <div class="go" style="margin-top:${px(16)};height:${px(V ? 96 : 80)};font-size:${px(V ? 40 : 34)};transform:scale(${1 - .05 * Math.sin(Math.PI * p(t, 14.55, 14.85))})">${COPY.go}</div>
+        <div id="v-up" class="go" style="background:var(--ink);height:${px(V ? 104 : 86)};font-size:${px(V ? 40 : 34)};transform:scale(${upPress})">${COPY.upload}</div>
+        <div style="margin-top:${px(14)};opacity:${chipK};display:flex;gap:${px(10)}"><div style="width:${px(V ? 200 : 170)};height:${px(V ? 140 : 118)};background:#fff;border:2px solid #bdbab2;padding:${px(8)};font-size:${px(V ? 15 : 13)};line-height:1.3;overflow:hidden;color:#45433d">${MSG.slice(0, 70)}…</div></div>
+        <div style="margin-top:${px(12)};opacity:${noteK};font-size:${px(V ? 25 : 21)};font-weight:700;color:var(--sub);line-height:1.4">${COPY.uploadNote}</div>
+        <div style="margin-top:${px(8)};opacity:${noteK};font-size:${px(V ? 23 : 19)};font-weight:700;color:#247651">✓ ${COPY.noticeShort}</div>
+        <div id="v-go" class="go" style="margin-top:${px(16)};height:${px(V ? 96 : 80)};font-size:${px(V ? 40 : 34)};opacity:${goK};transform:scale(${goPress})">${COPY.go}</div>
       </div></div>`;
-    if (t > 13.6) {
-      const m = inout(p(t, 13.6, 14.5)), cx0 = ox + cw * .85, cy0 = by + 300, cx1 = ox + cw * .55, cy1 = by + (V ? 30 : 20);
-      h += `<div class="cursor" style="left:${cx0 + (cx1 - cx0) * m}px;top:${cy0 + (cy1 - cy0) * m}px;opacity:${1 - out}">${cursorSVG}</div>`;
-      h += tapAt(t, 14.55, cx1 + 6, cy1 + 6);
-    }
   }
   // ③ 결과 — 제품과 같은 순서(테오 1791970744: AI 우선판 공개 화면): 단계·"AI 확인 반영" → 배너 → 안내 → 이렇게 하세요·보내기·신고 → 징후
   if (t >= 15.2 && t < 25.0) {
@@ -261,6 +259,19 @@ function render(t) {
       <div class="abs" style="left:${px(V ? 70 : 110)};right:${px(V ? 70 : 110)};bottom:${px(V ? 110 : 60)};font-size:${px(20)};color:#8e8b83;line-height:1.45;opacity:${k}">${COPY.endNote}</div>`;
   }
   v.innerHTML = h;
+  // ② 커서: 실제 버튼 위치를 재서 [캡처 올리기] → [확인하기]
+  if (t >= 9.9 && t < 15.6) {
+    const up = document.getElementById("v-up")?.getBoundingClientRect(), go = document.getElementById("v-go")?.getBoundingClientRect();
+    if (up && go) {
+      const out = ease(p(t, 15.0, 15.6));
+      const ux = up.left + up.width * .6, uy = up.top + up.height * .5, gx = go.left + go.width * .6, gy = go.top + go.height * .5;
+      const sx = ux + up.width * .25, sy = uy + (V ? 520 : 360);
+      let x, y;
+      if (t < 13.4) { const m = inout(p(t, 9.9, 10.9)); x = sx + (ux - sx) * m; y = sy + (uy - sy) * m; }
+      else { const m = inout(p(t, 13.4, 14.5)); x = ux + (gx - ux) * m; y = uy + (gy - uy) * m; }
+      v.insertAdjacentHTML("beforeend", `<div class="cursor" style="left:${x}px;top:${y}px;opacity:${1 - out}">${cursorSVG}</div>` + tapAt(t, 10.95, ux + 6, uy + 6) + tapAt(t, 14.55, gx + 6, gy + 6));
+    }
+  }
 }
 window.render = render;
 render(+(new URLSearchParams(location.search).get("t") || 0));
