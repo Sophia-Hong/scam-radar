@@ -26,6 +26,7 @@ type LiveResult = {
   label: Label;
   reasons: ShownReason[];
   signalGroups: SignalGroup[];
+  signs?: SignId[];
 };
 
 type Check = { counts: Record<string, number>; similar: number; unavailable?: boolean };
@@ -75,7 +76,6 @@ export function LiveAnalyzer() {
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
   const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle");
-  const [sharedKeys, setSharedKeys] = useState<string[]>([]);
   const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0 });
   const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
   const [familyMsg, setFamilyMsg] = useState<"" | "copied" | "failed">("");
@@ -112,8 +112,8 @@ export function LiveAnalyzer() {
   const keys = useMemo(() => {
     // 계정 조회의 글은 공개 응답에서 연락처가 가려져 있다 — 신고·조회 키는 확인한 계정만(가린 값을 키로 쓰지 않게)
     const own = communityKeys(handle, known ? "" : text);
-    return [...own, ...sharedKeys.filter((k) => !own.includes(k))].slice(0, 6);
-  }, [handle, text, sharedKeys, known]);
+    return own.slice(0, 6);
+  }, [handle, text, known]);
   // 비슷한 신고 글 대조용 서명 — 브라우저에서 계산하고 원문은 보내지 않는다. 계정 조회(여러 글을 이은 것)는 대조하지 않는다
   const sig = useMemo(() => (text.trim() && !known ? minhash(text) : null), [text, known]);
   // 신고 수는 지금 화면의 엔진 판정이 중간 이상일 때만 보인다(서버가 강제, 테오 1791948637·율 1791948645) — 판정이 바뀌면 다시 묻는다
@@ -145,8 +145,9 @@ export function LiveAnalyzer() {
   const positive = result?.reasons.filter((reason) => reason.points > 0) ?? [];
   const reported = keys.filter((k) => (community.counts[k] ?? 0) > 0).sort((a, b) => (community.counts[b] ?? 0) - (community.counts[a] ?? 0));
   // 계정 조회는 서버가 고른 문장 id(내부 코드 없이), 붙여넣은 글은 브라우저가 같은 함수로 고른다
-  const signs = !level ? [] : signTexts(account.status === "known" ? account.signs : signIds(level, positive, extractEntities(text).map((e) => e.type)), t.result);
-  const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0 || sharedKeys.length > 0;
+  // 문장 id: 계정 조회·AI 재검토는 서버가 고른 것, 브라우저 판독만 같은 함수로 직접(공개 응답엔 code 가 없으므로)
+  const signs = !level ? [] : signTexts(account.status === "known" ? account.signs : currentServerResult?.signs ?? signIds(level, positive, extractEntities(text).map((e) => e.type)), t.result);
+  const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0;
 
   function reset() {
     gen.current += 1;
@@ -159,7 +160,6 @@ export function LiveAnalyzer() {
     const value = input.trim();
     if (!value) return;
     reset();
-    setSharedKeys([]);
     const h = accountFromInput(value);
     if (h) { setText(""); await lookup(h); }
     else { setAccount({ status: "idle" }); setText(value); }
@@ -177,7 +177,7 @@ export function LiveAnalyzer() {
   async function lookup(h: string): Promise<boolean> {
     // 새 대상 — 이전 글·서버 결과·공유 키를 먼저 비운다(새 핸들과 이전 글의 연락처가 한 신고로 섞이지 않게, 카이 ④ 검수 1)
     gen.current += 1;
-    setText(""); setServerResult(null); setAiStatus("idle"); setSharedKeys([]); setRegistry(NO_REGISTRY);
+    setText(""); setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY);
     setAccount({ status: "loading", handle: h });
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(h)}`, { cache: "no-store" });
@@ -203,27 +203,26 @@ export function LiveAnalyzer() {
     return false;
   }
 
-  // 가족이 보낸 링크(?a=계정 · ?k=연락처)로 들어오면 그 조회를 바로 연다
+  // 가족이 보낸 링크(?a=계정)로 들어오면 그 조회를 바로 연다. 연락처 키(?k=)는 링크에 싣지 않는다(카이 948d5a7)
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const q = new URLSearchParams(window.location.search);
       const a = q.get("a");
-      const ks = q.getAll("k").slice(0, 3);
       if (a) {
         const c = classifyInput(a);
         if (c.kind === "handle") { setInput(`@${c.handle}`); void lookup(c.handle); }
-      } else if (ks.length) setSharedKeys(ks);
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   async function sendToParents() {
-    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, null, []));
+    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, null));
     if (r !== "shared") { setFamilyMsg(r); window.setTimeout(() => setFamilyMsg(""), 4000); }
   }
 
   async function shareResult() {
-    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, handle, keys));
+    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, handle));
     if (r !== "shared") { setShareMsg(r); window.setTimeout(() => setShareMsg(""), 4000); }
   }
 

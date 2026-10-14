@@ -2,7 +2,7 @@ import { desc, eq, or, ilike } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { checkAdmin, json } from "@/lib/auth";
 import { isCurrentSummary } from "@/lib/llm";
-import { contactPairs, maskContact, maskDeep } from "@/lib/mask";
+import { contactPairs, maskContact, maskDeep, type MaskPair } from "@/lib/mask";
 import { signIds } from "@/lib/result-view";
 import { decodeParam, onlyVisible, publicReasons, redactSharedContact, signalGroupsFromReasons } from "@/lib/visibility";
 import { resolveAccountId } from "@/lib/resolve";
@@ -40,7 +40,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   // 공개: 근거는 방향·설명만(내부 코드 없음), 신호군은 서버에서 계산한 결과만. 요약문은 현재 판만(옛 판은 연락처 강도 구분이 남을 수 있음)
   // 관리자: 원본 근거 + 같은 신호군 계산값(화면 칩이 비지 않게, 카이 05213d0 HOLD 2)
   // 쉬운 말 징후 — 서버가 내부 코드·뽑은 연락처 종류로 문장 id 만 골라 내보낸다(브라우저와 같은 함수)
-  const signs = signIds((["HIGH", "REVIEW", "LOW"].includes(acc.label) ? acc.label : "LOW") as "HIGH" | "REVIEW" | "LOW", accReasons, entities.map((e) => e.type));
+  // 채팅방 문장은 *글 본문*에서 뽑은 연락처만 — 프로필 소개·링크뿐이면 문장 없음(카이 948d5a7)
+  const signs = signIds((["HIGH", "REVIEW", "LOW"].includes(acc.label) ? acc.label : "LOW") as "HIGH" | "REVIEW" | "LOW", accReasons, entities.filter((e) => e.source.split(",").includes("text")).map((e) => e.type));
   const shownAccount = admin ? { ...acc, signalGroups: signalGroupsFromReasons(accReasons), signs } : {
     ...acc,
     signs,
@@ -52,19 +53,20 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   };
   if (!admin) {
     // 공개: 연락처는 가리고, 다른 계정의 이름·핸들·링크는 수만 (율 #compliance 1791947465 조건 1·2)
-    const pairs: [string, string][] = [
+    const pairs: MaskPair[] = [
       ...contactPairs(entities),
       ...shared.sharedWith.flatMap((s) => [[s.accountId, "(다른 계정)"], [`@${s.handle}`, "(다른 계정)"], [s.handle, "(다른 계정)"]] as [string, string][]),
     ];
     return json(maskDeep({
       found: true, account: shownAccount,
-      posts: posts.map((p) => ({ ...p, reasons: publicReasons(((p.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[])) })),   // 신호 방향·설명만
+      // 원글 주소는 다른 계정의 핸들을 담으므로 공개하지 않는다(카이 948d5a7). 자기 글 주소도 가림 대상에서 빼지 않는다
+      posts: posts.map((p) => ({ ...p, parentUrl: null, reasons: publicReasons(((p.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[])) })),   // 신호 방향·설명만
       entities: entities.map((e) => ({ type: e.type, value: maskContact(e.type, e.value), source: e.source })),
       sharedWith: [], sharedCount: sharedWith.length,
       humanLabel: null, humanNote: null, reviewedAt: null, reviewedBy: null,
       effectiveStatus: acc.label,
       otherMatches: [],
-    }, pairs, ["handle", "profileUrl", "platform", "id", "postUrl", "parentUrl", "screenshotUrl", "profileShotUrl", "type", "source", "signs", "label", "effectiveStatus"]));
+    }, pairs, ["handle", "profileUrl", "platform", "id", "screenshotUrl", "profileShotUrl", "type", "source", "signs", "label", "effectiveStatus"]));
   }
   return json({
     found: true, account: shownAccount,

@@ -36,15 +36,18 @@ describe("결과 첫 화면", () => {
     ["수익 + 서두름", "HIGH", [P("term:급등주"), P("term:선착순")], [], ["conversion"]],
     ["수익 + 행동 유도", "HIGH", [P("term:무료"), P("cta")], [], ["conversion"]],
     ["수익만(서두름·행동 유도 없음)은 문장 없음 → 일반", "REVIEW", [P("term:급등주")], [], ["fallback"]],
-    ["텔레그램 링크", "HIGH", [], ["telegram"], ["telegram"]],
-    ["오픈채팅 링크", "HIGH", [], ["kakao_open"], ["chatRoom"]],
-    ["왓츠앱", "HIGH", [], ["whatsapp"], ["chatRoom"]],
+    ["텔레그램 링크 + 이동 유도", "HIGH", [P("cta")], ["telegram"], ["telegram"]],
+    ["텔레그램 링크만(이동 유도 없음 — 프로필·인용)은 문장 없음", "REVIEW", [], ["telegram"], ["fallback"]],
+    ["인용·피해 경고 맥락이면 텔레그램 문장 없음", "REVIEW", [P("cta"), { code: "veto:quote", points: -10 }], ["telegram"], ["fallback"]],
+    ["오픈채팅 링크 + 메신저·투자 결합", "HIGH", [P("combo:contact+invest")], ["kakao_open"], ["chatRoom"]],
+    ["왓츠앱 + 행동 유도", "HIGH", [P("cta")], ["whatsapp"], ["chatRoom"]],
     ["텔레그램 *단어*만(링크·아이디 없음)은 채팅방 문장 없음", "REVIEW", [P("term:텔레그램")], [], ["fallback"]],
     ["일반 링크·프로필 링크는 문장 없음", "REVIEW", [P("acct:lure-link"), P("pattern:외부 링크")], ["url", "handle"], ["fallback"]],
     ["서로 다른 계정 근사 중복", "HIGH", [P("spread")], [], ["spreadAccounts"]],
     ["연락처 공유만", "HIGH", [P("shared-contact")], [], ["sharedContact"]],
     ["같은 계정 반복", "HIGH", [P("cluster")], [], ["repeatSelf"]],
-    ["같은 댓글 살포", "HIGH", [P("spray")], [], ["repeatSelf"]],
+    ["여러 원글 댓글(spray)은 같은 글 보장 없음 → 일반", "HIGH", [P("spray")], [], ["fallback"]],
+    ["영어 증빙", "HIGH", [P("term:en:evidence:doc")], [], ["evidence"]],
     ["사칭 구조", "HIGH", [P("impersonate:institution+credential")], [], ["impersonation"]],
     ["증빙", "HIGH", [P("term:사원증")], [], ["evidence"]],
     ["난독화", "HIGH", [P("obfuscation")], [], ["normalization"]],
@@ -53,7 +56,7 @@ describe("결과 첫 화면", () => {
     ["낮음은 찾은 게 있어도 징후 칸 없음", "LOW", [P("term:원금보장"), P("obfuscation")], ["telegram"], []],
     ["낮음 + 아무것도 없음", "LOW", [], [], []],
     ["순서·최대 3", "HIGH", [P("obfuscation"), P("spread"), P("term:원금보장"), P("cta"), P("term:무료")], ["telegram"], ["guarantee", "conversion", "telegram"]],
-    ["쇼츠 예시(영어)", "HIGH", [P("term:en:profit:guaranteed"), P("term:en:urgency:spots"), P("term:en:contact:tme")], ["telegram"], ["guarantee", "conversion", "telegram"]],
+    ["쇼츠 예시(영어)", "HIGH", [P("term:en:profit:guaranteed"), P("term:en:urgency:spots"), P("term:en:contact:tme"), P("combo:contact+invest")], ["telegram"], ["guarantee", "conversion", "telegram"]],
   ];
   for (const [name, level, reasons, ents, want] of CASES) it(`매핑: ${name}`, () => expect(signIds(level, reasons, ents)).toEqual(want));
   it("문장은 모두 두 줄", () => {
@@ -82,11 +85,9 @@ describe("결과 첫 화면", () => {
     expect(keys.length).toBeLessThanOrEqual(5);
     for (const k of keys) expect(normalizeKey(k), k).toBe(k);   // 화면이 만든 키는 서버 형식 검사를 통과한다
   });
-  it("공유 링크 = 조회 키만", () => {
-    expect(shareUrl("https://x.test", "Sample_VIP", ["threads:sample_vip", "telegram:a"])).toBe("https://x.test/?a=sample_vip#check");
-    const u = new URL(shareUrl("https://x.test", null, ["telegram:a", "phone:010"]));
-    expect(u.searchParams.getAll("k")).toEqual(["telegram:a", "phone:010"]);
-    expect(shareUrl("https://x.test", null, [])).toBe("https://x.test/#check");
+  it("공유 링크 = 확인한 계정만, 연락처 키는 싣지 않음 (카이 948d5a7)", () => {
+    expect(shareUrl("https://x.test", "Sample_VIP")).toBe("https://x.test/?a=sample_vip#check");
+    expect(shareUrl("https://x.test", null)).toBe("https://x.test/#check");
   });
   it("키 라벨", () => {
     expect(keyLabel("threads:sample_vip", STRINGS.ko.community.kind)).toBe("Threads 계정 @sample_vip");

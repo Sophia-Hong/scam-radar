@@ -4,7 +4,7 @@ import { isCurrentSummary, summarizeAccount, SUMMARY_VERSION, summaryModelLabel 
 import { sharedAccountsOf, type SharedAccount } from "./pipeline";
 import { ENTITY_TYPE_LABEL, isStrongEntity, explainReasons, type Reason, type EntityType } from "@/engine";
 import { effectiveStatus, type EffectiveStatus } from "./labels";
-import { contactPairs, maskContact, maskDeep } from "./mask";
+import { contactPairs, maskContact, maskDeep, type MaskPair } from "./mask";
 import { onlyVisible, redactSharedContact } from "./visibility";
 
 /** 조사기관 제출용 리포트 — 필드 순서가 곧 신고서 항목 순서 */
@@ -56,7 +56,7 @@ export function publicView(report: InvestigationReport, admin: boolean): Investi
   const trimmed = linked.length !== report.linkedAccounts.length;
   // 공개 화면 연락처 가림·다른 계정 이름 숨김 (율 1791947465 조건 1·2): 연락처 원값 → 가린 값, 연결 계정 id·핸들 → "다른 계정"
   const otherLabel = "(다른 계정)";
-  const pairs: [string, string][] = [
+  const pairs: MaskPair[] = [
     ...contactPairs(report.contacts),
     ...report.linkedAccounts.flatMap((s) => [[s.accountId, otherLabel], [`@${s.handle}`, otherLabel], [s.handle, otherLabel]] as [string, string][]),
   ];
@@ -70,6 +70,8 @@ export function publicView(report: InvestigationReport, admin: boolean): Investi
     contacts: report.contacts.map(({ strong: _strong, ...c }) => ({ ...c, id: `${c.type}:${maskContact(c.type, c.value)}` })).sort((a, b) => a.type.localeCompare(b.type) || a.value.localeCompare(b.value)),
     linkedAccounts: [],
     linkedCount: linked.length,
+    // 원글 주소는 다른 계정 핸들을 담으므로 공개하지 않는다(카이 948d5a7)
+    evidence: (report.evidence ?? []).map((e) => ({ ...e, parentUrl: null })),
     summary: trimmed ? { text: "이 계정과 같은 연락처를 쓰는 계정 중 공개 범위 밖의 계정이 있어 요약문을 공개 화면에서 생략했습니다.", generatedBy: "withheld" } : report.summary,
   } as InvestigationReport;
   // 대상 계정 자신(account·reportId)은 가리지 않는다 — 가리는 것은 연락처와 다른 계정
