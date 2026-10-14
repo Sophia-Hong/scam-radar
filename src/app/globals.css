@@ -465,3 +465,5 @@ main { overflow:hidden; }
 }
 @media (max-width:420px) { .howto span { font-size:15px; } .howto svg { width:44px; height:44px; } }
 .nav-links a { min-width:44px; justify-content:center; }   /* EN "Check" 41px → 44 */
+
+.shot-go { width:100%; }

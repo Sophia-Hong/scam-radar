@@ -356,6 +356,12 @@ export function LiveAnalyzer() {
             </details>
           )}
           {uploadMsg && <p className="act-msg" role="status">{uploadMsg}</p>}
+          {/* 캡처를 고르면 바로 여기서 확인 — 아래 [확인하기]까지 내려가지 않아도 되게(카이 da1eccc HOLD). 고지는 고르기와 보내기 사이에 그대로(율 1791972312) */}
+          {pending.length > 0 && !aiOff && (
+            <button type="submit" className="checker-go shot-go" disabled={account.status === "loading"}>
+              {account.status === "loading" ? t.hero.checking : t.hero.check}
+            </button>
+          )}
           <p className="or-paste">{t.hero.orPaste}</p>
           <textarea
             value={input}
