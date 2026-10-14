@@ -18,7 +18,7 @@ describe("노인 첫 방문", () => {
   it("첫 화면 그림 how-to 3칸(한 칸 4~6단어), 내부어 없음 (소현 1791972094)", () => {
     for (const L of [STRINGS.ko, STRINGS.en]) {
       expect(L.hero.howto).toHaveLength(3);
-      for (const line of L.hero.howto) { const n = line.split(/\s+/).length; expect(n).toBeGreaterThanOrEqual(2); expect(n).toBeLessThanOrEqual(6); }
+      for (const line of L.hero.howto) { const n = line.split(/\s+/).length; expect(n).toBeGreaterThanOrEqual(2); expect(n).toBeLessThanOrEqual(7); }   // EN 3번 "See the result and what to do"(율 문구)
       expect(L.hero.orPaste).toBeTruthy();
       expect(`${L.hero.placeholder} ${L.hero.scope} ${L.hero.demo}`).not.toMatch(/\bDM\b|t\.me|Threads|합성|synthetic/);
     }

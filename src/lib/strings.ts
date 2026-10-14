@@ -29,10 +29,10 @@ const ko = {
     failed: "복사하지 못했어요. 주소창의 링크를 복사해 주세요.",
   },
   hero: {
-    title: "돈 보내기 전에, 받은 글을 여기 넣어 보세요",
+    title: "돈 보내기 전에, 받은 메시지를 여기 넣어 보세요",   // 캡처도 덮게 "글"→"메시지"(율 1791972312)
     // 그림 how-to 3칸(소현 1791972094 "스크린샷 올리는 걸 먼저", 테오 1791972108) — 한 칸 4~6단어, 옛 ①②③ 글 단계와 하나로 합침
-    howto: ["받은 메시지를 캡처하세요", "여기에 캡처를 올리세요", "색깔 결과와 할 일 보기"],
-    orPaste: "또는 글 붙여넣기",
+    howto: ["받은 메시지를 캡처하세요", "여기에 캡처를 올리세요", "결과와 할 일을 보세요"],   // 율 1791972312
+    orPaste: "또는 받은 글을 붙여 넣으세요",
     upload: "캡처 올리기",   // 테오 1791958372
     uploadNote: "다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2)
     uploadOff: "캡처는 AI로만 확인할 수 있어요. 여기서는 글만 넣을 수 있어요.",   // 율 1791958415
@@ -246,9 +246,9 @@ const en: Strings = {
     failed: "Couldn't copy. Please copy the link from the address bar.",
   },
   hero: {
-    title: "Before you send money, paste what you received here",
-    howto: ["Screenshot the message", "Upload the screenshot here", "See the color and next steps"],
-    orPaste: "Or paste the text",
+    title: "Before you send money, put the message you received here",
+    howto: ["Screenshot the message", "Upload the screenshot here", "See the result and what to do"],
+    orPaste: "Or paste the text you received",
     upload: "Upload screenshots",
     uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
     uploadOff: "Screenshots can only be checked with AI. Here you can paste text only.",

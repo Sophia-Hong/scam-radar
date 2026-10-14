@@ -66,7 +66,7 @@ async function shrinkImage(file: File): Promise<string> {
   return out;
 }
 
-/** how-to 그림 — 단순 SVG(생성 이미지·사진 아님, 테오 1791972108). 0 = 폰으로 캡처, 1 = 올리기, 2 = 신호등 결과 + 할 일 */
+/** how-to 그림 — 단순 SVG(생성 이미지·사진 아님, 테오 1791972108). 0 = 폰으로 캡처, 1 = 올리기, 2 = 신호등 결과 + 할 일 목록(체크 표시 없음 — 초록=안전으로 읽히지 않게, 율 1791972312) */
 function HowtoIcon({ step }: { step: number }) {
   const common = { width: 64, height: 64, viewBox: "0 0 64 64", "aria-hidden": true as const, fill: "none", stroke: "#11110f", strokeWidth: 3, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   if (step === 0) return (
@@ -76,7 +76,7 @@ function HowtoIcon({ step }: { step: number }) {
     <svg {...common}><path d="M10 40v12h44V40" /><path d="M32 42V12M20 24l12-12 12 12" stroke="#f04428" /></svg>
   );
   return (
-    <svg {...common}><rect x="8" y="8" width="18" height="48" rx="8" /><circle cx="17" cy="18" r="5" fill="#c8260f" stroke="none" /><circle cx="17" cy="32" r="5" fill="#e3a008" stroke="none" /><circle cx="17" cy="46" r="5" fill="#247651" stroke="none" /><path d="M34 18l3 3 6-6M34 32l3 3 6-6M34 46l3 3 6-6" stroke="#247651" /><path d="M46 18h10M46 32h10M46 46h10" /></svg>
+    <svg {...common}><rect x="8" y="8" width="18" height="48" rx="8" /><circle cx="17" cy="18" r="5" fill="#c8260f" stroke="none" /><circle cx="17" cy="32" r="5" fill="#e3a008" stroke="none" /><circle cx="17" cy="46" r="5" fill="#247651" stroke="none" /><rect x="33" y="10" width="24" height="44" rx="3" /><path d="M38 20h14M38 30h14M38 40h14" /></svg>
   );
 }
 
