@@ -366,7 +366,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const signalGroups: SignalGroup[] = [
     { code: "normalization", label: "숨긴 글자 복원", active: n.techniques.length > 0, evidence: n.techniques },
     { code: "impersonation", label: "재직·퇴직 사칭 서사", active: impersonateCombo, evidence: reasonEvidence(["impersonate:"]) },
-    { code: "evidence", label: "페이크 증빙 이미지 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "evidence:"]) },
+    { code: "evidence", label: "증빙 언급 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "evidence:"]) },
     { code: "conversion", label: "투자 유인 전환 구조", active: reasons.some((r) => r.code.startsWith("combo:") || r.code === "cta"), evidence: reasonEvidence(["combo:", "cta"]) },
     { code: "infrastructure", label: "외부 이동 인프라", active: categories.contact > 0, evidence: reasonEvidence(["term:텔레", "term:카카오", "term:오픈", "acct:lure-link", "pattern:"]) },
     { code: "coordination", label: "계정·캠페인 연결", active: clusterAccounts >= 2 || (account.clusterSize ?? 0) >= 3 || (account.distinctTargets ?? 0) >= 3, evidence: reasonEvidence(["spread", "cluster", "spray", "shared-contact"]) },
