@@ -469,9 +469,58 @@ main { overflow:hidden; }
 
 .shot-go { width:100%; }
 
-/* 고지 문구는 조용하게: 옅은 회색·작게·볼드 없음, 링크도 같은 톤(소현 1791985819, 테오 1791985835). 링크의 44px 누름 영역은 패딩으로 유지하되 줄 높이는 안 늘린다 */
-.checker .shot-note { margin:6px 0 8px; font-size:12px; font-weight:400; color:#8e8b83; }
-.checker .privacy-note, .checker .privacy-note summary, .checker .privacy-note span, .checker .privacy-note .more { color:#8e8b83; font-weight:400; font-size:12px; }
-.checker .privacy-note .inline-link { display:inline; min-height:0; min-width:0; padding:14px 2px; margin:-14px 0; font-weight:400; color:#8e8b83; }
-.checker .privacy-note dt { color:#6f6c65; font-weight:600; }
-.checker .privacy-note dd { color:#8e8b83; }
+/* ════ 담백한 테마 층 (소현 #today-hq 1791986310 "정석적인 그냥 일반 버셀이나 챗 지피티 이런 톤으로", 테오 1791986320) ════
+   위의 규칙을 지우지 않고 여기서 한꺼번에 덮는다: 흰 바탕 · 1px 연회색 테두리 + 둥근 모서리 · 두꺼운 검정 테두리/오프셋 그림자 없음 ·
+   시스템 sans · 제목 600 · 주 버튼만 검정 · 회색 계열만(결과의 위험 표시만 절제된 빨강·주황·초록). */
+:root { --ink:#111111; --paper:#ffffff; --signal:#374151; --acid:#f3f4f6; --line:#e5e7eb; --muted:#595959; --soft:#f9fafb; }
+body { background:#ffffff; color:#111111; font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,sans-serif; }
+h1, h2, h3 { letter-spacing:normal; }
+.checker h1, .learn h1, .analyzer-hero-copy h1 { font-weight:600; letter-spacing:-0.01em; }
+
+/* 헤더: 얇게, 중복 버튼 없음 */
+.site-header { background:rgba(255,255,255,.88); border-bottom:1px solid var(--line); }
+.nav-cta { display:none; }
+.brand-dot { border-color:#111111; box-shadow:none; }
+.lang-toggle { border:1px solid var(--line); border-radius:8px; }
+
+/* 카드: 1px 연회색 + 둥근 모서리, 그림자 없음 */
+.checker, .analyzer-shell, .result-card, .learn-card, .side-panel, .family-bar, .criteria-fold-summary, .engine-badge, .learn-figure {
+  border:1px solid var(--line) !important; border-radius:12px; box-shadow:none !important; }
+.analyzer-shell, .checker, .learn-card { overflow:hidden; }
+.family-bar { background:var(--soft); }
+.closing-note, .algorithm-flow article:nth-child(4), .checker-steps, .account-status-paste { background:var(--soft); }
+
+/* 입력칸 */
+.checker textarea { border:1px solid #d1d5db; border-radius:10px; background:#ffffff; font-size:18px; }
+.checker textarea:focus { border-color:#111111; box-shadow:0 0 0 3px rgba(17,17,17,.08); }
+
+/* 주 버튼: 검정 하나 */
+.shot-button.big, .checker-go, .shot-go, .family-bar button {
+  border:0; border-radius:10px; background:#111111; color:#ffffff; font-weight:600; letter-spacing:normal; }
+.shot-button.big { min-height:56px; font-size:18px; }
+.checker-go { min-height:52px; font-size:18px; }
+.checker-go:disabled, .shot-button.big.disabled { background:#9ca3af; color:#ffffff; }
+.checker-go:hover:not(:disabled), .shot-button.big:hover { background:#262626; }
+
+/* 보조 버튼: 흰 바탕 + 연회색 테두리 */
+.shot-button:not(.big), .result-card .result-actions button, .account-status .status-actions button, .account-status a, .example-row button, .checker .examples button,
+.criteria-fold-summary, .learn a.button, .checker button.secondary {
+  background:#ffffff; border:1px solid var(--line); border-radius:8px; color:#111111; font-weight:500; }
+
+/* 고지: 옅지만 읽히게 — 대비 4.5:1 이상·14px 이상(율 1791986341, 어르신 기준). #595959 on white ≈ 7.0:1 (테오 1791986358) */
+.checker .shot-note { margin:6px 0 8px; font-size:14px; font-weight:400; color:var(--muted); }
+.checker .privacy-note, .checker .privacy-note summary, .checker .privacy-note span, .checker .privacy-note .more, .checker .privacy-note.ai-off {
+  color:var(--muted); font-weight:400; font-size:14px; }
+.checker .privacy-note .inline-link { display:inline; min-height:0; min-width:0; padding:14px 2px; margin:-14px 0; font-weight:400; color:var(--muted); }
+.checker .privacy-note dt { color:#111111; font-weight:600; }
+.checker .privacy-note dd { color:var(--muted); }
+.or-paste { color:#111111; font-weight:600; font-size:16px; }
+
+/* 결과의 위험 표시만 색 — 절제된 빨강·주황·초록 */
+.risk-high .verdict { background:#b42318; }
+.result-signs li::before { background:#b42318; }
+.learn-num { color:var(--muted); }
+.learn-example { border-left:3px solid #d1d5db; background:var(--soft); }
+.section-kicker span { background:#d1d5db; }
+@media (min-width:900px) { .checker { max-width:880px; } .checker-main { max-width:none; } }
+.checker .examples button, .example-row button { border-radius:8px; }
