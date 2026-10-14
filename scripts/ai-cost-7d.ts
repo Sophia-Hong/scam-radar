@@ -23,7 +23,8 @@ async function main() {
            coalesce(sum(nullif(result->>'costUsd', '')::numeric), 0)::float AS cost_usd,
            count(*) FILTER (WHERE result->>'costUsd' IS NULL OR result->>'costUsd' = '')::int AS empty_cost
     FROM llm_cache WHERE created_at >= ${since} GROUP BY kind ORDER BY kind`));
-  const total = cache.reduce((a, r) => ({ rows: a.rows + Number(r.rows), cost: a.cost + Number(r.cost_usd), empty: a.empty + Number(r.empty_cost) }), { rows: 0, cost: 0, empty: 0 });
+  const total = { rows: 0, cost: 0, empty: 0 };
+  for (const r of cache) { total.rows += Number(r.rows); total.cost += Number(r.cost_usd); total.empty += Number(r.empty_cost); }
   console.log(`기간: ${since.toISOString().slice(0, 10)} ~ ${new Date().toISOString().slice(0, 10)} (UTC)`);
   console.log(`호출 시도(하루 상한 카운터): ${attempted.reduce((a, r) => a + Number(r.n), 0)}  [${attempted.map((r) => `${String(r.bucket).slice(2)} ${r.n}`).join(", ") || "기록 없음"}]`);
   for (const r of cache) console.log(`  ${r.kind}: 실제 호출 ${r.rows}건, costUsd 합계 $${Number(r.cost_usd).toFixed(4)}, 빈 costUsd ${r.empty_cost}건`);
