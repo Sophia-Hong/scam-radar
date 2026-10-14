@@ -12,14 +12,15 @@ export interface CaseImage { src: string; width: number; height: number; source:
 export interface LearnCard { title: string; looks: string; example?: string[]; source?: Source; images?: CaseImage[]; todo: string }
 
 const IMG = (file: string, width: number, height: number, source: Source): CaseImage => ({ src: `/learn/${file}`, width, height, source });
-const POLICE_2024_09: Source = { org: "경찰청", title: "추석 연휴 금융사기 주의…투자리딩방·보이스피싱 대응법 공유", date: "2024-09-13" };
-const MSIT_POLICE_2024: Source = { org: "과학기술정보통신부·경찰청", title: "올 들어 부고·청첩장 등 미끼문자 24만 건…출처 불분명한 링크 주의", date: "2024-10-15" };
-const GOV_2020: Source = { org: "관계부처 합동", title: "추석 명절기간 스미싱·보이스피싱 피해 조심하세요", date: "2020-09-21" };
-const GOV_2022_IMG: Source = { org: "관계부처 합동", title: "“택배 도착했습니다”…추석 앞두고 문자사기 주의보", date: "2022-08-31" };
-const GOV_2026: Source = { org: "관계부처 합동", title: "URL 링크가 포함된 고유가 피해지원금 알림은 100% 사기입니다", date: "2026-04-16" };
-const FSS_2024_12: Source = { org: "금융감독원", title: "비상 계엄을 이유로 금감원의 자금출처 조사를 빙자하며 자금을 편취하는 불법 리딩방 사기를 조심하세요!", date: "2024-12-11" };
-const FSS_2024_03: Source = { org: "금융감독원", title: "내가 쓰는 코인 거래소는 안전할까, 가짜 거래소를 이용한 가상자산 투자사기를 조심하세요!", date: "2024-03-20" };
-const FSS_POLICE_2025: Source = { org: "금융감독원·서울경찰청", title: "금융감독원, 서울경찰청이 공조하여 국민의 재산과 생명을 위협하는 온라인 리딩방 사기 적발", date: "2025-11-06" };
+// 사례 이미지 출처 = 공식 원문 링크(카이 /learn HOLD 1 — 주소는 manifest page_url, 10-14 열림·제목 확인). 글 사례의 관계부처 합동 2022·2024 는 원문이 사본·첨부(hwp)뿐이라 링크 없이(테오 1791955209)
+const POLICE_2024_09: Source = { org: "경찰청", title: "추석 연휴 금융사기 주의…투자리딩방·보이스피싱 대응법 공유", date: "2024-09-13", url: "https://www.korea.kr/news/policyNewsView.do?newsId=148933974" };
+const MSIT_POLICE_2024: Source = { org: "과학기술정보통신부·경찰청", title: "올 들어 부고·청첩장 등 미끼문자 24만 건…출처 불분명한 링크 주의", date: "2024-10-15", url: "https://www.korea.kr/news/policyNewsView.do?newsId=148935097" };
+const GOV_2020: Source = { org: "관계부처 합동", title: "추석 명절기간 스미싱·보이스피싱 피해 조심하세요", date: "2020-09-21", url: "https://www.korea.kr/news/policyNewsView.do?newsId=148878023" };
+const GOV_2022_IMG: Source = { org: "관계부처 합동", title: "“택배 도착했습니다”…추석 앞두고 문자사기 주의보", date: "2022-08-31", url: "https://www.korea.kr/news/policyNewsView.do?newsId=148905412" };
+const GOV_2026: Source = { org: "관계부처 합동", title: "URL 링크가 포함된 고유가 피해지원금 알림은 100% 사기입니다", date: "2026-04-16", url: "https://www.korea.kr/briefing/pressReleaseView.do?newsId=156755975" };
+const FSS_2024_12: Source = { org: "금융감독원", title: "비상 계엄을 이유로 금감원의 자금출처 조사를 빙자하며 자금을 편취하는 불법 리딩방 사기를 조심하세요!", date: "2024-12-11", url: "https://www.fss.or.kr/fss/bbs/B0000188/view.do?nttId=188778&menuNo=200218" };
+const FSS_2024_03: Source = { org: "금융감독원", title: "내가 쓰는 코인 거래소는 안전할까, 가짜 거래소를 이용한 가상자산 투자사기를 조심하세요!", date: "2024-03-20", url: "https://www.fss.or.kr/fss/bbs/B0000188/view.do?nttId=134831&menuNo=200218" };
+const FSS_POLICE_2025: Source = { org: "금융감독원·서울경찰청", title: "금융감독원, 서울경찰청이 공조하여 국민의 재산과 생명을 위협하는 온라인 리딩방 사기 적발", date: "2025-11-06", url: "https://www.fss.or.kr/fss/bbs/B0000188/view.do?nttId=207061&menuNo=200218" };
 
 const MOIS_2022: Source = { org: "관계부처 합동", title: "추석 명절, 택배와 금융거래 사칭 문자사기 주의!", date: "2022-08-31" };
 const MOIS_2024: Source = { org: "관계부처 합동", title: "추석 명절 사이버사기 주의 보도자료", date: "2024-09-08" };
@@ -33,7 +34,6 @@ export const LEARN_CARDS: Record<Lang, LearnCard[]> = {
       looks: "\"이 방에서 하루 만에 수백만 원 벌었어요\" 같은 그래프나 계좌 화면을 보여줘요. 다른 사람들이 \"저도 벌었어요\" 하며 같이 올려요.",
       todo: "이런 사진과 영상은 AI로 쉽게 만들 수 있어요. 수익 인증만 보고 돈을 보내지 마세요." },
     { title: "위조 신분증·사원증·명함",
-      images: [IMG("09-fake-official-letter.jpg", 890, 553, FSS_2024_12)],
       looks: "\"저 ○○증권 직원이에요\" 하며 사원증·명함·신분증 사진을 보내 믿게 해요.",
       todo: "신분증·사원증 사진도 쉽게 만들 수 있어요. 그 회사 대표 번호로 직접 전화해서 그런 직원이 있는지 물어보세요." },
     { title: "가족 사칭 (\"엄마 폰 고장났어\")",
@@ -47,7 +47,7 @@ export const LEARN_CARDS: Record<Lang, LearnCard[]> = {
       example: ["고객님 택배 배송주소 불일치로 물품이 취소 되었습니다.배송주소 확인 <링크>"], source: MOIS_2024,
       todo: "문자 속 링크는 누르지 마세요. 택배회사 앱이나 대표 번호로 직접 확인하세요." },
     { title: "기관 사칭 (경찰·국세청·법원·과태료)",
-      images: [IMG("07-govt-subsidy-smishing.jpg", 900, 1332, GOV_2026)],
+      images: [IMG("07-govt-subsidy-smishing.jpg", 900, 1332, GOV_2026), IMG("09-fake-official-letter.jpg", 890, 553, FSS_2024_12)],   // 09 위조 금감원 공문 = 기관 사칭(카이 /learn HOLD 2 — 위조 신분증 카드는 글만)
       looks: "경찰서·국세청·법원이라며 신고가 접수됐다, 벌금이 있다고 겁을 줘요. 링크나 전화번호를 줘요.",
       example: ["[경찰청교통민원]교통법규위반 사실확인통지서(통지): <링크>"], source: MOIS_2022,
       todo: "문자 속 링크로 내지 말고, 그 기관 대표 번호나 공식 앱에서 직접 확인하세요. 이상하면 112에 물어보세요." },
