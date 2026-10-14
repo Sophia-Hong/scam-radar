@@ -197,3 +197,31 @@ and a bank principal-protected-note disclosure as LOW; a guarantee with an
 investment solicitation as HIGH; an attributed warning quote as LOW; and a
 warning followed by an independent Telegram VIP deposit offer as REVIEW or
 higher.
+
+## Round 5 — conjunctive received-message evidence
+
+Family, delivery, loan, and task tactics now emit only after their required
+action facts co-occur. Family requires a family claim, changed/broken or
+temporary number, and an actual money, gift-card, credential-photo, account,
+OTP, or install request. Delivery requires delivery/authority wording, a
+non-official link or callback route, and pressure such as failed delivery,
+address mismatch, fee/customs payment, deadline, or suspension. Loan requires
+a fee or repay-before-loan request; task requires a simple-work/high-pay pitch
+and a money/deposit or move-to-chat action.
+
+Structured tactic evidence is carried internally to screen sign selection, so
+the screen only renders these action-specific sentences when their supporting
+facts exist. Public API responses still expose only plain-language signs and
+never tactic or rule codes.
+
+| Check | Before | After |
+| --- | ---: | ---: |
+| Real examples (84), HIGH + REVIEW | 43 / 84 | **27 / 84** |
+| DEV red-team benign HIGH | 0 | **0** |
+| Pinned corpus HIGH precision / recall | 1.000 / 0.849 | **1.000 / 0.849** |
+
+The real-example count falls because former delivery/family/topic-only matches
+no longer escalate without the requested action evidence; this is deliberate
+to remove false-HIGH risk. Added twins cover a no-money family number update,
+official courier tracking delay, insurance terms disclosure, bank loan ad with
+no fee request, ordinary part-time job, and corresponding scams.

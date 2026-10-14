@@ -1,5 +1,5 @@
 import { activeContext } from "./context";
-import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence, receivedActionSignals } from "./tactics";
+import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence, receivedActionSignals, type TacticHit } from "./tactics";
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
 import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
@@ -48,6 +48,8 @@ export interface ScoreResult {
   normalized: Normalized;
   needsLlmReview: boolean;
   signalGroups: SignalGroup[];
+  /** Internal structured facts for selecting UI signs; never sent as public API rules. */
+  tactics: TacticHit[];
 }
 
 export interface SignalGroup {
@@ -482,5 +484,5 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     { code: "identity", label: "신원·활동 맥락 불일치", active: countryMismatch, evidence: reasonEvidence(["identity:"]) },
   ];
 
-  return { score, label, reasons, matched, categories, normalized: original, needsLlmReview: label === "REVIEW", signalGroups };
+  return { score, label, reasons, matched, categories, normalized: original, needsLlmReview: label === "REVIEW", signalGroups, tactics };
 }

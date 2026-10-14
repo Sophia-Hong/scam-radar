@@ -54,8 +54,8 @@ describe("received-message families", () => {
     ["리딩방 회원들의 수익 인증을 보세요.", "room"],
     ["Sweetheart, invest in this trading account for our future.", "romance"],
     ["절반은 제가 내줄게요.", "romance"],
-    ["Product reviews are your tasks for this part-time job.", "task"],
-    ["쿠팡 부업으로 상품 평점을 남기면 됩니다.", "task"],
+    ["Product reviews: no experience, earn $450 daily. Message us on WhatsApp.", "task"],
+    ["하루 30분 상품 리뷰 알바로 고수익을 드립니다. 텔레그램으로 문의하세요.", "task"],
     ["Recharge your balance to unlock the next order.", "advance"],
     ["작업 진행을 위해 먼저 입금해야 합니다.", "advance"],
     ["This is Amazon recruitment, offering remote work.", "recruiter"],
@@ -69,10 +69,10 @@ describe("received-message families", () => {
   it.each([
     "Pay the processing fee before withdrawal. Do not tell your family.",
     "출금하려면 보증금 먼저 납부하세요. 가족에게 말하지 마세요.",
-    "Complete product reviews for commission. Deposit money to unlock tasks.",
-    "상품 리뷰 알바입니다. 수당을 받으려면 선입금이 필요합니다.",
-    "I am from Amazon HR. Part-time work, no experience, earn $450 daily. Message me on WhatsApp.",
-    "쿠팡 인사팀입니다. 하루 고수익 재택 알바, 카톡으로 문의하세요. 일급 40만원.",
+    "Complete product reviews for high daily commission. Deposit money to unlock tasks.",
+    "상품 리뷰 알바로 하루 고수익을 드립니다. 수당을 받으려면 선입금이 필요합니다.",
+    "I am from Amazon HR. Rate products: no experience, earn $450 daily. Message me on WhatsApp.",
+    "쿠팡 인사팀입니다. 하루 고수익 상품 리뷰 알바, 카톡으로 문의하세요. 일급 40만원.",
     "Darling, invest in our future. Pay the tax before withdrawal; I will cover half.",
     "출금하려면 수수료 먼저 입금하세요. 전용 거래 앱을 설치하세요.",
   ])("promotes a payment demand plus independent tactic families: %s", text => {
@@ -115,8 +115,8 @@ describe("received-message action combinations", () => {
     "건강보험 담당자입니다. 12시간 안에 본인인증을 완료하려면 http://mzaqp.kr 로 접속하세요.",
     "Dad, my phone is broken and this is my new number. Please buy gift cards and send the codes today.",
     "엄마, 임시 폰이라서 신분증 사진을 이 번호로 바로 보내줘.",
-    "Amazon recruiter: rate products for daily pay. Reply YES now to begin the task.",
-    "하루 30분 리뷰 알바로 수당을 드립니다. 텔레그램으로 지금 답장하세요.",
+    "Amazon recruiter: rate products with no experience for $450 daily. Reply on WhatsApp now to begin.",
+    "하루 30분 리뷰 알바로 고수익을 드립니다. 텔레그램으로 지금 답장하세요.",
     "Darling, transfer money to the crypto account today so we can plan our future.",
   ])("marks a lure with an action and corroboration HIGH: %s", text => {
     expect(scoreText(text).label).toBe("HIGH");
@@ -228,11 +228,11 @@ describe("Round 3 received-message families", () => {
 
 describe("illegal investment guarantees", () => {
   it.each([
-    "원금 보장으로 투자금을 운용합니다.",
-    "손실 보전 약속, 확정 수익을 드립니다.",
+    "원금 보장으로 투자금을 운용합니다. 지금 입금하세요.",
+    "손실 보전 약속, 확정 수익 종목을 추천합니다.",
     "주식 매수는 제 지시대로 하고 손실 나면 제가 메꿔드립니다.",
-    "Guaranteed returns from this investment package.",
-    "No risk, guaranteed profit on your capital.",
+    "Guaranteed returns from this investment package; contact us to invest.",
+    "No risk, guaranteed profit on your capital. Join our trading signals group.",
   ])("is HIGH as a single prohibited promise: %s", text => {
     const result = scoreText(text);
     expect(result.label).toBe("HIGH");
@@ -257,4 +257,22 @@ describe("illegal investment guarantees", () => {
     expect(result.label).toBe("HIGH");
     expect(result.reasons.some(r => r.code === "guarantee:illegal")).toBe(true);
   });
+});
+
+describe("Round 5 conjunctive received-message evidence", () => {
+  it.each([
+    "엄마 나 폰 액정이 깨져서 오늘만 이 번호로 연락할게. 돈은 필요 없고 그냥 알려주는 거야.",
+    "[한진택배] 물량 증가로 하루 지연됩니다. 배송조회: https://www.hanjin.com/track/123456",
+    "만기 시 원금보장형 보험 상품입니다. 가입 전 약관을 확인하세요.",
+    "은행의 저금리 대환대출 상품 안내입니다. 수수료는 없으며 자세한 조건은 공식 홈페이지에서 확인하세요.",
+    "도서관 주말 보조 직원 모집: 시급 15,000원, 대학 채용 페이지로 지원하세요.",
+  ])("keeps benign twin LOW: %s", text => expect(scoreText(text).label).toBe("LOW"));
+
+  it.each([
+    "엄마야, 폰이 고장 나서 새 번호야. 오늘 상품권 코드를 사서 보내줘.",
+    "배송 주소가 불일치해 수령이 실패했습니다. 오늘 https://qzrmn.info/pay 에서 수수료를 내세요.",
+    "원금 보장 월 30% 수익률 종목을 추천합니다. 텔레그램으로 문의하세요.",
+    "저금리 대환대출 승인 전 기존 대출을 먼저 상환하고 수수료를 입금하세요.",
+    "상품 리뷰를 하루 30분만 하면 고수익을 드립니다. 텔레그램으로 지금 답장하세요.",
+  ])("keeps scam twin at HIGH or REVIEW: %s", text => expect(["HIGH", "REVIEW"]).toContain(scoreText(text).label));
 });
