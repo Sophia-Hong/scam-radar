@@ -43,17 +43,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     signalGroups: signalGroupsFromReasons(accReasons),
     summary: trimmed || !isCurrentSummary(acc.summaryModel) ? null : acc.summary,
     summaryModel: undefined,
+    humanLabel: null, humanNote: null, reviewedAt: null, reviewedBy: null,
   };
   return json({
     found: true, account: shownAccount,
     posts: admin ? posts : posts.map((p) => ({ ...p, reasons: publicReasons(((p.reasons ?? []) as { code: string; label: string; points: number; evidence?: string | null }[])) })),   // 공개: 신호 방향·설명만
     entities, sharedWith,
     // 표시 라벨은 사람 판단이 있으면 그것이 최종 (src/lib/labels.ts 한 곳에서 결정)
-    humanLabel: acc.humanLabel,
-    humanNote: acc.humanNote,
-    reviewedAt: acc.reviewedAt?.toISOString() ?? null,
-    reviewedBy: acc.reviewedBy,
-    effectiveStatus: effectiveStatus(acc.label, acc.humanLabel),
+    // 공개: 사람 검토 결과·검토자 정보 없음(카이 ④ 검수 3). 관리자만 그대로
+    humanLabel: admin ? acc.humanLabel : null,
+    humanNote: admin ? acc.humanNote : null,
+    reviewedAt: admin ? acc.reviewedAt?.toISOString() ?? null : null,
+    reviewedBy: admin ? acc.reviewedBy : null,
+    effectiveStatus: admin ? effectiveStatus(acc.label, acc.humanLabel) : acc.label,
     otherMatches: rows.slice(1).map((a) => ({
       id: a.id, platform: a.platform, handle: a.handle, score: a.score, label: a.label,
       effectiveStatus: effectiveStatus(a.label, a.humanLabel),

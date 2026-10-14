@@ -152,6 +152,13 @@ export const communityTexts = pgTable("community_texts", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("community_texts_reporter_idx").on(t.reporter, t.createdAt)]);
 
+/** 신고 상한 카운터 — 신고자 × 구간(시간·하루)별 건수. 원자적 증가로 동시 등록이 상한을 넘지 못하게 (lib/community.ts reserve) */
+export const communityQuota = pgTable("community_quota", {
+  reporter: text("reporter").notNull(),
+  bucket: text("bucket").notNull(),
+  n: integer("n").notNull(),
+}, (t) => [primaryKey({ columns: [t.reporter, t.bucket] })]);
+
 export type Account = typeof accounts.$inferSelect;
 export type EntityRow = typeof entities.$inferSelect;
 export type PostEntityRow = typeof postEntities.$inferSelect;

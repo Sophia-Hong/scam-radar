@@ -68,7 +68,7 @@ const ko = {
     } as Record<GroupCode, [string, string]>,
     // 다른 채팅방 이동 — 텔레그램을 실제로 찾았으면 signs.infrastructure, 아니면 이 문장 (율 #compliance 1791944215)
     signChatRoom: ["모르는 채팅방으로 오라고 해요.", "사기는 이렇게 다른 방으로 데려가서 돈 얘기를 해요."] as [string, string],
-    similar: (n: number) => `비슷한 글을 조심하라고 신고한 사람 ${n}명`,
+    similar: (n: number) => `비슷한 글을 조심하라는 신고 ${n}건`,
     // 모든 결과 화면에 위험도와 상관없이 똑같이 — 계정 이야기가 아니라 일반 안내 (율 1791944215). 출처 표기는 금감원 원문 대조 뒤
     stopTitle: "이런 말을 들으면 멈추세요",
     stop: [
@@ -105,13 +105,13 @@ const ko = {
     empty: "위 칸에 받은 글이나 링크를 넣고 ‘확인하기’를 눌러 주세요.",
   },
   community: {
-    warn: (n: number, type: string) => `이 ${type === "threads" || type === "handle" ? "계정을" : type === "url" ? "링크를" : "연락처를"} 조심하라고 신고한 사람 ${n}명`,
+    warn: (n: number, type: string) => `이 ${type === "threads" || type === "handle" ? "계정을" : type === "url" ? "링크를" : "연락처를"} 조심하라는 신고 ${n}건`,
     warnNote: "(저희가 확인한 건 아니에요)",
     button: "피해를 당했어요 · 신고하기",
     title: "주의 대상으로 신고",
-    lead: "신고가 여러 명 모이면, 같은 계정·링크·연락처나 비슷한 글을 확인하는 다음 사람에게 ‘조심하라고 신고한 사람 N명’으로 보입니다.",
+    lead: "신고가 여러 명 모이면, 같은 계정·링크·연락처나 비슷한 글을 확인하는 다음 사람에게 ‘조심하라는 신고 N건’으로 보입니다.",
     textOption: "받은 글도 함께 신고 (글은 저장하지 않고, 비슷한 글을 알아보는 서명만 저장)",
-    privacy: "넣은 글과 내 정보는 저장하지 않습니다. 같은 사람이 같은 항목을 여러 번 신고해도 1건으로 셉니다. 허위 신고는 다른 사람에게 피해를 줄 수 있어요.",
+    privacy: "넣은 글과 내 정보는 저장하지 않습니다. 한곳에서 여러 번 신고해도 1건으로 세요. 허위 신고는 다른 사람에게 피해를 줄 수 있어요.",
     none: "신고할 계정·링크·연락처나 글이 없어요.",
     submit: "신고하기",
     sending: "신고 중…",
@@ -197,7 +197,7 @@ const en: Strings = {
       identity: ["The self-introduction doesn't match the account details.", "Where someone lives or works is sometimes made up."],
     },
     signChatRoom: ["It asks you to join a chat room you don't know.", "Scams often move you to another chat to talk about money."],
-    similar: (n: number) => `${n} people reported a message like this`,
+    similar: (n: number) => `${n} reports about messages like this`,
     stopTitle: "Stop if you hear this",
     stop: [
       "If they tell you not to tell anyone, be careful. Scams ask you to keep it secret so your family can't stop you.",
@@ -233,13 +233,13 @@ const en: Strings = {
     empty: "Paste a message or link above and press “Check”.",
   },
   community: {
-    warn: (n: number, type: string) => `${n} people reported this ${type === "threads" || type === "handle" ? "account" : type === "url" ? "link" : "contact"}`,
+    warn: (n: number, type: string) => `${n} reports about this ${type === "threads" || type === "handle" ? "account" : type === "url" ? "link" : "contact"}`,
     warnNote: "(we have not checked these reports)",
     button: "I was scammed · report it",
     title: "Report as suspicious",
-    lead: "Once several people report it, the next person who checks the same account, link or contact — or a similar message — will see “N people reported this”.",
+    lead: "Once several people report it, the next person who checks the same account, link or contact — or a similar message — will see “N reports about this”.",
     textOption: "Also report the message (we keep only a similarity signature, not the text)",
-    privacy: "We do not store what you pasted or who you are. Repeated reports of the same item by the same person count once. False reports can harm others.",
+    privacy: "We do not store what you pasted or who you are. Several reports from the same place count as 1. False reports can harm others.",
     none: "There is no account, link, contact or message to report.",
     submit: "Report",
     sending: "Reporting…",

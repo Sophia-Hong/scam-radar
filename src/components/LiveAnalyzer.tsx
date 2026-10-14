@@ -27,7 +27,7 @@ type LiveResult = {
   signalGroups: SignalGroup[];
 };
 
-type Check = { counts: Record<string, number>; similar: number };
+type Check = { counts: Record<string, number>; similar: number; unavailable?: boolean };
 type PanelStatus = "closed" | "open" | "sending" | "done" | "limited" | "failed";
 type Registry = { status: PanelStatus; picked: string[]; withText: boolean };
 const NO_REGISTRY: Registry = { status: "closed", picked: [], withText: false };
@@ -123,7 +123,10 @@ export function LiveAnalyzer() {
         const response = await fetch("/api/community/check", { method: "POST", headers: { "content-type": "application/json" }, body: checkBody, cache: "no-store", signal: controller.signal });
         const data = await response.json().catch(() => null);
         if (response.ok && data?.counts) setCommunity(data as Check);
-      } catch { /* 신고 수는 보조 정보 — 실패해도 판독은 그대로 */ }
+        else setCommunity({ counts: {}, similar: 0, unavailable: true });
+      } catch (e) {   // 신고 장부를 못 읽으면 "0건"처럼 보이지 않게 신고 칸을 숨긴다(카이 ④ 검수 4). 판독은 그대로
+        if ((e as Error).name !== "AbortError") setCommunity({ counts: {}, similar: 0, unavailable: true });
+      }
     }, 200);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [checkBody]);
@@ -164,6 +167,8 @@ export function LiveAnalyzer() {
   }
 
   async function lookup(h: string): Promise<boolean> {
+    // 새 대상 — 이전 글·서버 결과·공유 키를 먼저 비운다(새 핸들과 이전 글의 연락처가 한 신고로 섞이지 않게, 카이 ④ 검수 1)
+    setText(""); setServerResult(null); setAiStatus("idle"); setSharedKeys([]); setRegistry(NO_REGISTRY);
     setAccount({ status: "loading", handle: h });
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(h)}`, { cache: "no-store" });
@@ -282,7 +287,7 @@ export function LiveAnalyzer() {
             )}
             <p className="result-disclaimer">{t.result.disclaimer}</p>
 
-            {(reported.length > 0 || community.similar > 0) && (
+            {!community.unavailable && (reported.length > 0 || community.similar > 0) && (
               <div className="community-warn" role="alert">
                 <ul>
                   {reported.slice(0, 3).map((k) => <li key={k}><b>⚠ {t.community.warn(community.counts[k], k.slice(0, k.indexOf(":")))}</b><span>{keyLabel(k, t.community.kind)}</span></li>)}
@@ -314,7 +319,7 @@ export function LiveAnalyzer() {
 
             <div className="result-actions">
               <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
-              <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: keys, withText: !!sig })}>{t.community.button}</button>
+              {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: keys, withText: !!sig })}>{t.community.button}</button>}
             </div>
             {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
 

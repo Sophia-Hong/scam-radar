@@ -1,5 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
-import { and, count, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { bandKeys, estimateJaccard, JACCARD_THRESHOLD, NUM_PERM } from "@/engine/minhash";
 
@@ -8,7 +8,8 @@ import { bandKeys, estimateJaccard, JACCARD_THRESHOLD, NUM_PERM } from "@/engine
  * - 키: `threads:핸들` 또는 연락처 엔티티 id(`telegram:vip_room` …). 받은 글은 원문 대신 브라우저가 만든 MinHash 서명만.
  * - 신고자: IP 의 HMAC 앞 32자 + 신고 시각. IP 원값·이름·글은 저장하지 않는다. (조건 3)
  * - 같은 신고자 × 같은 키(또는 같은 서명) = 1건. (조건 2)
- * - 화면에 보이는 수 = 서로 다른 신고자 수, 그리고 MIN_DISPLAY 명 미만이면 숫자를 내보내지 않는다. (조건 1)
+ * - 화면에 보이는 수 = 서로 다른 신고자(IP HMAC) 수 = '신고 N건'. 사람 수가 아니다(IP 를 바꾸면 늘고, 공유 IP 면 줄어든다).
+ *   서로 다른 연결 MIN_DISTINCT_CONNECTIONS 곳 미만이면 숫자를 보이지 않음. (조건 1)
  * - 스팸: 신고자당 새 등록 시간당 HOURLY_LIMIT, 하루 DAILY_LIMIT. 한 번에 키 MAX_KEYS_PER_POST 개까지.
  */
 export const KEY_TYPES = ["threads", "telegram", "kakao_open", "kakao_channel", "phone", "handle", "url", "line", "wechat"] as const;
@@ -16,7 +17,8 @@ export const MAX_KEYS_PER_POST = 5;
 export const MAX_KEYS_PER_CHECK = 10;
 export const HOURLY_LIMIT = 10;
 export const DAILY_LIMIT = 30;
-export const MIN_DISPLAY = 3;
+/** 서로 다른 연결(IP HMAC) 3곳 미만이면 숫자를 보이지 않음 (율 #compliance 1791944952) */
+export const MIN_DISTINCT_CONNECTIONS = 3;
 
 const VALUE_RE: Record<string, RegExp> = {
   threads: /^[a-z0-9._]{1,64}$/,
@@ -62,12 +64,13 @@ export function reporterId(ip: string, secret: string | undefined): string | nul
   return createHmac("sha256", secret).update(`community:${ip}`).digest("hex").slice(0, 32);
 }
 
+/** 전용 비밀값만 — ADMIN_TOKEN 을 대신 쓰면 토큰을 바꿀 때 같은 IP 가 새 신고자가 된다(카이 ④ 검수 2). 없으면 등록을 받지 않는다 */
 export function reporterSecret(): string | undefined {
-  return process.env.COMMUNITY_SECRET || process.env.ADMIN_TOKEN || undefined;
+  return process.env.COMMUNITY_SECRET || undefined;
 }
 
 /** 화면에 내보낼 수 — MIN_DISPLAY 명 미만은 0(숨김) */
-export const shown = (n: number) => (n >= MIN_DISPLAY ? n : 0);
+export const shown = (n: number) => (n >= MIN_DISTINCT_CONNECTIONS ? n : 0);
 
 let ensured: Promise<void> | null = null;
 /** 표가 없으면 만든다(IF NOT EXISTS) — `drizzle-kit push` 없이도 첫 요청에서 준비된다. 정의는 schema.ts 와 같다 */
@@ -81,6 +84,8 @@ export function ensureTables(): Promise<void> {
       id text PRIMARY KEY, reporter text NOT NULL, sig jsonb NOT NULL, bands text[] NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`);
     await d.execute(sql`CREATE INDEX IF NOT EXISTS community_texts_bands_idx ON community_texts USING gin (bands)`);
     await d.execute(sql`CREATE INDEX IF NOT EXISTS community_texts_reporter_idx ON community_texts (reporter, created_at)`);
+    await d.execute(sql`CREATE TABLE IF NOT EXISTS community_quota (
+      reporter text NOT NULL, bucket text NOT NULL, n integer NOT NULL, PRIMARY KEY (reporter, bucket))`);
   })().catch((e) => { ensured = null; throw e; });
   return ensured;
 }
@@ -114,26 +119,35 @@ export async function check(keys: string[], sig: number[] | null): Promise<Check
   return { counts, similar: shown(similar) };
 }
 
+/**
+ * 신고자 × 구간(시간 `h:YYYY-MM-DDTHH` · 하루 `d:YYYY-MM-DD`, UTC)에 k 건을 원자적으로 더한다. 상한을 넘으면 더하지 않고 false.
+ * ON CONFLICT DO UPDATE … WHERE 는 행을 잠그고 최신 값으로 조건을 다시 보므로 동시 요청에서도 상한을 넘지 않는다.
+ * (시간 구간은 통과하고 하루 구간에서 막히면 시간 쪽은 이미 더해져 있다 — 보수적인 쪽으로 틀린다)
+ */
+export async function reserve(reporter: string, bucket: string, k: number, limit: number): Promise<boolean> {
+  if (k > limit) return false;
+  const res = await db().execute(sql`INSERT INTO community_quota (reporter, bucket, n) VALUES (${reporter}, ${bucket}, ${k})
+    ON CONFLICT (reporter, bucket) DO UPDATE SET n = community_quota.n + EXCLUDED.n
+    WHERE community_quota.n + EXCLUDED.n <= ${limit} RETURNING n`);
+  const rows = (res as unknown as { rows?: unknown[] }).rows ?? (res as unknown as unknown[]);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 export type RegisterResult = { ok: true; added: number } | { ok: false; reason: "limited" };
 
 export async function register(keys: string[], sig: number[] | null, reporter: string, now = new Date()): Promise<RegisterResult> {
   await ensureTables();
   const r = schema.communityReports;
   const tx = schema.communityTexts;
-  const since = (ms: number) => new Date(now.getTime() - ms);
-  const recent = async (ms: number) => {
-    const [a] = await db().select({ n: count() }).from(r).where(and(eq(r.reporter, reporter), gt(r.createdAt, since(ms))));
-    const [b] = await db().select({ n: count() }).from(tx).where(and(eq(tx.reporter, reporter), gt(tx.createdAt, since(ms))));
-    return Number(a?.n ?? 0) + Number(b?.n ?? 0);
-  };
   const existing = keys.length ? new Set((await db().select({ key: r.key }).from(r).where(and(eq(r.reporter, reporter), inArray(r.key, keys)))).map((x) => x.key)) : new Set<string>();
   const fresh = keys.filter((k) => !existing.has(k));
   const textId = sig ? createHash("sha256").update(`${reporter}|${bandKeys(sig).join(",")}`).digest("hex").slice(0, 32) : null;
   const textIsNew = textId ? !(await db().select({ id: tx.id }).from(tx).where(eq(tx.id, textId)).limit(1)).length : false;
   const adding = fresh.length + (textIsNew ? 1 : 0);
   if (adding) {
-    const [hour, day] = [await recent(3_600_000), await recent(86_400_000)];
-    if (hour + adding > HOURLY_LIMIT || day + adding > DAILY_LIMIT) return { ok: false, reason: "limited" };
+    // 시간·하루 상한을 원자적 카운터로 먼저 잡는다 — 동시 요청이 같은 옛 건수를 보고 함께 넘는 일이 없다(카이 ④ 검수 5)
+    if (!(await reserve(reporter, `h:${now.toISOString().slice(0, 13)}`, adding, HOURLY_LIMIT))) return { ok: false, reason: "limited" };
+    if (!(await reserve(reporter, `d:${now.toISOString().slice(0, 10)}`, adding, DAILY_LIMIT))) return { ok: false, reason: "limited" };
     if (fresh.length) await db().insert(r).values(fresh.map((key) => ({ key, reporter, createdAt: now }))).onConflictDoNothing();
     if (textIsNew && sig && textId) await db().insert(tx).values({ id: textId, reporter, sig, bands: bandKeys(sig), createdAt: now }).onConflictDoNothing();
   }

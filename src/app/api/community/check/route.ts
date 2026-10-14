@@ -9,6 +9,8 @@ export const runtime = "nodejs";
 const limited = memoryLimiter(60_000, 60);
 const Body = z.object({ keys: z.array(z.string().max(220)).max(MAX_KEYS_PER_CHECK).default([]), sig: z.array(z.number()).optional() });
 const EMPTY = { counts: {}, similar: 0 };
+/** 장부를 못 읽음 — 화면은 신고 칸을 숨긴다("0건"으로 보이지 않게, 카이 ④ 검수 4) */
+const UNAVAILABLE = { counts: {}, similar: 0, unavailable: true };
 
 /**
  * POST /api/community/check {keys, sig?} — 이용자 신고 수·비슷한 신고 글 수(서로 다른 신고자 3명 이상만).
@@ -19,11 +21,12 @@ export async function POST(req: Request) {
   if (!p.success) return json({ error: "invalid body" }, 400);
   const keys = normalizeKeys(p.data.keys, MAX_KEYS_PER_CHECK);
   const sig = p.data.sig ? validSig(p.data.sig) : null;
-  if ((!keys.length && !sig) || !hasDb) return json(EMPTY);
+  if (!keys.length && !sig) return json(EMPTY);
+  if (!hasDb) return json(UNAVAILABLE);
   if (limited(clientIp(req))) return json({ error: "too many requests", retryAfterSec: 60 }, 429);
   try {
     return json(await check(keys, sig));
   } catch {
-    return json(EMPTY);
+    return json(UNAVAILABLE);
   }
 }

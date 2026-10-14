@@ -53,6 +53,9 @@ export function publicView(report: InvestigationReport, admin: boolean): Investi
   const trimmed = linked.length !== report.linkedAccounts.length;
   return {
     ...report,
+    // 공개: 사람 검토 결과·검토자 정보는 싣지 않는다 — 공개 화면에 "사람 검토"·"확정" 표현을 두지 않기로 (소현 10-14, 카이 ④ 검수 3)
+    humanReview: null,
+    effectiveStatus: report.status,
     // 공개 JSON: 신호 방향만, 크기(가점·감점) 비공개 (소현 10-05). 내부 규칙 코드·연락처 강도 구분도 싣지 않는다 (카이 GASA 검수, 테오 10-14)
     rationale: report.rationale.map(({ code: _code, ...r }, i) => ({ ...r, id: `s${i + 1}`, points: Math.sign(r.points) })),
     contacts: report.contacts.map(({ strong: _strong, ...c }) => c).sort((a, b) => a.type.localeCompare(b.type) || a.value.localeCompare(b.value)),

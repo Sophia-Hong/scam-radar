@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_DISPLAY, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
+import { MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
 import { accountFromInput } from "@/components/LiveAnalyzer";
 import { minhash } from "@/engine/minhash";
 import { communityKeys, foundTelegram, keyLabel, plainSigns, shareUrl } from "./result-view";
@@ -72,7 +72,7 @@ describe("결과 첫 화면", () => {
 
 describe("신고 표시 조건", () => {
   it("서로 다른 신고자 3명 미만은 숫자를 내보내지 않음", () => {
-    expect(MIN_DISPLAY).toBe(3);
+    expect(MIN_DISTINCT_CONNECTIONS).toBe(3);
     expect([0, 1, 2, 3, 7].map(shown)).toEqual([0, 0, 0, 3, 7]);
   });
   it("서명 형식 — 브라우저 minhash 그대로만", () => {
