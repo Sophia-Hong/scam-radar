@@ -3,18 +3,14 @@ import { useMemo, useState } from "react";
 import { scoreText } from "@/engine";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Reasons } from "@/components/Reasons";
-import { DATA_NOTICE, SUPPORT_SCOPE } from "@/lib/copy";
+import { useLang } from "@/lib/i18n";
 
-const SAMPLES = [
-  "급등주 종목 무료로 공개합니다 🚀🚀 수익인증 300% 선착순 20명 ㅌㄹㄱㄹ @stock_king77",
-  "요즘 물린 분들 많죠? 복구 도와드려요. 프로필 링크 참고하세요 Ｔеlеgrаm 문의",
-  "텔.레.그.램 무료 리딩방 입장 → t.me/vipstock77 원금보장 마감임박",
-  "대신증권 재직중입니다. 사원증 인증 사진 올려요. 요즘 장 흐름이랑 종목 정보 필요하신 분 댓글 남겨주세요, 제가 직접 상담해 드릴게요",
-  "오늘 삼성전자 좀 올랐네요. 다들 어떻게 보세요?",
-];
 
 /** 서버 비용 0 — 판정 엔진이 브라우저에서 그대로 돈다 */
 export default function AnalyzePage() {
+  const { lang, t: L } = useLang();
+  const t = L.analyze;
+  const SAMPLES = t.samples;
   const [text, setText] = useState(SAMPLES[0]);
   const [followers, setFollowers] = useState("");
   const [cluster, setCluster] = useState("");
@@ -28,31 +24,31 @@ export default function AnalyzePage() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-3">
-        <h1 className="text-2xl font-bold">텍스트 분석</h1>
-        <p className="text-sm text-zinc-600">게시물·댓글을 붙여 넣으면 어떤 신호가 있는지 바로 계산합니다. {DATA_NOTICE.analyze}</p>
-        <p className="text-xs text-zinc-500">{SUPPORT_SCOPE}</p>
+        <h1 className="text-2xl font-bold">{t.title}</h1>
+        <p className="text-sm text-zinc-600">{t.lead} {t.notice}</p>
+        <p className="text-xs text-zinc-500">{L.hero.scope}</p>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} className="w-full rounded-lg border border-zinc-300 bg-white p-3 font-mono text-sm outline-none focus:border-zinc-900" />
         <div className="flex gap-2 text-sm">
-          <input value={followers} onChange={(e) => setFollowers(e.target.value)} placeholder="팔로워 수(선택)" className="w-40 rounded-md border border-zinc-300 bg-white px-2 py-1" />
-          <input value={cluster} onChange={(e) => setCluster(e.target.value)} placeholder="동일 문구 반복 수(선택)" className="w-44 rounded-md border border-zinc-300 bg-white px-2 py-1" />
-          <input value={spread} onChange={(e) => setSpread(e.target.value)} placeholder="같은 문구 쓴 계정 수(선택)" className="w-48 rounded-md border border-zinc-300 bg-white px-2 py-1" />
+          <input value={followers} onChange={(e) => setFollowers(e.target.value)} placeholder={t.followers} className="w-40 rounded-md border border-zinc-300 bg-white px-2 py-1" />
+          <input value={cluster} onChange={(e) => setCluster(e.target.value)} placeholder={t.cluster} className="w-44 rounded-md border border-zinc-300 bg-white px-2 py-1" />
+          <input value={spread} onChange={(e) => setSpread(e.target.value)} placeholder={t.spread} className="w-48 rounded-md border border-zinc-300 bg-white px-2 py-1" />
         </div>
         <div className="flex flex-wrap gap-1">
-          {SAMPLES.map((s, i) => <button key={i} onClick={() => setText(s)} className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs hover:bg-zinc-100">샘플 {i + 1}</button>)}
+          {SAMPLES.map((s, i) => <button key={i} onClick={() => setText(s)} className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs hover:bg-zinc-100">{t.sample(i + 1)}</button>)}
         </div>
       </div>
       <div className="space-y-4">
-        <ScoreBadge score={r.score} label={r.label} size="lg" signals={r.reasons.filter((x) => x.points > 0).length} />
+        <ScoreBadge score={r.score} label={r.label} size="lg" signals={r.reasons.filter((x) => x.points > 0).length} lang={lang} />
         <Reasons reasons={r.reasons} />
         <div className="rounded-lg border border-zinc-200 bg-white p-3 text-xs">
-          <div className="mb-1 font-semibold text-zinc-700">정규화 결과</div>
+          <div className="mb-1 font-semibold text-zinc-700">{t.normalized}</div>
           <div className="font-mono break-all text-zinc-600">{r.normalized.compact}</div>
           <div className="mt-2 flex flex-wrap gap-1">
-            {r.normalized.techniques.length ? r.normalized.techniques.map((t) => <span key={t} className="rounded bg-amber-100 px-1.5 text-amber-900">{t}</span>) : <span className="text-zinc-400">난독화 없음</span>}
-            <span className="ml-auto text-zinc-400">변형률 {(r.normalized.obfuscationRatio * 100).toFixed(0)}%</span>
+            {r.normalized.techniques.length ? r.normalized.techniques.map((t) => <span key={t} className="rounded bg-amber-100 px-1.5 text-amber-900">{t}</span>) : <span className="text-zinc-400">{t.noObf}</span>}
+            <span className="ml-auto text-zinc-400">{t.ratio(Math.round(r.normalized.obfuscationRatio * 100))}</span>
           </div>
         </div>
-        <p className="text-xs text-zinc-500">홈 화면의 판독과 서버 수집 파이프라인에서는 일부 글을 보조 AI가 다시 볼 수 있습니다. 이 페이지는 AI를 쓰지 않습니다.</p>
+        <p className="text-xs text-zinc-500">{t.ai}</p>
       </div>
     </div>
   );

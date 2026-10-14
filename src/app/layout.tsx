@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
 import { LangProvider, LangToggle, T } from "@/lib/i18n";
-import { langFrom, STRINGS } from "@/lib/strings";
+import { STRINGS } from "@/lib/strings";
+import { serverLang } from "@/lib/lang-server";
 import "./globals.css";
 
-async function currentLang() {
-  return langFrom((await cookies()).get("lang")?.value, (await headers()).get("accept-language"));
-}
+const currentLang = serverLang;
 
 export async function generateMetadata(): Promise<Metadata> {
   const m = STRINGS[await currentLang()].meta;
