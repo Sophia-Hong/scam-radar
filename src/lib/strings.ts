@@ -43,7 +43,7 @@ const ko = {
     aiOffButton: "AI 없이 확인",
     leadTail: "을 쓰세요.",
     more: "자세히",
-    aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요(AI 재검·신고 수 조회 없음).",
+    aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요(AI 재검·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크를 보내요.",
     aiOffUndo: "AI 재검 다시 켜기",
     details: [
       ["보내는 것", "다시 확인할 글 원문 (글 안의 이름·연락처 포함)"],
@@ -232,7 +232,7 @@ const en: Strings = {
     aiOffButton: "Check without AI",
     leadTail: ".",
     more: "Details",
-    aiOffOn: "Checking without AI — what you paste stays in your browser (no AI second look, no report counts).",
+    aiOffOn: "Checking without AI — what you paste stays in your browser (no AI second look, no report counts). Only if you choose to report do we send the contacts and links you selected.",
     aiOffUndo: "Turn the AI second look back on",
     details: [
       ["What is sent", "The text of the message being re-checked (including any names or contacts in it)"],
