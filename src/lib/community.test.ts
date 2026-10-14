@@ -131,6 +131,7 @@ describe("교차 확인 — 신고 수 공개 = 연결 3곳 이상 AND 엔진 �
   });
   it("계정 키는 요청의 판정(HIGH)으로 열리지 않음 — 서버 판정이 없으면 DB 전에 숨김 (카이 1791950858)", async () => {
     expect(await check(["threads:real_person"], null, "HIGH")).toEqual({ counts: {}, similar: 0, gated: true });
+    expect(await check(["handle:real_person"], null, "HIGH")).toEqual({ counts: {}, similar: 0, gated: true });   // 글 속 @아이디도 계정 키
   });
   it("두 조건이 따로 — 연결 수 기준은 그대로", () => {
     expect([2, 3].map(shown)).toEqual([0, 3]);
