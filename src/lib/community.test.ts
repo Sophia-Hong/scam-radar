@@ -160,7 +160,8 @@ describe("교차 확인 — 신고 수 공개 = 연결 3곳 이상 AND 엔진 �
 describe("받은 메시지 징후 문장 (율 1791951936·1791951972)", () => {
   it("4번 문장에는 회사·기관 이름이 없음 · 7번 KR 에 '법으로 금지' 없음 · 일반 안내 마지막 줄은 KR 에만", () => {
     for (const L of [STRINGS.ko, STRINGS.en]) expect(L.result.signs.deliveryLink.join(" ")).not.toMatch(/CJ|한진|롯데|우체국|경찰청|국세청|FedEx|UPS|USPS|IRS/i);
-    expect(STRINGS.ko.result.signs.loanFee.join(" ")).not.toContain("법으로 금지");
+    expect(STRINGS.ko.result.signs.loanFee[1]).toBe("대출을 도와준다며 수수료를 받는 건 법으로 금지예요. 돈을 보내기 전에 원래 은행에 직접 전화하세요.");   // 율 조문 확인 1791952046(대부업법 §11조의2②)
+    expect(STRINGS.en.result.signs.loanFee.join(" ")).not.toMatch(/illegal|law/i);
     expect(STRINGS.ko.result.stopFooter).toContain("112");
     expect(STRINGS.en.result.stopFooter).toBe("");
   });
