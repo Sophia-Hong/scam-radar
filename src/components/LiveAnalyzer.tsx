@@ -352,7 +352,7 @@ export function LiveAnalyzer() {
 
             <div className="result-actions">
               <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
-              {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: keys, withText: !!sig && !aiOff })}>{t.community.button}</button>}
+              {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: aiOff ? [] : keys, withText: !!sig && !aiOff })}   /* AI 없이 확인: 아무것도 미리 고르지 않음(테오 1791952508) */>{t.community.button}</button>}
             </div>
             {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
 
