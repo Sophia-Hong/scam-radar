@@ -161,13 +161,21 @@ export interface SummaryInput {
   posts: { postUrl: string; parentUrl?: string | null; text: string; postedAt?: string | null; capturedAt: string; score: number }[];
   reasons: string[];
   reasonCodes?: string[];
-  contacts?: { typeLabel: string; value: string; strong?: boolean }[];
+  contacts?: { typeLabel: string; value: string }[];
   linkedAccounts?: string[];
 }
 
+/**
+ * 요약문 판(版) — 공개 요약에 연락처 강도 구분("(참고: …)")·내부 규칙 코드가 들어가지 않게 바꾼 판 (카이 05213d0 HOLD 1).
+ * accounts.summary_model 끝에 붙여 저장하고, 이 표식이 없는 옛 요약은 다시 만든다(공개에는 내보내지 않는다).
+ */
+export const SUMMARY_VERSION = "|s2";
+export const isCurrentSummary = (model: string | null | undefined) => !!model && model.endsWith(SUMMARY_VERSION);
+export const summaryModelLabel = (model: string) => model.replace(SUMMARY_VERSION, "");
+
 export async function summarizeAccount(input: SummaryInput): Promise<{ summary: string; model: string }> {
   const key = fnv1a64(
-    input.handle + "|" + input.posts.map((p) => p.postUrl + p.text).join("|") +
+    SUMMARY_VERSION + input.handle + "|" + input.posts.map((p) => p.postUrl + p.text).join("|") +
     "|" + (input.contacts ?? []).map((c) => `${c.typeLabel}:${c.value}`).join(",") +
     "|" + (input.linkedAccounts ?? []).join(",")
   );
@@ -178,7 +186,8 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
         ...modelConfig(["feature:account-summary", "tier:mvp"]),
         maxOutputTokens: 420,
         system: "관측 사실 기반 내용 요약을 작성한다. 판단이나 추측 없이 확인된 사실만 1) 대상 계정 2) 게시 일시·장소 3) 게시 내용 4) 유도 수단 5) 반복성 순서의 3~5문장 개조식으로 쓴다. '사기'라고 단정하지 말고 '유인 정황'이라고 표현한다.",
-        prompt: JSON.stringify({ ...input, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1),
+        // 내부 규칙 코드는 모델에 넘기지 않는다(요약문으로 새어 나가지 않게)
+        prompt: JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1),
       });
       return { summary: result.text.trim() || templateSummary(input), model: MODEL_NAME };
     });
@@ -189,10 +198,8 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
 
 function contactLine(i: SummaryInput): string {
   const parts: string[] = [];
-  const strong = (i.contacts ?? []).filter((c) => c.strong !== false);
-  const weak = (i.contacts ?? []).filter((c) => c.strong === false);
-  if (strong.length) parts.push(strong.map((c) => `${c.typeLabel} ${c.value}`).join(", "));
-  if (weak.length) parts.push(`(참고: ${weak.map((c) => `${c.typeLabel} ${c.value}`).join(", ")})`);
+  // 연락처는 종류·값만 — 강도(계정 연결에 쓰는지)는 공개 문장에 적지 않는다 (카이 05213d0 HOLD 1)
+  if (i.contacts?.length) parts.push(i.contacts.map((c) => `${c.typeLabel} ${c.value}`).join(", "));
   if (!parts.length) parts.push(i.reasons.filter((r) => /텔레|카카오|오픈채팅|링크|DM|핸들|번호|쪽지|디엠/.test(r)).join(", ") || "메신저·링크 유도 정황");
   if (i.externalUrl) parts.push(`프로필 링크 ${i.externalUrl}`);
   if (i.linkedAccounts?.length) parts.push(`동일 연락처를 쓰는 다른 계정 ${i.linkedAccounts.length}개: ${i.linkedAccounts.join(", ")}`);

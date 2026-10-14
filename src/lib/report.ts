@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { summarizeAccount } from "./llm";
+import { isCurrentSummary, summarizeAccount, SUMMARY_VERSION, summaryModelLabel } from "./llm";
 import { sharedAccountsOf, type SharedAccount } from "./pipeline";
 import { ENTITY_TYPE_LABEL, isStrongEntity, explainReasons, type Reason, type EntityType } from "@/engine";
 import { effectiveStatus, type EffectiveStatus } from "./labels";
@@ -78,16 +78,16 @@ export async function buildReport(accountId: string, opts: { admin?: boolean } =
 
   let summaryText = acc.summary;
   let by = acc.summaryModel ?? "template";
-  if (!summaryText) {
+  if (!summaryText || !isCurrentSummary(acc.summaryModel)) {   // 옛 판 요약(연락처 강도 구분 포함 가능)은 다시 만든다
     const s = await summarizeAccount({
       platform: acc.platform, handle: acc.handle, profileUrl: acc.profileUrl, bio: acc.bio, externalUrl: acc.externalUrl,
       posts: rows.map((p) => ({ postUrl: p.postUrl, parentUrl: p.parentUrl, text: p.text, postedAt: p.postedAt?.toISOString() ?? null, capturedAt: p.capturedAt.toISOString(), score: p.score })),
       reasons: reasons.map((r) => r.label),
       reasonCodes: reasons.map((r) => r.code),
-      contacts: contacts.map((c) => ({ typeLabel: c.typeLabel, value: c.value, strong: c.strong })),
+      contacts: contacts.map((c) => ({ typeLabel: c.typeLabel, value: c.value })),
       linkedAccounts: sharedWith.map((s) => s.accountId),
     });
-    summaryText = s.summary; by = s.model;
+    summaryText = s.summary; by = s.model + SUMMARY_VERSION;
     await d.update(schema.accounts).set({ summary: summaryText, summaryModel: by }).where(eq(schema.accounts.id, accountId));
   }
 
@@ -105,7 +105,7 @@ export async function buildReport(accountId: string, opts: { admin?: boolean } =
       bio: acc.bio, externalUrl: acc.externalUrl, followers: acc.followers, following: acc.following, createdAt: acc.accountCreatedAt?.toISOString() ?? null,
     },
     timeline: { firstSeen: acc.firstSeen.toISOString(), lastSeen: acc.lastSeen.toISOString(), postCount: rows.length, distinctTargets: acc.distinctTargets },
-    summary: { text: summaryText, generatedBy: by },
+    summary: { text: summaryText, generatedBy: summaryModelLabel(by) },
     contacts,
     linkedAccounts: sharedWith,
     evidence: rows.map((p) => ({
