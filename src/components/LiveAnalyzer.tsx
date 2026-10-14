@@ -66,17 +66,17 @@ async function shrinkImage(file: File): Promise<string> {
   return out;
 }
 
-/** how-to 그림 — 단순 SVG(생성 이미지·사진 아님, 테오 1791972108). 0 = 폰으로 캡처, 1 = 올리기, 2 = 신호등 결과 + 할 일 목록(체크 표시 없음 — 초록=안전으로 읽히지 않게, 율 1791972312) */
+/** how-to 작은 아이콘 — 검정 선만, 형광·빨강·신호등 색 없음(소현 1791985306 "형광색은 지워", 테오 1791985334). 0 = 폰으로 캡처, 1 = 올리기, 2 = 결과 + 할 일 목록 */
 function HowtoIcon({ step }: { step: number }) {
-  const common = { width: 64, height: 64, viewBox: "0 0 64 64", "aria-hidden": true as const, fill: "none", stroke: "#11110f", strokeWidth: 3, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const common = { width: 20, height: 20, viewBox: "0 0 64 64", "aria-hidden": true as const, fill: "none", stroke: "currentColor", strokeWidth: 4, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   if (step === 0) return (
-    <svg {...common}><rect x="18" y="6" width="28" height="52" rx="5" /><path d="M24 18h16v12H30l-4 4v-4h-2z" fill="#d8ff3e" /><path d="M10 14V8h6M54 14V8h-6M10 50v6h6M54 50v6h-6" stroke="#f04428" /></svg>
+    <svg {...common}><rect x="18" y="6" width="28" height="52" rx="5" /><path d="M10 14V8h6M54 14V8h-6M10 50v6h6M54 50v6h-6" /></svg>
   );
   if (step === 1) return (
-    <svg {...common}><path d="M10 40v12h44V40" /><path d="M32 42V12M20 24l12-12 12 12" stroke="#f04428" /></svg>
+    <svg {...common}><path d="M10 40v12h44V40" /><path d="M32 42V12M20 24l12-12 12 12" /></svg>
   );
   return (
-    <svg {...common}><rect x="8" y="8" width="18" height="48" rx="8" /><circle cx="17" cy="18" r="5" fill="#c8260f" stroke="none" /><circle cx="17" cy="32" r="5" fill="#e3a008" stroke="none" /><circle cx="17" cy="46" r="5" fill="#247651" stroke="none" /><rect x="33" y="10" width="24" height="44" rx="3" /><path d="M38 20h14M38 30h14M38 40h14" /></svg>
+    <svg {...common}><rect x="10" y="8" width="44" height="48" rx="4" /><path d="M20 22h24M20 32h24M20 42h16" /></svg>
   );
 }
 
@@ -325,15 +325,15 @@ export function LiveAnalyzer() {
     <>
 
       <section id="check" className="checker" aria-labelledby="checker-title">
-        {/* 캡처 먼저(소현 1791972094, 테오 1791972108): 그림 how-to 3칸(모바일 위·데스크톱 옆) → 큰 [캡처 올리기] + 바로 아래 고지 → "또는 글 붙여넣기". 옛 ①②③ 글 단계는 이 그림으로 합침 */}
+        {/* 캡처 먼저(소현 1791972094): 제목 → 바로 밑 작은 흐름 한 줄 ①→②→③(소현 1791985306, 테오 1791985334 — 형광 박스 3칸 없앰) → 큰 [캡처 올리기] + 고지 → "또는 글 붙여넣기" */}
         <div className="checker-grid">
-        <ol className="howto">
-          {t.hero.howto.map((line, i) => (
-            <li key={line}><HowtoIcon step={i} /><span><b>{i + 1}</b> {line}</span></li>
-          ))}
-        </ol>
         <div className="checker-main">
         <h1 id="checker-title">{t.hero.title}</h1>
+        <ol className="howto-flow">
+          {t.hero.howto.map((line, i) => (
+            <li key={line}><HowtoIcon step={i} /><span><b>{"①②③"[i]}</b> {line}</span></li>
+          ))}
+        </ol>
         <form onSubmit={submit}>
           <label className={`shot-button big${aiOff ? " disabled" : ""}`} aria-disabled={aiOff}>
             <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={aiOff} onChange={(e) => { void addShots(e.target.files); e.target.value = ""; }} />

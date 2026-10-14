@@ -29,8 +29,8 @@ const ko = {
     failed: "복사하지 못했어요. 주소창의 링크를 복사해 주세요.",
   },
   hero: {
-    title: "돈 보내기 전에, 받은 메시지를 여기 넣어 보세요",   // 캡처도 덮게 "글"→"메시지"(율 1791972312)
-    // 그림 how-to 3칸(소현 1791972094 "스크린샷 올리는 걸 먼저", 테오 1791972108) — 한 칸 4~6단어, 옛 ①②③ 글 단계와 하나로 합침
+    title: "소중한 돈 보내기 전에, 먼저 위험부터 확인하세요!",   // 프리뷰안(테오 1791985375, 소현 영어 원문 1791985351의 한국어판 — 소현이 캡처 보고 고침)
+    // how-to 흐름 한 줄(소현 1791985306 "3가지 스텝이면 플로우로 바로 밑에 약간 작게", 테오 1791985334) — 한 칸 4~6단어
     howto: ["받은 메시지를 캡처하세요", "여기에 캡처를 올리세요", "결과와 할 일을 보세요"],   // 율 1791972312
     orPaste: "또는 받은 글을 붙여 넣으세요",
     upload: "캡처 올리기",   // 테오 1791958372
@@ -246,8 +246,8 @@ const en: Strings = {
     failed: "Couldn't copy. Please copy the link from the address bar.",
   },
   hero: {
-    title: "Before you send money, put the message you received here",
-    howto: ["Screenshot the message", "Upload the screenshot here", "See the result and next steps"],
+    title: "Check the risk plz, BEFORE you send your precious money!",   // Sophia verbatim (#today-hq 1791985351, Theo 1791985375) — keep case, "plz" and "!"
+    howto: ["Screenshot the message", "Upload it here", "See the result and next steps"],   // Theo 1791985334
     orPaste: "Or paste the text you received",
     upload: "Upload screenshots",
     uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
