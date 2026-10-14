@@ -66,6 +66,20 @@ async function shrinkImage(file: File): Promise<string> {
   return out;
 }
 
+/** how-to 그림 — 단순 SVG(생성 이미지·사진 아님, 테오 1791972108). 0 = 폰으로 캡처, 1 = 올리기, 2 = 신호등 결과 + 할 일 */
+function HowtoIcon({ step }: { step: number }) {
+  const common = { width: 64, height: 64, viewBox: "0 0 64 64", "aria-hidden": true as const, fill: "none", stroke: "#11110f", strokeWidth: 3, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (step === 0) return (
+    <svg {...common}><rect x="18" y="6" width="28" height="52" rx="5" /><path d="M24 18h16v12H30l-4 4v-4h-2z" fill="#d8ff3e" /><path d="M10 14V8h6M54 14V8h-6M10 50v6h6M54 50v6h-6" stroke="#f04428" /></svg>
+  );
+  if (step === 1) return (
+    <svg {...common}><path d="M10 40v12h44V40" /><path d="M32 42V12M20 24l12-12 12 12" stroke="#f04428" /></svg>
+  );
+  return (
+    <svg {...common}><rect x="8" y="8" width="18" height="48" rx="8" /><circle cx="17" cy="18" r="5" fill="#c8260f" stroke="none" /><circle cx="17" cy="32" r="5" fill="#e3a008" stroke="none" /><circle cx="17" cy="46" r="5" fill="#247651" stroke="none" /><path d="M34 18l3 3 6-6M34 32l3 3 6-6M34 46l3 3 6-6" stroke="#247651" /><path d="M46 18h10M46 32h10M46 46h10" /></svg>
+  );
+}
+
 /** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
 /** 서버 응답 → 화면 상태. "AI 확인 반영"은 서버가 실제 모델 판정을 받았다고 답했을 때만, 키 없음·상한·실패는 "못 함 · 규칙 결과"(카이 1fe5e41) */
 export function aiStatusOf(data: unknown): "applied" | "error" {
@@ -311,28 +325,45 @@ export function LiveAnalyzer() {
     <>
 
       <section id="check" className="checker" aria-labelledby="checker-title">
-        {/* 자녀가 보낸 링크로 처음 온 분 — 할 일 세 단계를 맨 위에 크게(카이 노인 검수 2, 테오 1791956461). 원문은 URL 에 넣지 않는다 */}
-        <ol className="checker-steps">{t.hero.steps.map((s, i) => <li key={s}><b>{["①", "②", "③"][i]}</b> {s}</li>)}</ol>
+        {/* 캡처 먼저(소현 1791972094, 테오 1791972108): 그림 how-to 3칸(모바일 위·데스크톱 옆) → 큰 [캡처 올리기] + 바로 아래 고지 → "또는 글 붙여넣기". 옛 ①②③ 글 단계는 이 그림으로 합침 */}
+        <div className="checker-grid">
+        <ol className="howto">
+          {t.hero.howto.map((line, i) => (
+            <li key={line}><HowtoIcon step={i} /><span><b>{i + 1}</b> {line}</span></li>
+          ))}
+        </ol>
+        <div className="checker-main">
         <h1 id="checker-title">{t.hero.title}</h1>
         <form onSubmit={submit}>
+          <label className={`shot-button big${aiOff ? " disabled" : ""}`} aria-disabled={aiOff}>
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={aiOff} onChange={(e) => { void addShots(e.target.files); e.target.value = ""; }} />
+            📷 {t.hero.upload}
+          </label>
+          {pending.length > 0 && (
+            <div className="shot-row">
+              {pending.map((p, i) => (
+                <span key={i} className="shot-chip"><img src={p.data} alt="" /> <button type="button" onClick={() => setPending(pending.filter((_, j) => j !== i))}>{t.hero.uploadRemove}</button></span>
+              ))}
+            </div>
+          )}
+          <p className="shot-note">{aiOff ? t.hero.uploadOff : t.hero.uploadNote}</p>
+          {aiOff ? (
+            <p className="privacy-note ai-off">✓ {t.notice.aiOffOn} <button type="button" className="inline-link" onClick={() => toggleAiOff(false)}>{t.notice.aiOffUndo}</button></p>
+          ) : (
+            <details className="privacy-note">
+              <summary>✓ {t.notice.lead} <button type="button" className="inline-link" onClick={(e) => { e.preventDefault(); toggleAiOff(true); }}>[{t.notice.aiOffButton}]</button>{t.notice.leadTail} <span className="more">{t.notice.more} ▸</span></summary>
+              <dl>{t.notice.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+            </details>
+          )}
+          {uploadMsg && <p className="act-msg" role="status">{uploadMsg}</p>}
+          <p className="or-paste">{t.hero.orPaste}</p>
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder={t.hero.placeholder}
             aria-label={t.hero.aria}
-            rows={5}
+            rows={4}
           />
-          <div className="shot-row">
-            <label className={`shot-button${aiOff ? " disabled" : ""}`} aria-disabled={aiOff}>
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={aiOff} onChange={(e) => { void addShots(e.target.files); e.target.value = ""; }} />
-              📷 {t.hero.upload}
-            </label>
-            {pending.map((p, i) => (
-              <span key={i} className="shot-chip"><img src={p.data} alt="" /> <button type="button" onClick={() => setPending(pending.filter((_, j) => j !== i))}>{t.hero.uploadRemove}</button></span>
-            ))}
-          </div>
-          <p className="shot-note">{aiOff ? t.hero.uploadOff : t.hero.uploadNote}</p>
-          {uploadMsg && <p className="act-msg" role="status">{uploadMsg}</p>}
           <button type="submit" className="checker-go" disabled={account.status === "loading" || (!input.trim() && !pending.length)}>
             {account.status === "loading" ? t.hero.checking : t.hero.check}
           </button>
@@ -344,14 +375,8 @@ export function LiveAnalyzer() {
           {(input || pending.length > 0) && <button type="button" onClick={() => { setInput(""); setPending([]); }}>{t.hero.clear}</button>}
         </div>
         <p className="checker-scope">{t.hero.scope}</p>
-        {aiOff ? (
-          <p className="privacy-note ai-off">✓ {t.notice.aiOffOn} <button type="button" className="inline-link" onClick={() => toggleAiOff(false)}>{t.notice.aiOffUndo}</button></p>
-        ) : (
-          <details className="privacy-note">
-            <summary>✓ {t.notice.lead} <button type="button" className="inline-link" onClick={(e) => { e.preventDefault(); toggleAiOff(true); }}>[{t.notice.aiOffButton}]</button>{t.notice.leadTail} <span className="more">{t.notice.more} ▸</span></summary>
-            <dl>{t.notice.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-          </details>
-        )}
+        </div>
+        </div>
       </section>
 
       {/* "소중한 사람에게 보내기"는 받은 분이 아니라 보내는 분의 행동 — 첫 화면 맨 위에서 입력칸 아래로(카이 노인 검수 2) */}

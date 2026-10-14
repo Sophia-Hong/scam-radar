@@ -443,3 +443,25 @@ main { overflow:hidden; }
 .learn-figure b { display:block; font-size:12px; margin-bottom:6px; }
 .learn-figure img { display:block; width:100%; height:auto; border:1px solid var(--line); }
 .learn-figure figcaption { margin-top:6px; font-size:12px; color:#5c5a54; line-height:1.5; overflow-wrap:anywhere; }
+
+/* 캡처 먼저 + 그림 how-to(소현 1791972094, 테오 1791972108) — 모바일은 입력칸 위 가로 3칸, 데스크톱은 입력칸 옆 세로 3칸 */
+.checker-grid { display:grid; gap:18px; }
+.howto { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+.howto li { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; background:var(--acid); border:1px solid var(--ink); text-align:center; }
+.howto svg { width:52px; height:52px; flex:0 0 auto; }
+.howto span { font-size:16px; font-weight:850; line-height:1.3; word-break:keep-all; }
+.howto span b { display:block; font-size:13px; }
+.shot-button.big { display:flex; justify-content:center; width:100%; min-height:72px; border-radius:0; border:2px solid var(--ink); background:var(--ink); color:white; font-size:22px; font-weight:900; }
+.shot-button.big.disabled { background:#8e8b83; border-color:#8e8b83; }
+.or-paste { margin:6px 0 0; font-size:17px; font-weight:850; color:#45433d; }
+.checker form .privacy-note { margin-top:0; }
+@media (min-width:900px) {
+  .checker { max-width:1100px; }
+  .checker-grid { grid-template-columns:240px minmax(0, 1fr); align-items:start; }
+  .howto { grid-template-columns:1fr; gap:10px; }
+  .howto li { flex-direction:row; text-align:left; padding:14px; }
+  .howto svg { width:64px; height:64px; }
+  .howto span { font-size:19px; }
+}
+@media (max-width:420px) { .howto span { font-size:15px; } .howto svg { width:44px; height:44px; } }
+.nav-links a { min-width:44px; justify-content:center; }   /* EN "Check" 41px → 44 */

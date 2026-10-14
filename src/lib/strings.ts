@@ -30,7 +30,9 @@ const ko = {
   },
   hero: {
     title: "돈 보내기 전에, 받은 글을 여기 넣어 보세요",
-    steps: ["받은 문자 길게 누르기 → 복사", "아래 칸에 붙여넣기", "[확인하기] 누르기"],
+    // 그림 how-to 3칸(소현 1791972094 "스크린샷 올리는 걸 먼저", 테오 1791972108) — 한 칸 4~6단어, 옛 ①②③ 글 단계와 하나로 합침
+    howto: ["받은 메시지를 캡처하세요", "여기에 캡처를 올리세요", "색깔 결과와 할 일 보기"],
+    orPaste: "또는 글 붙여넣기",
     upload: "캡처 올리기",   // 테오 1791958372
     uploadNote: "다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2)
     uploadOff: "캡처는 AI로만 확인할 수 있어요. 여기서는 글만 넣을 수 있어요.",   // 율 1791958415
@@ -245,7 +247,8 @@ const en: Strings = {
   },
   hero: {
     title: "Before you send money, paste what you received here",
-    steps: ["Press and hold the message you got → Copy", "Paste it in the box below", "Tap [Check]"],
+    howto: ["Screenshot the message", "Upload the screenshot here", "See the color and next steps"],
+    orPaste: "Or paste the text",
     upload: "Upload screenshots",
     uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
     uploadOff: "Screenshots can only be checked with AI. Here you can paste text only.",
