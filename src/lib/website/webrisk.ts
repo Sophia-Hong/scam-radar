@@ -8,7 +8,14 @@ import { kstDay } from "@/lib/checklimit";
  * *호출 전에* DB 원자 카운터로 예약한다(AI 상한과 같은 community_quota, 버킷 = KST 날짜). DB가 없거나 예약 오류·상한 초과면 호출하지 않는다(fail-closed).
  * 키(WEB_RISK_API_KEY)가 없으면 이 줄은 통째로 빠진다. 같은 앞자리는 Google이 준 만료 시각까지 인스턴스 메모리에 둔다.
  */
-export const WEB_RISK_DAILY_LIMIT = Number(process.env.WEB_RISK_DAILY_LIMIT ?? 3000);
+/** 절대 상한 3,000 — 환경값은 *낮추기만* 할 수 있다(카이 b15cee4 HOLD: 4000을 넣어도 3,001번째 호출은 없다). 숫자가 아니거나 0 이하면 0 = 호출 안 함(fail-closed) */
+export const WEB_RISK_HARD_CAP = 3000;
+export function effectiveDailyLimit(raw: string | undefined): number {
+  if (raw === undefined || raw === "") return WEB_RISK_HARD_CAP;
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) && n > 0 ? Math.min(n, WEB_RISK_HARD_CAP) : 0;
+}
+export const WEB_RISK_DAILY_LIMIT = effectiveDailyLimit(process.env.WEB_RISK_DAILY_LIMIT);
 export const THREAT_TYPES = ["SOCIAL_ENGINEERING", "MALWARE", "UNWANTED_SOFTWARE"] as const;
 export type ThreatType = (typeof THREAT_TYPES)[number];
 
@@ -31,6 +38,7 @@ export const urlSafePrefix = (prefix: Buffer) => prefix.toString("base64").repla
 const decodeHash = (h: string | undefined) => (h ? Buffer.from(h.replace(/-/g, "+").replace(/_/g, "/"), "base64") : Buffer.alloc(0));
 
 async function dbReserve(units: number, now: Date): Promise<boolean> {
+  if (WEB_RISK_DAILY_LIMIT <= 0 || units > WEB_RISK_DAILY_LIMIT) return false;
   const { ensureTables, reserve } = await import("@/lib/community");
   await ensureTables();
   return reserve("webrisk-call", `d:${kstDay(now)}`, units, WEB_RISK_DAILY_LIMIT);

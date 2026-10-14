@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { checkWebsite } from "./check";
 import { _clearDomainAgeCache, BOOTSTRAP_URL, domainAgeDays, safeRdapBase } from "./domain-age";
 import { canonicalExpression, hashExpressions, isThreads, parseSite } from "./url";
-import { _clearWebRiskCache, urlSafePrefix, webRiskCheck } from "./webrisk";
+import { _clearWebRiskCache, effectiveDailyLimit, urlSafePrefix, WEB_RISK_DAILY_LIMIT, WEB_RISK_HARD_CAP, webRiskCheck } from "./webrisk";
 import { STRINGS } from "@/lib/strings";
 import { scoreText } from "@/engine";
 import { EXAMPLE_SCAM } from "@/components/LiveAnalyzer";
@@ -231,5 +231,19 @@ describe("firm check line (Sophia 1791987307)", () => {
     expect(STRINGS.en.result.firmCheck.url).toBe("https://brokercheck.finra.org/");
     expect(STRINGS.ko.result.firmCheck.text).toMatch(/수 있어요/);
     expect(STRINGS.en.result.firmCheck.text).toMatch(/may be/);
+  });
+});
+
+describe("3,000 is a hard cap (Kai b15cee4)", () => {
+  it("the env can only lower it; junk or <= 0 means no calls", () => {
+    expect(WEB_RISK_HARD_CAP).toBe(3000);
+    expect(effectiveDailyLimit(undefined)).toBe(3000);
+    expect(effectiveDailyLimit("4000")).toBe(3000);
+    expect(effectiveDailyLimit("1000000")).toBe(3000);
+    expect(effectiveDailyLimit("1200")).toBe(1200);
+    expect(effectiveDailyLimit("0")).toBe(0);
+    expect(effectiveDailyLimit("-5")).toBe(0);
+    expect(effectiveDailyLimit("abc")).toBe(0);
+    expect(WEB_RISK_DAILY_LIMIT).toBeLessThanOrEqual(3000);
   });
 });
