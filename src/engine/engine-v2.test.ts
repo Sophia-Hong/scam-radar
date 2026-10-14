@@ -170,6 +170,11 @@ describe("local quote and negation scope", () => {
   ])("dampens a lure quoted inside a warning frame: %s", text => {
     expect(scoreText(text).label).not.toBe("HIGH");
   });
+
+  it("keeps a quoted warning local but scores a later independent offer", () => {
+    expect(scoreText('경고문에 "원금 보장 VIP방은 사기입니다"라고 적혀 있습니다.').label).toBe("LOW");
+    expect(["REVIEW", "HIGH"]).toContain(scoreText("사기입니다. 텔레그램 VIP방에 입금하면 코인 원금 보장 수익을 제공합니다.").label);
+  });
 });
 
 describe("received-message REVIEW escalation", () => {
@@ -235,11 +240,21 @@ describe("illegal investment guarantees", () => {
   });
 
   it.each([
+    "이 은행 정기예금은 예금자보호 대상이며 원금 보장과 이자 지급 조건은 상품설명서에서 확인하세요.",
+    "FDIC-insured savings account: deposit insurance protects eligible deposits; see the bank disclosure.",
+    "보험 약관은 원금 보장형 저축보험의 해지환급금과 보장 범위를 설명합니다.",
+    "은행의 principal-protected note disclosure explains the product terms and risks.",
     "원금 보장을 약속하는 투자는 불법이니 피하세요.",
     "We do not guarantee returns; investments can lose value.",
     'News analysis quotes "guaranteed profits" as a warning sign.',
     "Our appliance repair comes with guaranteed results.",
   ])("keeps warning, negation, quotation, and non-investment use below HIGH: %s", text => {
-    expect(scoreText(text).label).not.toBe("HIGH");
+    expect(scoreText(text).label).toBe("LOW");
+  });
+
+  it("requires solicitation context before a guarantee opens the HIGH gate", () => {
+    const result = scoreText("이번 주 리딩방에서 코인 투자금 원금 보장과 월 수익률을 제공합니다. 텔레그램으로 문의하세요.");
+    expect(result.label).toBe("HIGH");
+    expect(result.reasons.some(r => r.code === "guarantee:illegal")).toBe(true);
   });
 });

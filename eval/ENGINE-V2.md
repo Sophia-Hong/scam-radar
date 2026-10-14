@@ -170,3 +170,30 @@ cue.
 The file still contains two intentionally text-empty lure rows, excluded from
 scoring. Final pinned-corpus validation remains HIGH precision **1.000
 (135/135)**, with zero benign HIGH results.
+
+## Round 4 — guarantee solicitation and warning sentence scope
+
+The standalone prohibited-guarantee route now opens only when the same active
+message also contains investment-solicitation context: investment/return or
+stock/coin language, a leading room, an investment amount, a giver-side offer,
+or a contact/move-to-chat cue. Regulated product disclosures are excluded from
+that route, including deposit insurance / FDIC, insured savings, bank product
+disclosures, and principal-protected-note disclosures. The existing
+`guarantee:illegal` reason code remains unchanged.
+
+Warning and quotation removal is sentence-local. A following sentence is
+removed only when it is explicitly referential (for example, it begins with
+"이런", "such", or "that") or is clearly reported experience; an independent
+later offer remains scoreable.
+
+| Check | Before | After |
+| --- | ---: | ---: |
+| Real examples (84), HIGH + REVIEW | 43 / 84 (19 HIGH, 24 REVIEW) | **43 / 84 (19 HIGH, 24 REVIEW)** |
+| DEV red-team benign HIGH (36 scorable) | 0 | **0** |
+| Pinned corpus HIGH precision / recall | 1.000 / 0.849 | **1.000 / 0.849** |
+
+New engine tests cover normal Korean deposit insurance, FDIC-insured savings,
+and a bank principal-protected-note disclosure as LOW; a guarantee with an
+investment solicitation as HIGH; an attributed warning quote as LOW; and a
+warning followed by an independent Telegram VIP deposit offer as REVIEW or
+higher.

@@ -91,16 +91,21 @@ export function hasEasyMoneyPitch(text: string): boolean {
 
 /**
  * A promise to protect investment principal or guarantee investment profit is
- * independently illegal.  It is deliberately narrower than the general
- * profit lexicon: ordinary warranties and vague "guaranteed results" claims
- * do not match.  Call this only after clause-local warning/negation removal.
+ * independently illegal only when it is part of a solicitation. It is
+ * deliberately narrower than the general profit lexicon: ordinary warranties,
+ * regulated-product disclosures, and vague "guaranteed results" claims do not
+ * match. Call this only after clause-local warning/negation removal.
  */
 export const ILLEGAL_GUARANTEE = /원금\s*보장|손실\s*보전|확정\s*수익|\b(?:guaranteed?\s+(?:returns?|profits?|income|roi)|(?:returns?|profits?|income|roi)\s+(?:are |is )?(?:fully |100% )?guaranteed|no[- ]risk\s*,?\s*guaranteed|risk[- ]free\s+(?:returns?|profits?)|principal\s+(?:is\s+)?(?:guaranteed|protected))\b/i;
 const LOSS_COMPENSATION = /손실.{0,24}(?:책임지|메꿔|보상|보전)/;
 const INVESTMENT_CONTEXT = /(?:투자|매수|매도|종목|주식|코인|수익|거래)/;
+const INVESTMENT_SOLICITATION = /(?:투자(?:금|비|액|금액)?|매수|매도|종목|주식|코인|가상자산|수익(?:률)?|roi|returns?|profits?|income|stock(?:s| picks?)?|crypto|coin|trading|investment|leading\s*(?:room|group)|리딩\s*(?:방|룸)|(?:가입|입장|문의|연락|상담|dm|message|contact|텔레그램|카카오(?:톡)?|오픈채팅).{0,30}(?:주세요|하세요|드립|offer|join|message|contact)|(?:드립니다|제공합니다|권유합니다|추천합니다))/i;
+const INSTITUTIONAL_DISCLOSURE = /(?:예금자\s*보호|예금보험공사|예금\s*보험|보험\s*약관|fdic|deposit\s+insurance|insured\s+(?:savings|deposit)|insurance\s+policy|(?:bank|은행).{0,50}(?:disclosure|약관|상품\s*설명|설명서)|(?:disclosure|약관|상품\s*설명|설명서).{0,50}(?:bank|은행)|principal[-\s]*protected\s+note)/i;
 
 export function hasIllegalInvestmentGuarantee(text: string): boolean {
-  return ILLEGAL_GUARANTEE.test(text) || (LOSS_COMPENSATION.test(text) && INVESTMENT_CONTEXT.test(text));
+  if (INSTITUTIONAL_DISCLOSURE.test(text)) return false;
+  return (ILLEGAL_GUARANTEE.test(text) && INVESTMENT_SOLICITATION.test(text)) ||
+    (LOSS_COMPENSATION.test(text) && INVESTMENT_CONTEXT.test(text) && INVESTMENT_SOLICITATION.test(text));
 }
 
 export function illegalGuaranteeEvidence(text: string): string | undefined {
