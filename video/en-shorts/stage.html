@@ -60,6 +60,7 @@ const LANG = new URLSearchParams(location.search).get("lang") === "ko" ? "ko" : 
 const COPY = {
   en: {
     syn: "SYNTHETIC EXAMPLE", synTail: "not a real account · product screen recreated",
+    real: "REAL CASE", realTail: "personal details hidden",
     msg: "I'm a senior analyst at a big brokerage. Guaranteed returns, no risk. Limited spots — join our free Telegram group t.me/alpha_signals77 now",
     badge: "staff ID photo",
     c1: `He says he works at<br>a <em>big brokerage</em>.`, c2: `Then posts it from<br><em>dozens of accounts</em>.`,
@@ -83,6 +84,7 @@ const COPY = {
   },
   ko: {
     syn: "합성 예시", synTail: "실제 계정 아님 · 제품 화면 재현",
+    real: "실제 사례", realTail: "개인정보 가림",
     msg: "대형 증권사 애널리스트입니다. 원금보장 확정수익, 손실 없습니다. 선착순 마감 — 무료 텔레그램방 t.me/alpha_signals77 지금 입장하세요",
     badge: "사원증 사진",
     c1: `대형 증권사<br><em>직원이라고</em> 합니다.`, c2: `같은 글을<br><em>여러 계정</em>에 올립니다.`,
@@ -106,6 +108,17 @@ const COPY = {
   },
 }[LANG];
 const MSG = COPY.msg;
+// 실제 사례 사진 칸(테오 1791947720 · 율 1791947826): ?case=<id> 면 첫 장면의 합성 카드 대신 cases.json 의 가린 사진.
+// 조건이 빠진 항목은 렌더하지 않는다(record.js 가 check_cases.py 를 먼저 돌리고, 여기서도 한 번 더 막는다).
+const CASE_ID = new URLSearchParams(location.search).get("case");
+let CASE = null;
+if (CASE_ID) {
+  const xhr = new XMLHttpRequest(); xhr.open("GET", "cases/cases.json", false); xhr.send();
+  CASE = JSON.parse(xhr.responseText).find((c) => c.id === CASE_ID) || null;
+  if (!CASE || CASE.kogl !== 1 || !CASE.yul_ok || !CASE.redacted_file) throw new Error("case 조건 미충족: " + CASE_ID);
+}
+// 사례에 맞는 첫 장면 자막(선택) — cases.json 의 caption1_ko/en, caption2_ko/en 이 있으면 그것으로
+if (CASE) for (const [k, f] of [["c1", "caption1"], ["c2", "caption2"]]) if (CASE[`${f}_${LANG}`]) COPY[k] = CASE[`${f}_${LANG}`];
 const TYPE_A = 10.0, TYPE_B = 14.0;
 const SIGNS = COPY.signs;
 window.KEYS = [];
@@ -127,6 +140,9 @@ function tapAt(t, a, x, y) {
   return `<div class="tap" style="left:${x - r}px;top:${y - r}px;width:${2 * r}px;height:${2 * r}px;opacity:${1 - k}"></div>`;
 }
 function post(x, y, w, extra = "") {
+  if (CASE) return `<figure class="abs card" style="left:${x}px;top:${y}px;width:${w}px;margin:0;padding:${px(14)};${extra}">
+    <img src="${CASE.redacted_file}" style="display:block;width:100%;max-height:${px(V ? 640 : 520)};object-fit:contain;background:#fff">
+    <figcaption style="margin-top:${px(10)};font-size:${px(V ? 22 : 19)};color:var(--sub);font-weight:600">${LANG === "ko" ? CASE.credit_ko : CASE.credit_en}</figcaption></figure>`;
   return `<div class="abs card post" style="left:${x}px;top:${y}px;width:${w}px;font-size:${px(V ? 36 : 32)};${extra}">
     <div class="who" style="font-size:${px(V ? 30 : 26)}"><span class="av"></span>alpha_desk_kr <span style="color:#9b9992;font-weight:500">· 2h</span></div>
     <div style="margin-top:${px(16)}">${MSG}</div>
@@ -138,7 +154,8 @@ function render(t) {
   const top = V ? 250 : 200;
   const ox = V ? 70 : 980, cw = V ? W - 140 : 840;
   const cy = V ? 560 : 150;
-  h += `<div class="label" style="top:${px(V ? 64 : 34)};font-size:${px(24)}"><span class="syn" style="font-size:${px(20)}">${COPY.syn}</span> &nbsp;${COPY.synTail}</div>`;
+  const realNow = CASE && t < 9.4;   // 실제 사례는 첫 장면만, 그 뒤 제품 화면은 합성 예시
+  h += `<div class="label" style="top:${px(V ? 64 : 34)};font-size:${px(24)}"><span class="syn" style="font-size:${px(20)}">${realNow ? COPY.real : COPY.syn}</span> &nbsp;${realNow ? COPY.realTail : COPY.synTail}</div>`;
   h += `<div class="abs brand" style="left:${px(V ? 70 : 110)};top:${px(V ? 130 : 96)};font-size:${px(38)}"><span class="ring" style="width:${px(22)};height:${px(22)}"></span>SCAM RADAR</div>`;
 
   // ① 그럴듯한 사람

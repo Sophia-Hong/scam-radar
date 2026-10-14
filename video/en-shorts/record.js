@@ -2,12 +2,13 @@
 const path = require("path"), fs = require("fs");
 const { chromium } = require("/opt/homebrew/lib/node_modules/playwright");
 (async () => {
-  const ar = process.argv[2] || "v", lang = process.argv[3] === "ko" ? "ko" : "en", FPS = 30;
+  const ar = process.argv[2] || "v", lang = process.argv[3] === "ko" ? "ko" : "en", caseId = process.argv[4] || "", FPS = 30;
+  if (caseId) require("child_process").execFileSync("/opt/homebrew/bin/python3.11", [path.join(__dirname, "check_cases.py"), caseId], { stdio: "inherit" });   // 조건 미충족이면 여기서 멈춤
   const [W, H] = ar === "v" ? [1080, 1920] : [1920, 1080];
-  const out = path.join(__dirname, `frames-${ar}-${lang}`); fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true });
-  const b = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" });
+  const out = path.join(__dirname, `frames-${ar}-${lang}${caseId ? "-" + caseId : ""}`); fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true });
+  const b = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", args: ["--allow-file-access-from-files"] })   // cases.json 읽기;
   const pg = await b.newPage({ viewport: { width: W, height: H } });
-  await pg.goto("file://" + path.join(__dirname, "stage.html") + "?ar=" + ar + "&lang=" + lang);
+  await pg.goto("file://" + path.join(__dirname, "stage.html") + "?ar=" + ar + "&lang=" + lang + (caseId ? "&case=" + encodeURIComponent(caseId) : ""));
   await pg.evaluate(() => document.fonts.ready);
   const timing = await pg.evaluate(() => ({ T: window.T, KEYS: window.KEYS, POPS: window.POPS }));
   fs.writeFileSync(path.join(__dirname, `timing-${lang}.json`), JSON.stringify(timing));

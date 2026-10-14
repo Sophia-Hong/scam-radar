@@ -4,7 +4,7 @@ const { chromium } = require("/opt/homebrew/lib/node_modules/playwright");
 (async () => {
   const [ar, ts] = [process.argv[2] || "v", (process.argv[3] || "3,9,13,15,19,24,27.5,32,36").split(",").map(Number)];
   const [W, H] = ar === "v" ? [1080, 1920] : [1920, 1080];
-  const b = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" });
+  const b = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", args: ["--allow-file-access-from-files"] })   // cases.json 읽기;
   const pg = await b.newPage({ viewport: { width: W, height: H } });
   await pg.goto("file://" + path.join(__dirname, "stage.html") + "?ar=" + ar + "&lang=" + (process.argv[4] || "en"));
   await pg.evaluate(() => document.fonts.ready);
