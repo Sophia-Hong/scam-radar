@@ -26,6 +26,17 @@ describe("AI 공급자 선택", () => {
     expect(c.model).toBe("anthropic/claude-sonnet-5.5");
     expect(c.providerOptions?.gateway?.only).toEqual(["anthropic"]);
   });
+  it("직접 호출 모델·캐시 이름·요율은 기본 모델 하나에서 — ANTHROPIC_MODEL 따로 설정은 무시 (카이 8fadbab)", async () => {
+    const llm = await load({ ANTHROPIC_API_KEY: "test-key-not-used", ANTHROPIC_MODEL: "claude-haiku-5-5", AI_REVIEW_MODEL: "", VERCEL: "" });
+    expect(llm.DIRECT_ANTHROPIC_MODEL).toBe("claude-sonnet-5-5");
+    expect((llm.modelConfig([]).model as { modelId?: string }).modelId).toBe("claude-sonnet-5-5");
+    const h = await load({ ANTHROPIC_API_KEY: "test-key-not-used", AI_REVIEW_MODEL: "anthropic/claude-haiku-5.5", VERCEL: "" });
+    expect(h.DIRECT_ANTHROPIC_MODEL).toBe("claude-haiku-5-5");
+    expect(h.MODEL_NAME).toBe("anthropic/claude-haiku-5.5");   // 캐시 키도 같이 바뀐다
+    expect((h.modelConfig([]).model as { modelId?: string }).modelId).toBe("claude-haiku-5-5");
+    expect(h.usageCost({ inputTokens: 1_000_000, outputTokens: 1_000_000 })).toBeCloseTo(0.6, 6);   // Haiku 요율
+    expect(h.usageCost({ inputTokens: 10, outputTokens: 10 }, "claude-unknown-9")).toBeUndefined();   // 표에 없으면 빈칸
+  });
   it("직접 호출 비용 = 입력 $2·출력 $10 / 백만 토큰", async () => {
     const llm = await load({});
     expect(llm.usageCost({ inputTokens: 1_000_000, outputTokens: 1_000_000 })).toBe(12);

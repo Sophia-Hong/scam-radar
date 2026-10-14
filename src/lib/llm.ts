@@ -27,7 +27,9 @@ const useDirectGoogle = PRIMARY_MODEL.startsWith("google/") && !!process.env.GOO
  * Gateway 대신 @ai-sdk/anthropic 으로 같은 모델을 부른다(키 = 소현의 Claude 파트너 크레딧 워크스페이스 scam-radar). 키가 없으면 Gateway 그대로.
  * 받는 곳은 어느 쪽이든 Anthropic 하나 — 국외 이전 고지는 그대로. 캐시 키의 모델 이름(MODEL_NAME)은 바꾸지 않는다(캐시 유지).
  */
-export const DIRECT_ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+// 직접 호출 모델은 기본 모델(PRIMARY_MODEL) 하나에서만 정한다 — 따로 바꾸는 설정을 두면 다른 모델을 부르면서 Sonnet 캐시 이름·요율로 기록하는 길이 생긴다(카이 8fadbab HOLD).
+// Gateway ID "anthropic/claude-sonnet-5.5" → Anthropic API ID "claude-sonnet-5-5"
+export const DIRECT_ANTHROPIC_MODEL = PRIMARY_MODEL.startsWith("anthropic/") ? PRIMARY_MODEL.slice("anthropic/".length).replace(/\./g, "-") : "";
 const useDirectAnthropic = PRIMARY_MODEL.startsWith("anthropic/") && !!process.env.ANTHROPIC_API_KEY;
 export const AI_ROUTE: "anthropic-direct" | "google-direct" | "gateway" = useDirectAnthropic ? "anthropic-direct" : useDirectGoogle ? "google-direct" : "gateway";
 export const MODEL_NAME = useDirectGoogle ? `google-direct/${PRIMARY_MODEL.slice(7)}` : PRIMARY_MODEL;
@@ -45,11 +47,16 @@ export function modelConfig(tags: string[]) {
 }
 
 /** 직접 호출 비용 = 사용 토큰 × 정가(입력 $2·출력 $10 / 백만, 셈 원장 기준과 같음, 테오 1791966434) */
-export const DIRECT_PRICE_PER_MTOK = { input: 2, output: 10 } as const;
-export function usageCost(usage: unknown): number | undefined {
+// 모델별 정가(Anthropic 문서, 카이 확인). 표에 없는 모델은 비용을 비워 둔다 — 틀린 요율로 적는 것보다 빈칸이 낫다(7일 집계의 '빈 costUsd'로 드러남)
+export const DIRECT_PRICE_PER_MTOK: Record<string, { input: number; output: number }> = {
+  "claude-sonnet-5-5": { input: 2, output: 10 },
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
+};
+export function usageCost(usage: unknown, model = DIRECT_ANTHROPIC_MODEL): number | undefined {
+  const price = DIRECT_PRICE_PER_MTOK[model];
   const u = usage as { inputTokens?: number; outputTokens?: number } | undefined;
-  if (typeof u?.inputTokens !== "number" && typeof u?.outputTokens !== "number") return undefined;
-  return ((u.inputTokens ?? 0) * DIRECT_PRICE_PER_MTOK.input + (u.outputTokens ?? 0) * DIRECT_PRICE_PER_MTOK.output) / 1_000_000;
+  if (!price || (typeof u?.inputTokens !== "number" && typeof u?.outputTokens !== "number")) return undefined;
+  return ((u.inputTokens ?? 0) * price.input + (u.outputTokens ?? 0) * price.output) / 1_000_000;
 }
 /** 호출 비용 — Gateway 면 Gateway 가 돌려준 비용, 직접 호출이면 토큰 정가 계산 */
 function callCost(result: { providerMetadata?: unknown; usage?: unknown }): number | undefined {
@@ -372,7 +379,7 @@ export function summaryPrompt(input: SummaryInput): string {
   return maskForAi(JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1));   // 번호·계좌·이메일 가림(율 ⑦)
 }
 
-export async function summarizeAccount(input: SummaryInput): Promise<{ summary: string; model: string }> {
+export async function summarizeAccount(input: SummaryInput): Promise<{ summary: string; model: string; costUsd?: number }> {
   const key = fnv1a64(
     SUMMARY_VERSION + input.handle + "|" + input.posts.map((p) => p.postUrl + p.text).join("|") +
     "|" + (input.contacts ?? []).map((c) => `${c.typeLabel}:${c.value}`).join(",") +
@@ -388,7 +395,7 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
         // 내부 규칙 코드는 모델에 넘기지 않는다(요약문으로 새어 나가지 않게)
         prompt: summaryPrompt(input),
       });
-      return { summary: result.text.trim() || templateSummary(input), model: servedModel(result) };
+      return { summary: result.text.trim() || templateSummary(input), model: servedModel(result), costUsd: callCost(result) };   // 7일 비용 집계에 요약도 들어가게(카이 8fadbab)
     });
   } catch (e) {
     logAiError("summary", e);
