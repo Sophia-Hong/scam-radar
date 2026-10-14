@@ -39,6 +39,8 @@ describe("결과 첫 화면", () => {
     ["텔레그램 링크 + 이동 유도", "HIGH", [P("cta")], ["telegram"], ["telegram"]],
     ["텔레그램 링크만(이동 유도 없음 — 프로필·인용)은 문장 없음", "REVIEW", [], ["telegram"], ["fallback"]],
     ["인용·피해 경고 맥락이면 텔레그램 문장 없음", "REVIEW", [P("cta"), { code: "veto:quote", points: -10 }], ["telegram"], ["fallback"]],
+    ["엔진 v2 인용·부정 범위(veto:scoped-context, 0점)도 인용 맥락", "REVIEW", [P("cta"), { code: "veto:scoped-context", points: 0 }], ["telegram"], ["fallback"]],
+    ["받은 메시지 결합(combo:received*)만으로는 이동 유도 아님", "HIGH", [P("combo:received-message")], ["telegram"], ["fallback"]],
     ["오픈채팅 링크 + 메신저·투자 결합", "HIGH", [P("combo:contact+invest")], ["kakao_open"], ["chatRoom"]],
     ["왓츠앱 + 행동 유도", "HIGH", [P("cta")], ["whatsapp"], ["chatRoom"]],
     ["텔레그램 *단어*만(링크·아이디 없음)은 채팅방 문장 없음", "REVIEW", [P("term:텔레그램")], [], ["fallback"]],

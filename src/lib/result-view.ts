@@ -32,8 +32,9 @@ export function signIds(level: Level, reasons: { code?: string; points: number }
   const pos = reasons.filter((r) => r.points > 0 && r.code).map((r) => r.code as string);
   const has = (f: (c: string) => boolean) => pos.some(f);
   // "오라고 해요"는 엔진이 *이동 유도*를 실제로 잡았고(행동 유도·메신저+투자 결합) 인용·피해 경고 맥락이 아닐 때만(카이 948d5a7, 테오 1791949422)
-  const quoted = reasons.some((r) => r.code === "veto:quote" || r.code === "veto:victim");
-  const movesYou = !quoted && has((c) => c === "cta" || c.startsWith("combo:"));
+  // 엔진 v2: veto:scoped-context(인용·부정 범위) 도 인용 맥락. combo:received*(받은 메시지 금전 요구 결합)는 "다른 방 이동"의 근거가 아니다
+  const quoted = reasons.some((r) => r.code === "veto:quote" || r.code === "veto:victim" || r.code === "veto:scoped-context");
+  const movesYou = !quoted && has((c) => c === "cta" || c === "combo:triple" || c.startsWith("combo:contact"));
   const found: Record<SignId, boolean> = {
     guarantee: has((c) => GUARANTEE_CODES.includes(c)),
     conversion: has((c) => ["profit", "free", "invest"].includes(catOf(c)) && c.startsWith("term:")) && has((c) => c === "cta" || (c.startsWith("term:") && catOf(c) === "urgency")),
