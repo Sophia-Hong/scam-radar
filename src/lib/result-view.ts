@@ -6,7 +6,7 @@ import type { GroupCode, Level, Strings } from "./strings";
  * 규칙은 여기서 새로 만들지 않는다: 단계(HIGH/REVIEW/LOW)와 신호군(signalGroups)은 엔진이 낸 것을 그대로 옮긴다.
  */
 
-const GUARANTEE_CODES = ["term:원금보장", "term:손실보전", "term:확정수익", "term:확정지급"];
+const GUARANTEE_CODES = ["term:원금보장", "term:손실보전", "term:확정수익", "term:확정지급", "term:en:profit:guaranteed"];   // 마지막 = 영어 엔진(theo/en-engine)
 
 /**
  * 쉬운 말 징후 최대 3개 — 게시물에 있는 사실로만 쓴다(사람 평가 문장 금지, 율 1791943087).
