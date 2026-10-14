@@ -17,6 +17,11 @@ export const MAX_KEYS_PER_POST = 5;
 export const MAX_KEYS_PER_CHECK = 10;
 export const HOURLY_LIMIT = 10;
 export const DAILY_LIMIT = 30;
+/** 한 키(계정·링크·연락처)에 하루(UTC) 새로 붙을 수 있는 신고 — 여러 연결에서 같은 키를 몰아 올리는 것을 막는다(카이 180b67e 검수, 테오 1791946984) */
+export const KEY_DAILY_LIMIT = 20;
+/** 짧은 시간에 몰리면 표시 보류 — 최근 BURST_WINDOW_MS 안에 BURST_LIMIT 건 이상 새로 붙은 키는 그 창이 지날 때까지 숫자를 보이지 않음 */
+export const BURST_LIMIT = 10;
+export const BURST_WINDOW_MS = 6 * 3_600_000;
 /** 서로 다른 연결(IP HMAC) 3곳 미만이면 숫자를 보이지 않음 (율 #compliance 1791944952) */
 export const MIN_DISTINCT_CONNECTIONS = 3;
 
@@ -92,13 +97,15 @@ export function ensureTables(): Promise<void> {
 
 const textArray = (xs: string[]) => sql`ARRAY[${sql.join(xs.map((x) => sql`${x}`), sql`, `)}]::text[]`;
 
-/** 키별 서로 다른 신고자 수(원값) */
-export async function rawCounts(keys: string[]): Promise<Record<string, number>> {
+/** 키별 서로 다른 신고자 수(원값) — 최근 BURST_WINDOW 안에 몰린 키는 null(표시 보류) */
+export async function rawCounts(keys: string[], now = new Date()): Promise<Record<string, number | null>> {
   if (!keys.length) return {};
   await ensureTables();
   const t = schema.communityReports;
-  const rows = await db().select({ key: t.key, n: count() }).from(t).where(inArray(t.key, keys)).groupBy(t.key);
-  return Object.fromEntries(rows.map((r) => [r.key, Number(r.n)]));
+  const since = new Date(now.getTime() - BURST_WINDOW_MS);
+  const rows = await db().select({ key: t.key, n: count(), recent: sql<number>`count(*) filter (where ${t.createdAt} > ${since})` })
+    .from(t).where(inArray(t.key, keys)).groupBy(t.key);
+  return Object.fromEntries(rows.map((r) => [r.key, Number(r.recent) >= BURST_LIMIT ? null : Number(r.n)]));
 }
 
 /** 이 서명과 비슷한(추정 Jaccard ≥ 기준) 신고 글의 서로 다른 신고자 수(원값) */
@@ -115,7 +122,7 @@ export type CheckResult = { counts: Record<string, number>; similar: number };
 export async function check(keys: string[], sig: number[] | null): Promise<CheckResult> {
   const [raw, similar] = await Promise.all([rawCounts(keys), sig ? similarReporters(sig) : Promise.resolve(0)]);
   const counts: Record<string, number> = {};
-  for (const [k, n] of Object.entries(raw)) if (shown(n)) counts[k] = shown(n);
+  for (const [k, n] of Object.entries(raw)) if (n !== null && shown(n)) counts[k] = shown(n);   // null = 몰림 보류
   return { counts, similar: shown(similar) };
 }
 
@@ -148,6 +155,12 @@ export async function register(keys: string[], sig: number[] | null, reporter: s
     // 시간·하루 상한을 원자적 카운터로 먼저 잡는다 — 동시 요청이 같은 옛 건수를 보고 함께 넘는 일이 없다(카이 ④ 검수 5)
     if (!(await reserve(reporter, `h:${now.toISOString().slice(0, 13)}`, adding, HOURLY_LIMIT))) return { ok: false, reason: "limited" };
     if (!(await reserve(reporter, `d:${now.toISOString().slice(0, 10)}`, adding, DAILY_LIMIT))) return { ok: false, reason: "limited" };
+    // 키별 하루 상한 — 넘은 키는 이번 등록에서 빼고(나머지는 받음), 전부 넘었으면 limited
+    const day = now.toISOString().slice(0, 10);
+    const allowed: string[] = [];
+    for (const key of fresh) if (await reserve(`key:${key}`, `d:${day}`, 1, KEY_DAILY_LIMIT)) allowed.push(key);
+    if (fresh.length && !allowed.length && !textIsNew) return { ok: false, reason: "limited" };
+    fresh.splice(0, fresh.length, ...allowed);
     if (fresh.length) await db().insert(r).values(fresh.map((key) => ({ key, reporter, createdAt: now }))).onConflictDoNothing();
     if (textIsNew && sig && textId) await db().insert(tx).values({ id: textId, reporter, sig, bands: bandKeys(sig), createdAt: now }).onConflictDoNothing();
   }

@@ -7,9 +7,20 @@ import "./globals.css";
 
 const currentLang = serverLang;
 
+/**
+ * 모든 페이지가 같은 title·공유 미리보기(제목·설명·일반 이미지)를 쓴다 — 계정·리포트 페이지도 하위 generateMetadata 를 두지 않는다.
+ * 미리보기에 계정명·핸들·링크·위험 배너를 넣지 않는다(율 1791946996, 테오 1791947005). 브랜드명 "Scam Radar" 는 예외(율 OK).
+ */
 export async function generateMetadata(): Promise<Metadata> {
-  const m = STRINGS[await currentLang()].meta;
-  return { title: m.title, description: m.description, robots: { index: false, follow: false } };
+  const lang = await currentLang();
+  const m = STRINGS[lang].meta;
+  const image = { url: `/og-${lang}.png`, width: 1200, height: 630, alt: m.title };
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://scam-radar-sooty.vercel.app"),
+    title: m.title, description: m.description, robots: { index: false, follow: false },
+    openGraph: { title: m.title, description: m.description, images: [image], type: "website" },
+    twitter: { card: "summary_large_image", title: m.title, description: m.description, images: [image.url] },
+  };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
