@@ -55,7 +55,7 @@ const ko = {
   website: {
     checking: "웹사이트를 확인하는 중이에요…",
     title: (d: string) => `웹사이트 확인: ${d}`,
-    google: { SOCIAL_ENGINEERING: "Google은 이 사이트를 위험한 사이트로 분류했어요", MALWARE: "Google은 이 사이트를 위험한 사이트로 분류했어요", UNWANTED_SOFTWARE: "Google은 이 사이트를 위험한 사이트로 분류했어요" },   // 소현 원문(테오 1791989043) — Google의 분류를 전하는 꼴, 사이트를 단정하지 않음
+    google: { SOCIAL_ENGINEERING: "Google은 이 사이트를 위험할 수 있는 사이트로 분류했어요", MALWARE: "Google은 이 사이트를 위험할 수 있는 사이트로 분류했어요", UNWANTED_SOFTWARE: "Google은 이 사이트를 위험할 수 있는 사이트로 분류했어요" },   // 소현 원문(테오 1791989043) — Google의 분류를 전하는 꼴, 사이트를 단정하지 않음
     advisory: "Advisory provided by Google",
     more: "자세히",
     age: (n: number) => n < 30 ? `만든 지 ${n}일 된 주소예요. 새로 만든 주소는 사기에 자주 쓰여요.` : `만든 지 ${n}일(약 ${Math.round(n / 30)}개월) 된 주소예요. 아직 새 주소예요.`,
@@ -295,7 +295,7 @@ const en: Strings = {
   website: {
     checking: "Checking the website…",
     title: (d: string) => `Website check: ${d}`,
-    google: { SOCIAL_ENGINEERING: "Google has classified this site as dangerous.", MALWARE: "Google has classified this site as dangerous.", UNWANTED_SOFTWARE: "Google has classified this site as dangerous." },
+    google: { SOCIAL_ENGINEERING: "Google has flagged this site as possibly dangerous.", MALWARE: "Google has flagged this site as possibly dangerous.", UNWANTED_SOFTWARE: "Google has flagged this site as possibly dangerous." },
     advisory: "Advisory provided by Google",
     more: "Details",
     age: (n: number) => n < 30 ? `This address was created ${n} days ago. New addresses are often used for scams.` : `This address was created ${n} days ago (about ${Math.round(n / 30)} months). It is still new.`,

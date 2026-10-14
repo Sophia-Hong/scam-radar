@@ -139,7 +139,7 @@ describe("wording (Yul 1791986341)", () => {
   it("Google lines never state it as certain and never name Safe Browsing", () => {
     for (const lang of ["ko", "en"] as const) {
       const w = STRINGS[lang].website;
-      for (const line of Object.values(w.google)) { expect(line).toMatch(/^Google/); expect(line).toMatch(/분류했어요|classified/); expect(line).not.toMatch(/Safe Browsing|등록됨/); }   // 소현 1791989043: Google의 분류를 전하는 꼴
+      for (const line of Object.values(w.google)) { expect(line).toMatch(/^Google/); expect(line).toMatch(/분류했어요|flagged/); expect(line).toMatch(/수 있는|possibly/); expect(line).not.toMatch(/Safe Browsing|등록됨/); }   // 소현 1791989043 꼴 + 유보어 필수(율 1791989336, Web Risk 조건)
       expect(w.advisory).toBe("Advisory provided by Google");
     }
   });
