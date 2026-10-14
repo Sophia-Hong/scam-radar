@@ -18,6 +18,7 @@ export function langFrom(cookie: string | undefined, acceptLanguage: string | nu
 
 const ko = {
   meta: { title: "Scam Radar — 돈 보내기 전에 확인", description: "받은 투자 권유 글·링크·계정을 넣으면 위험 신호가 있는지, 어떤 점이 이상한지, 지금 무엇을 하면 되는지 쉬운 말로 알려 드립니다. 자동 분석은 참고용이며 법적 판단이 아닙니다." },
+  learn: { title: "이렇게 속여요", example: "실제 사례", todo: "이렇게 하세요", source: "출처", back: "← 받은 글 확인하러 가기" },
   layout: { navCheck: "확인하기", navCriteria: "무엇을 보나", navCta: "지금 확인", footer: "자동 분석 결과는 참고용이며 법적 판단이 아닙니다. 특정 계정이나 사람을 사기로 단정하지 않습니다." },
   family: {
     lead: "누구나 이상한 투자 권유를 받을 수 있어요. 소중한 사람에게 이 페이지를 보내 주세요.",
@@ -110,6 +111,7 @@ const ko = {
     similar: (n: number) => `비슷한 글을 조심하라는 신고 ${n}건`,
     // 모든 결과 화면에 위험도와 상관없이 똑같이 — 계정 이야기가 아니라 일반 안내 (율 1791944215). 출처 표기는 금감원 원문 대조 뒤
     aiProofNote: "수익 인증 사진·영상은 AI로 쉽게 만들 수 있어요. 믿기 전에 다시 확인하세요.",   // 모든 결과 화면 일반 안내(율 OK 1791954325)
+    learnLink: "이렇게 속여요 — 사기 유형 8가지 보기",
     stopTitle: "이런 말을 들으면 멈추세요",
     stop: [
       "‘아무한테도 말하지 마세요’라고 하면 조심하세요. 사기는 가족이 말릴까 봐 비밀로 하라고 해요.",
@@ -231,6 +233,7 @@ export type Strings = typeof ko;
 
 const en: Strings = {
   meta: { title: "Scam Radar — check before you send money", description: "Paste an investment pitch, link or account you received. Scam Radar shows in plain words whether it has warning signs, what looks unusual, and what to do now. Automated analysis for reference only, not a legal judgment." },
+  learn: { title: "How these scams work", example: "Real example", todo: "What to do", source: "Source", back: "← Check a message" },
   layout: { navCheck: "Check", navCriteria: "What we look at", navCta: "Check now", footer: "Automated analysis for reference only. Not a legal judgment, and it does not say that any account or person is a scammer." },
   family: {
     lead: "Anyone can get a strange investment offer. Send this page to someone you care about.",
@@ -320,6 +323,7 @@ const en: Strings = {
     },
     similar: (n: number) => `${n} reports about messages like this`,
     aiProofNote: "Profit photos and videos can easily be made with AI. Check again before you believe them.",
+    learnLink: "How these scams work — 8 common types",
     stopTitle: "Stop if you hear this",
     stop: [
       "If they tell you not to tell anyone, be careful. Scams ask you to keep it secret so your family can't stop you.",

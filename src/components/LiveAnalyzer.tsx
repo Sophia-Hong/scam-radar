@@ -430,6 +430,7 @@ export function LiveAnalyzer() {
               <ul>{t.result.stop.map((line) => <li key={line}>{line}</li>)}</ul>
               {t.result.stopFooter && <p className="stop-footer">{t.result.stopFooter}</p>}
             </div>
+            <a className="learn-link" href="/learn">{t.result.learnLink}</a>
 
 
             {registry.status !== "closed" && (
