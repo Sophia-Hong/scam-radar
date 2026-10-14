@@ -52,3 +52,4 @@ logs/
 eval/en/data/raw/
 eval/en/data/*.jsonl
 eval/en/out/
+collector/rejected/
