@@ -1,42 +1,42 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { adminValueOk } from "./auth";
 import { scoreText } from "@/engine";
-import { canView, decodeParam, isSyntheticAccountId, isSyntheticHandle, onlyVisible, publicReasons, redactSharedContact, signalGroupsFromReasons, reportApiHref, SYNTHETIC_ID_SQL } from "./visibility";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { canView, decodeParam, isSyntheticAccountId, isSyntheticHandle, onlyVisible, publicReasons, redactSharedContact, signalGroupsFromReasons, reportApiHref } from "./visibility";
+import { SYNTHETIC_ACCOUNT_IDS } from "./synthetic-accounts";
 
 describe("공개 경계 — 합성 데모 계정만 공개", () => {
-  it("합성 핸들만 공개로 본다", () => {
-    for (const h of ["sample_vipstock77", "demo_lead_a", "syn_001", "SAMPLE_x", "@demo_kko_x"]) expect(isSyntheticHandle(h), h).toBe(true);
-    for (const h of ["vipstock77", "samplefoo", "my_sample_x", "demo", "sample", "syn", "demo-x", "xsample_a", "", null, undefined]) expect(isSyntheticHandle(h as string), String(h)).toBe(false);
-  });
-
-  it("계정 id(platform:handle)도 같은 규칙", () => {
+  it("고정 목록의 계정만 공개 — 접두어만 같은 계정은 아님 (카이 5808c65 검수 1)", () => {
+    for (const h of ["sample_vipstock77", "demo_lead_a", "SAMPLE_VIPSTOCK77", "@demo_kko_x"]) expect(isSyntheticHandle(h), h).toBe(true);
+    for (const h of ["sample_unknown", "demo_x", "syn_001", "vipstock77", "", null, undefined]) expect(isSyntheticHandle(h as string), String(h)).toBe(false);
     expect(isSyntheticAccountId("threads:sample_vipstock77")).toBe(true);
-    expect(isSyntheticAccountId("instagram:demo_lead_a")).toBe(true);
-    expect(isSyntheticAccountId("threads:real_user")).toBe(false);
-    expect(isSyntheticAccountId("threads:")).toBe(false);
-    expect(isSyntheticAccountId("sample_vipstock77")).toBe(false);              // id 모양이 아니면 id 로는 공개 아님
-    expect(isSyntheticAccountId("evil:threads:sample_x")).toBe(false);           // 접두를 속여도 첫 구간 뒤가 핸들
+    expect(isSyntheticAccountId("threads:sample_real_person")).toBe(false);     // 같은 접두어의 실계정
+    expect(isSyntheticAccountId("instagram:demo_lead_a")).toBe(false);          // 다른 플랫폼의 같은 핸들
+    expect(isSyntheticAccountId("evil:threads:sample_vipstock77")).toBe(false);
     expect(isSyntheticAccountId(null)).toBe(false);
   });
 
-  it("SQL 정규식과 JS 규칙이 같은 id 를 공개로 본다", () => {
-    const re = new RegExp(SYNTHETIC_ID_SQL, "i");
-    for (const id of ["threads:sample_a", "threads:demo_b", "instagram:syn_c", "threads:real_d", "threads:xsample_e", "x:samplef"]) {
-      expect(re.test(id), id).toBe(isSyntheticAccountId(id));
+  it("목록 = collector/fixtures 의 계정", () => {
+    const handles = new Set<string>();
+    for (const f of readdirSync(join(process.cwd(), "collector/fixtures")).filter((f) => f.endsWith(".json"))) {
+      for (const it of JSON.parse(readFileSync(join(process.cwd(), "collector/fixtures", f), "utf8"))) if (it.author?.handle) handles.add(`threads:${it.author.handle.toLowerCase()}`);
     }
+    expect([...SYNTHETIC_ACCOUNT_IDS].sort()).toEqual([...handles].sort());
   });
 
-  it("열람 가능 여부: 관리자는 전부, 공개는 합성만", () => {
+  it("열람 가능 여부: 관리자는 전부, 공개는 목록만", () => {
     expect(canView("threads:real_user", false)).toBe(false);
     expect(canView("real_user", false)).toBe(false);
-    expect(canView("threads:sample_x", false)).toBe(true);
-    expect(canView("demo_x", false)).toBe(true);
+    expect(canView("threads:sample_vipstock77", false)).toBe(true);
+    expect(canView("demo_lead_a", false)).toBe(true);
+    expect(canView("threads:sample_x", false)).toBe(false);
     expect(canView("threads:real_user", true)).toBe(true);
   });
 
   it("목록 걸러내기", () => {
-    const rows = [{ id: "threads:sample_a" }, { id: "threads:real_b" }, { id: "threads:demo_c" }];
-    expect(onlyVisible(rows, (r) => r.id, false).map((r) => r.id)).toEqual(["threads:sample_a", "threads:demo_c"]);
+    const rows = [{ id: "threads:sample_vipstock77" }, { id: "threads:real_b" }, { id: "threads:demo_lead_a" }];
+    expect(onlyVisible(rows, (r) => r.id, false).map((r) => r.id)).toEqual(["threads:sample_vipstock77", "threads:demo_lead_a"]);
     expect(onlyVisible(rows, (r) => r.id, true)).toHaveLength(3);
   });
 });
@@ -45,8 +45,8 @@ describe("근거 문장 속 실계정 가리기 (shared-contact)", () => {
   const reason = (evidence: string, label = "다른 계정 3개와 동일 연락처 사용") => ({ code: "shared-contact", label, points: 16, evidence });
 
   it("실계정 id 와 개수를 걸러낸다", () => {
-    const [r] = redactSharedContact([reason("텔레그램 vip → threads:real_a, threads:sample_b, threads:demo_c")]);
-    expect(r.evidence).toBe("텔레그램 vip → threads:sample_b, threads:demo_c");
+    const [r] = redactSharedContact([reason("텔레그램 vip → threads:real_a, threads:sample_daily_gain, threads:demo_lead_a")]);
+    expect(r.evidence).toBe("텔레그램 vip → threads:sample_daily_gain, threads:demo_lead_a");
     expect(r.label).toBe("다른 계정 2개와 동일 연락처 사용");
     expect(JSON.stringify(r)).not.toContain("real_a");
   });
@@ -59,7 +59,7 @@ describe("근거 문장 속 실계정 가리기 (shared-contact)", () => {
   });
 
   it("전부 합성이거나 다른 근거면 그대로", () => {
-    const same = reason("텔레그램 vip → threads:sample_a, threads:demo_b");
+    const same = reason("텔레그램 vip → threads:sample_vipstock77, threads:demo_lead_b");
     expect(redactSharedContact([same])[0]).toBe(same);
     const other = { code: "combo:contact+invest", label: "x", points: 1, evidence: "threads:real_z" };
     expect(redactSharedContact([other])[0]).toBe(other);

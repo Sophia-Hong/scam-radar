@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { scoreText, type Label, type SignalGroup } from "@/engine";
 import { minhash } from "@/engine/minhash";
 import type { ShownReason } from "./Reasons";
@@ -82,6 +82,8 @@ export function LiveAnalyzer() {
   const [shareMsg, setShareMsg] = useState<"" | "copied" | "failed">("");
 
   const known = account.status === "known";
+  // 대상이 바뀌면 세대를 올린다 — 이전 대상의 신고 요청 응답이 늦게 와도 새 화면에 "신고했어요"가 뜨지 않게(카이 5808c65)
+  const gen = useRef(0);
 
   useEffect(() => {
     if (!textResult || !textResult.needsLlmReview || known) return;
@@ -145,6 +147,7 @@ export function LiveAnalyzer() {
   const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0 || sharedKeys.length > 0;
 
   function reset() {
+    gen.current += 1;
     setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY); setShareMsg("");
     setCommunity({ counts: {}, similar: 0 });
   }
@@ -171,6 +174,7 @@ export function LiveAnalyzer() {
 
   async function lookup(h: string): Promise<boolean> {
     // 새 대상 — 이전 글·서버 결과·공유 키를 먼저 비운다(새 핸들과 이전 글의 연락처가 한 신고로 섞이지 않게, 카이 ④ 검수 1)
+    gen.current += 1;
     setText(""); setServerResult(null); setAiStatus("idle"); setSharedKeys([]); setRegistry(NO_REGISTRY);
     setAccount({ status: "loading", handle: h });
     try {
@@ -222,14 +226,17 @@ export function LiveAnalyzer() {
   }
 
   async function submitRegistry(picked: string[], withText: boolean) {
+    const mine = gen.current;
     setRegistry({ status: "sending", picked, withText });
     try {
       const response = await fetch("/api/community", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ keys: picked.slice(0, 5), sig: withText && sig ? sig : undefined }),
       });
+      if (gen.current !== mine) return;
       setRegistry({ status: response.status === 429 ? "limited" : response.ok ? "done" : "failed", picked, withText });
     } catch {
+      if (gen.current !== mine) return;
       setRegistry({ status: "failed", picked, withText });
     }
   }

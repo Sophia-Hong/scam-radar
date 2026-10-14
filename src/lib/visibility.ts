@@ -1,25 +1,26 @@
+import { sql } from "drizzle-orm";
 import { explainReason, type SignalGroup } from "@/engine";
+import { SYNTHETIC_ACCOUNT_IDS } from "./synthetic-accounts";
 
 /**
  * 공개 경계 — 누구에게나 열리는 조회에는 **합성 데모 계정만** 나온다 (Kai 훑기 1번, 테오 10-05).
  * 실제로 수집한 계정의 리포트·원문·연결 정보는 관리자(ADMIN_TOKEN 쿠키/Bearer)만 본다. `noindex` 는 접근 제어가 아니다.
  *
- * 합성 계정 = 핸들이 `sample_` · `demo_` · `syn_` 로 시작하는 것(시드 `collector/fixtures`, 평가셋).
- * 한계: 실제 Threads 계정이 우연히 이 접두어로 시작하면 공개로 취급된다. 실수집 자료에는 이 접두어를 쓰지 않는다는 규약(README)에 기대며
- * 코드는 이를 강제하지 않는다. 열람자에게는 "없음"과 "공개 불가"가 같은 응답이라 실계정의 보유 여부도 드러나지 않는다.
+ * 합성 계정 = 고정 ID 목록(lib/synthetic-accounts.ts, collector/fixtures 와 같음). 핸들 접두어로는 판정하지 않는다 —
+ * 같은 접두어의 실계정이 수집돼도 공개되지 않게(카이 5808c65 검수 1). 열람자에게는 "없음"과 "공개 불가"가 같은 응답이라 실계정의 보유 여부도 드러나지 않는다.
  */
-export const SYNTHETIC_HANDLE_RE = /^(?:sample|demo|syn)_/i;
-/** 계정 id(`platform:handle`) 쪽 같은 규칙 — SQL(`~*`)과 JS 가 같은 모양을 쓴다 */
-export const SYNTHETIC_ID_SQL = "^[a-z]+:(sample|demo|syn)_";
+const SYNTHETIC = new Set(SYNTHETIC_ACCOUNT_IDS);
 
+/** SQL 쪽 같은 목록 — `${col} in (${SYNTHETIC_IDS_SQL})` */
+export const SYNTHETIC_IDS_SQL = sql.join(SYNTHETIC_ACCOUNT_IDS.map((id) => sql`${id}`), sql`, `);
+
+/** 핸들만 받은 경우 — Threads 계정 id 로 보고 목록과 대조 */
 export function isSyntheticHandle(handle: string | null | undefined): boolean {
-  return !!handle && SYNTHETIC_HANDLE_RE.test(handle.replace(/^@/, ""));
+  return !!handle && SYNTHETIC.has(`threads:${handle.replace(/^@/, "").toLowerCase()}`);
 }
 
 export function isSyntheticAccountId(id: string | null | undefined): boolean {
-  if (!id) return false;
-  const i = id.indexOf(":");
-  return i > 0 && isSyntheticHandle(id.slice(i + 1));
+  return !!id && SYNTHETIC.has(id.toLowerCase());
 }
 
 /** 이 열람자가 이 계정을 볼 수 있는가: 합성이거나 관리자 */

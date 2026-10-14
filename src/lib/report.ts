@@ -94,16 +94,20 @@ export async function buildReport(accountId: string, opts: { admin?: boolean } =
   let summaryText = acc.summary;
   let by = acc.summaryModel ?? "template";
   if (!summaryText || !isCurrentSummary(acc.summaryModel)) {   // 옛 판 요약(연락처 강도 구분 포함 가능)은 다시 만든다
+    // 공개 빌드: 요약 입력(모델·템플릿)에 공개 범위 밖 연결 계정 id 를 넣지 않는다 — 화면에서 숨길 것을 모델에 먼저 보내지 않게(카이 5808c65 검수 2).
+    // 그렇게 만든 요약은 연결 계정이 빠진 판이므로, 숨긴 연결 계정이 있으면 DB 에 저장하지 않는다(관리자가 열 때 전체로 다시 만든다).
+    const linkedForSummary = opts.admin ? sharedWith : onlyVisible(sharedWith, (s) => s.accountId, false);
+    const partial = linkedForSummary.length !== sharedWith.length;
     const s = await summarizeAccount({
       platform: acc.platform, handle: acc.handle, profileUrl: acc.profileUrl, bio: acc.bio, externalUrl: acc.externalUrl,
       posts: rows.map((p) => ({ postUrl: p.postUrl, parentUrl: p.parentUrl, text: p.text, postedAt: p.postedAt?.toISOString() ?? null, capturedAt: p.capturedAt.toISOString(), score: p.score })),
       reasons: reasons.map((r) => r.label),
       reasonCodes: reasons.map((r) => r.code),
       contacts: contacts.map((c) => ({ typeLabel: c.typeLabel, value: c.value })),
-      linkedAccounts: sharedWith.map((s) => s.accountId),
+      linkedAccounts: linkedForSummary.map((s) => s.accountId),
     });
     summaryText = s.summary; by = s.model + SUMMARY_VERSION;
-    await d.update(schema.accounts).set({ summary: summaryText, summaryModel: by }).where(eq(schema.accounts.id, accountId));
+    if (!partial) await d.update(schema.accounts).set({ summary: summaryText, summaryModel: by }).where(eq(schema.accounts.id, accountId));
   }
 
   return {

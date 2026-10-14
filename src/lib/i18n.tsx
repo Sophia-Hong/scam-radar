@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
+import { useRouter } from "next/navigation";
 import { STRINGS, type Lang, type Strings } from "./strings";
 
 /**
@@ -15,10 +16,12 @@ const LangContext = createContext<{ lang: Lang; t: Strings; setLang: (l: Lang) =
 
 export function LangProvider({ initial, children }: { initial: Lang; children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(initial);
+  const router = useRouter();
   function setLang(l: Lang) {
     setLangState(l);
     document.cookie = `lang=${l}; path=/; max-age=31536000; samesite=lax`;
     document.documentElement.lang = l;
+    router.refresh();   // 서버가 그린 부분(리포트 본문·메타)도 같은 언어로 다시 — 한 화면에 한영이 섞이지 않게(카이 5808c65)
   }
   return <LangContext.Provider value={{ lang, t: STRINGS[lang], setLang }}>{children}</LangContext.Provider>;
 }

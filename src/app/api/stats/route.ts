@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { checkAdmin, json } from "@/lib/auth";
-import { SYNTHETIC_ID_SQL } from "@/lib/visibility";
+import { SYNTHETIC_IDS_SQL } from "@/lib/visibility";
 
 export const runtime = "nodejs";
 
@@ -12,10 +12,10 @@ export async function GET(req: Request) {
   if (!hasDb) return json({ accounts: 0, high: 0, review: 0, confirmed: 0, cleared: 0, queue: 0, posts: 0, clusters: 0, dbConfigured: false });
   const d = db();
   const admin = checkAdmin(req);
-  const acctScope = admin ? undefined : sql`${schema.accounts.id} ~* ${SYNTHETIC_ID_SQL}`;
-  const postScope = admin ? undefined : sql`${schema.posts.accountId} ~* ${SYNTHETIC_ID_SQL}`;
-  const clusterScope = admin ? undefined : sql`not exists (select 1 from posts p where p.cluster_id = ${schema.clusters.id} and p.account_id !~* ${SYNTHETIC_ID_SQL})`;
-  const feedbackScope = admin ? sql`` : sql` and ac.id ~* ${SYNTHETIC_ID_SQL}`;
+  const acctScope = admin ? undefined : sql`${schema.accounts.id} in (${SYNTHETIC_IDS_SQL})`;
+  const postScope = admin ? undefined : sql`${schema.posts.accountId} in (${SYNTHETIC_IDS_SQL})`;
+  const clusterScope = admin ? undefined : sql`not exists (select 1 from posts p where p.cluster_id = ${schema.clusters.id} and p.account_id not in (${SYNTHETIC_IDS_SQL}))`;
+  const feedbackScope = admin ? sql`` : sql` and ac.id in (${SYNTHETIC_IDS_SQL})`;
   const [a] = await d.select({
     accounts: sql<number>`count(*)`, high: sql<number>`count(*) filter (where label='HIGH')`, review: sql<number>`count(*) filter (where label='REVIEW')`,
     // 사람 검토 결과

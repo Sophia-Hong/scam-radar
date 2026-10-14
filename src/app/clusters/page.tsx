@@ -2,7 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db, hasDb, schema } from "@/db";
 import { isAdminPage } from "@/lib/auth";
-import { SYNTHETIC_ID_SQL } from "@/lib/visibility";
+import { SYNTHETIC_IDS_SQL } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export default async function ClustersPage() {
   const d = db();
   // 공개 열람자에게는 구성원이 전부 합성 계정인 캠페인만
   const admin = await isAdminPage();
-  const publicOnly = admin ? undefined : sql`not exists (select 1 from posts p where p.cluster_id = ${schema.clusters.id} and p.account_id !~* ${SYNTHETIC_ID_SQL})`;
+  const publicOnly = admin ? undefined : sql`not exists (select 1 from posts p where p.cluster_id = ${schema.clusters.id} and p.account_id not in (${SYNTHETIC_IDS_SQL}))`;
   const rows = await d.select().from(schema.clusters).where(publicOnly).orderBy(desc(schema.clusters.size), desc(schema.clusters.lastSeen)).limit(50);
   const members = await Promise.all(rows.map((c) =>
     d.select({ accountId: schema.posts.accountId, score: schema.posts.score, postUrl: schema.posts.postUrl }).from(schema.posts).where(eq(schema.posts.clusterId, c.id)).limit(20)
