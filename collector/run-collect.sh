@@ -1,6 +1,6 @@
 #!/bin/zsh
-# 30분 주기 수집 → 채점 → 서버 등록.  launchd: collector/com.scamradar.collect.plist
-# 전제: 이 머신에 Aside 브라우저가 Threads 수집용 계정으로 로그인돼 있고, .env 에 API_BASE·INGEST_TOKEN 이 있다.
+# 수집 → 채점 → 서버 등록. 자동 실행 없음: com.scamradar.collect.plist 는 로드하지 않는다 (2026-10-14 폴라잇 가드).
+# 전제: 소현 O 파일 + Aside 브라우저가 Threads 수집용 계정으로 로그인 + .env 에 API_BASE·INGEST_TOKEN.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
