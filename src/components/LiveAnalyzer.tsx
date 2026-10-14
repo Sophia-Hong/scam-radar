@@ -82,11 +82,21 @@ export function LiveAnalyzer() {
   const [shareMsg, setShareMsg] = useState<"" | "copied" | "failed">("");
 
   const known = account.status === "known";
+  // "AI 없이 확인"(율·테오 국외 이전 거부 방법): 켜면 넣은 글·글에서 뽑은 연락처·서명이 브라우저 밖으로 나가지 않는다 — AI 재검·신고 수 조회 안 함
+  const [aiOff, setAiOff] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { try { if (localStorage.getItem("sr-ai-off") === "1") setAiOff(true); } catch { /* 저장소 없음 */ } }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  function toggleAiOff(on: boolean) {
+    setAiOff(on); setServerResult(null); setAiStatus("idle");
+    try { if (on) localStorage.setItem("sr-ai-off", "1"); else localStorage.removeItem("sr-ai-off"); } catch { /* 저장소 없음 */ }
+  }
   // 대상이 바뀌면 세대를 올린다 — 이전 대상의 신고 요청 응답이 늦게 와도 새 화면에 "신고했어요"가 뜨지 않게(카이 5808c65)
   const gen = useRef(0);
 
   useEffect(() => {
-    if (!textResult || !textResult.needsLlmReview || known) return;
+    if (aiOff || !textResult || !textResult.needsLlmReview || known) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setAiStatus("checking");
@@ -106,7 +116,7 @@ export function LiveAnalyzer() {
       }
     }, 300);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [text, textResult, known]);
+  }, [text, textResult, known, aiOff]);
 
   const handle = account.status === "known" || account.status === "paste" ? account.handle : null;
   const keys = useMemo(() => {
@@ -122,7 +132,7 @@ export function LiveAnalyzer() {
 
   // 이용자 신고 수·비슷한 신고 글·검토 중 여부 — 입력이 정해질 때마다 한 번
   useEffect(() => {
-    if (!checkBody) return;
+    if (!checkBody || (aiOff && !known)) return;   // AI 없이 확인: 글에서 뽑은 연락처·서명을 보내지 않는다(계정 조회는 사용자가 넣은 계정명만)
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
@@ -135,7 +145,7 @@ export function LiveAnalyzer() {
       }
     }, 200);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [checkBody]);
+  }, [checkBody, aiOff, known]);
 
   const currentServerResult = serverResult?.input === text ? serverResult.result : null;
   const result = account.status === "known"
@@ -270,7 +280,14 @@ export function LiveAnalyzer() {
           {input && <button type="button" onClick={() => setInput("")}>{t.hero.clear}</button>}
         </div>
         <p className="checker-scope">{t.hero.scope}</p>
-        <details className="privacy-note"><summary>✓ {t.notice.home.split(".")[0]}.</summary><p>{t.notice.home}</p></details>
+        {aiOff ? (
+          <p className="privacy-note ai-off">✓ {t.notice.aiOffOn} <button type="button" className="inline-link" onClick={() => toggleAiOff(false)}>{t.notice.aiOffUndo}</button></p>
+        ) : (
+          <details className="privacy-note">
+            <summary>✓ {t.notice.lead} <button type="button" className="inline-link" onClick={(e) => { e.preventDefault(); toggleAiOff(true); }}>[{t.notice.aiOffButton}]</button>{t.notice.leadTail} <span className="more">{t.notice.more} ▸</span></summary>
+            <dl>{t.notice.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+          </details>
+        )}
       </section>
 
       <section id="result" className="result-area" aria-live="polite">

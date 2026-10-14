@@ -379,3 +379,10 @@ main { overflow:hidden; }
 .stop-box ul { margin:0; padding-left:20px; font-size:16px; line-height:1.6; }
 .stop-box li + li { margin-top:6px; }
 .contact-line { margin:14px 0 0; color:#77756e; font-size:12px; }
+/* 국외 이전 고지 — 한 줄 + 자세히 (율 #compliance 1791950335) */
+.checker .privacy-note summary { list-style:none; line-height:1.55; }
+.checker .privacy-note summary .more { text-decoration:underline; white-space:nowrap; }
+.checker .privacy-note dl { margin:8px 0 0; display:grid; gap:6px; }
+.checker .privacy-note dt { font-weight:800; color:var(--ink); }
+.checker .privacy-note dd { margin:0; line-height:1.55; word-break:keep-all; overflow-wrap:anywhere; }
+.checker .privacy-note.ai-off { color:#247651; font-weight:700; line-height:1.55; }

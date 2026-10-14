@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
-import { eq, gte, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, hasDb, schema } from "@/db";
 import { fnv1a64 } from "@/engine";
 
@@ -11,12 +11,14 @@ import { fnv1a64 } from "@/engine";
  *  2) 기관 사칭 후보이면서 캡처가 있을 때만 이미지 검토
  *  3) HIGH 계정 요약은 내용 해시로 1회만 생성
  * 모델 = AI_REVIEW_MODEL (`제공자/모델`, AI Gateway 경유). 기본 Claude Sonnet 5.5 = Gateway ID anthropic/claude-sonnet-5.5 (소현 1791949427 "ai 판단은 소넷 정도로").
- * 폴백 = AI_REVIEW_FALLBACK_MODELS(쉼표) — 기본은 이전 모델 google/gemini-3.1-flash-lite, 그다음 deepseek. 다 실패하면 룰/템플릿.
+ * 대체 모델 없음(기본) — Claude 가 실패하면 AI 재검 없이 룰 판정만(율 #compliance 1791950335, 테오 1791950346: 국외 이전 받는 곳을 Anthropic 하나로).
+ * Gateway 공급자도 Anthropic 으로만 고정(only) — 같은 Claude 모델을 Google Vertex·Amazon Bedrock 으로 보내지 않게. AI_REVIEW_PROVIDERS 로 바꿀 수 있음.
  * 기본 모델이 google/ 이고 GOOGLE_GENERATIVE_AI_API_KEY 가 있을 때만 Google 직접 호출(보유 크레딧).
  */
 const PRIMARY_MODEL = process.env.AI_REVIEW_MODEL?.includes("/") ? process.env.AI_REVIEW_MODEL : process.env.AI_REVIEW_MODEL ? `google/${process.env.AI_REVIEW_MODEL}` : "anthropic/claude-sonnet-5.5";
-const FALLBACK_MODELS = (process.env.AI_REVIEW_FALLBACK_MODELS ?? process.env.AI_REVIEW_FALLBACK_MODEL ?? "google/gemini-3.1-flash-lite,deepseek/deepseek-v4.1-flash")
+const FALLBACK_MODELS = (process.env.AI_REVIEW_FALLBACK_MODELS ?? "")
   .split(",").map((m) => m.trim()).filter((m) => m && m !== PRIMARY_MODEL);
+export const PROVIDERS = (process.env.AI_REVIEW_PROVIDERS ?? PRIMARY_MODEL.split("/")[0]).split(",").map((p) => p.trim()).filter(Boolean);
 const useDirectGoogle = PRIMARY_MODEL.startsWith("google/") && !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 export const MODEL_NAME = useDirectGoogle ? `google-direct/${PRIMARY_MODEL.slice(7)}` : PRIMARY_MODEL;
 export const llmEnabled = !!(useDirectGoogle || process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL);
@@ -26,7 +28,7 @@ function modelConfig(tags: string[]) {
   if (useDirectGoogle) return { model: google(PRIMARY_MODEL.slice(7)) };
   return {
     model: PRIMARY_MODEL,
-    providerOptions: { gateway: { models: FALLBACK_MODELS, tags } },
+    providerOptions: { gateway: { only: PROVIDERS, ...(FALLBACK_MODELS.length ? { models: FALLBACK_MODELS } : {}), tags } },
   };
 }
 
@@ -36,32 +38,48 @@ function gatewayCost(metadata: unknown): number | undefined {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : undefined;
 }
 
-async function cached<T>(kind: string, key: string, fn: () => Promise<T>): Promise<T> {
-  const k = `${kind}:${fnv1a64(MODEL_NAME)}:${key}`;   // 캐시 키에 모델 — 모델을 바꾸면 옛 판정(예: gemini)이 섞이지 않는다(테오 1791949447)
-  if (hasDb) {
-    const hit = await db().select().from(schema.llmCache).where(eq(schema.llmCache.key, k)).limit(1);
-    if (hit[0]) return hit[0].result as T;
+export class AiBudgetExhausted extends Error {}
+
+/**
+ * 하루 AI 호출 상한 — *호출 전에* 원자적 카운터로 1을 예약한다(신고 상한과 같은 community_quota, 버킷 = UTC 날짜).
+ * 리뷰·이미지 검토·리포트 요약 *모든* 호출이 같은 카운터를 쓴다. DB 가 없거나 예약 중 오류면 호출하지 않는다(fail-closed, 규칙 판정만).
+ * 상한 AI_DAILY_REQUEST_BUDGET(기본 450) × 호출당 약 $0.0035 ≈ 하루 최대 약 $1.6 (테오 1791950431 — 소현에게 말한 상한이 실제로 지켜지게).
+ */
+export async function reserveAiCall(now = new Date()): Promise<{ release: () => Promise<void> } | null> {
+  if (!hasDb || !Number.isFinite(DAILY_LLM_BUDGET) || DAILY_LLM_BUDGET <= 0) return null;
+  try {
+    const { ensureTables, reserve, release } = await import("./community");
+    await ensureTables();
+    const bucket = `d:${now.toISOString().slice(0, 10)}`;
+    if (!(await reserve("ai-call", bucket, 1, DAILY_LLM_BUDGET))) return null;
+    return { release: () => release("ai-call", bucket, 1).catch(() => {}) };
+  } catch {
+    return null;
   }
-  const result = await fn();
-  if (hasDb) {
-    await db().insert(schema.llmCache).values({ key: k, kind, result: result as object, model: llmEnabled ? MODEL_NAME : "template" }).onConflictDoNothing();
-  }
-  return result;
 }
 
-/** 무료 티어 500 RPD 중 운영·이미지 검토용 여유 50회를 남긴다. */
-async function hasDailyBudget(): Promise<boolean> {
-  if (!hasDb || !Number.isFinite(DAILY_LLM_BUDGET) || DAILY_LLM_BUDGET <= 0) return true;
+/** Gateway 응답의 실제 모델명(대체로 갔다면 그 이름) — 없으면 요청한 이름 */
+function servedModel(result: { response?: { modelId?: string } }): string {
+  return result.response?.modelId || MODEL_NAME;
+}
+
+async function cached<T>(kind: string, key: string, fn: () => Promise<T>): Promise<T> {
+  const k = `${kind}:${fnv1a64(MODEL_NAME)}:${key}`;   // 캐시 키에 모델 — 모델을 바꾸면 옛 판정(예: gemini)이 섞이지 않는다(테오 1791949447)
+  if (!hasDb) throw new AiBudgetExhausted("no database — budget cannot be enforced");   // fail-closed
+  const hit = await db().select().from(schema.llmCache).where(eq(schema.llmCache.key, k)).limit(1);
+  if (hit[0]) return hit[0].result as T;
+  const slot = await reserveAiCall();
+  if (!slot) throw new AiBudgetExhausted("daily AI call budget reached or unavailable");
+  let result: T;
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const rows = await db()
-      .select({ count: sql<number>`count(*)` })
-      .from(schema.llmCache)
-      .where(gte(schema.llmCache.createdAt, since));
-    return Number(rows[0]?.count ?? 0) < DAILY_LLM_BUDGET;
-  } catch {
-    return true;
+    result = await fn();
+  } catch (e) {
+    await slot.release();   // 호출이 실패하면 예약을 돌려준다
+    throw e;
   }
+  const served = (result as { model?: string })?.model ?? MODEL_NAME;
+  await db().insert(schema.llmCache).values({ key: k, kind, result: result as object, model: served }).onConflictDoNothing();
+  return result;
 }
 
 /**
@@ -74,6 +92,14 @@ export const REVIEW_CHECK_LABEL: Record<ReviewCheck, string> = {
   giver: "정보·수익을 주겠다는 쪽", money_promise: "돈·수익 약속", guarantee: "원금·수익 보장", move_chat: "다른 방으로 유도",
   secrecy_urgency: "비밀·서두름", impersonation: "기관·직원 사칭", withdrawal_fee: "출금 전 수수료", quote_warning: "인용·경고·연구 글",
 };
+
+/** 모순 응답: "정상"인데 강한 수법(보장·출금 수수료)을 골랐거나, "유인"인데 수법을 하나도 안 골랐으면(인용·경고만이면) 버린다(테오 1791950431) */
+export function reviewConsistent(v: { verdict: string; checks: ReviewCheck[] }): boolean {
+  const tactics = v.checks.filter((c) => c !== "quote_warning");
+  if (v.verdict === "benign" && v.checks.some((c) => c === "guarantee" || c === "withdrawal_fee")) return false;
+  if (v.verdict === "scam" && tactics.length === 0) return false;
+  return true;
+}
 
 export interface ReviewVerdict {
   verdict: "scam" | "benign" | "unsure";
@@ -121,7 +147,6 @@ const REVIEW_SYSTEM = [
 export async function reviewPost(text: string, reasonLabels: string[], context: ReviewContext = {}): Promise<ReviewVerdict> {
   const key = fnv1a64(`review-v3|${text}|${reasonLabels.join("|")}|${JSON.stringify(context)}`);
   if (!llmEnabled) return { verdict: "unsure", confidence: 0, checks: [], model: "template" };
-  if (!(await hasDailyBudget())) return { verdict: "unsure", confidence: 0, checks: [], model: "quota-rule" };
   try {
     return await cached<ReviewVerdict>("review", key, async () => {
       const result = await generateText({
@@ -131,10 +156,14 @@ export async function reviewPost(text: string, reasonLabels: string[], context: 
         system: REVIEW_SYSTEM,
         prompt: `룰 엔진이 본 것(참고): ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n글:\n\"\"\"\n${text.slice(0, 1800)}\n\"\"\"`,
       });
-      return { ...result.output, model: MODEL_NAME, costUsd: gatewayCost(result.providerMetadata) };
+      const out = result.output;
+      const model = servedModel(result);
+      // 모순 응답은 버리고 규칙 판정 유지(캐시에는 버렸다는 표시로 남겨 같은 글에 다시 과금하지 않음)
+      if (!reviewConsistent(out)) return { verdict: "unsure" as const, confidence: 0, checks: [], model: `${model}|discarded`, costUsd: gatewayCost(result.providerMetadata) };
+      return { ...out, model, costUsd: gatewayCost(result.providerMetadata) };
     });
-  } catch {
-    return { verdict: "unsure", confidence: 0, checks: [], model: "fallback" };
+  } catch (e) {
+    return { verdict: "unsure", confidence: 0, checks: [], model: e instanceof AiBudgetExhausted ? "quota-rule" : "fallback" };
   }
 }
 
@@ -173,7 +202,7 @@ export async function reviewEvidenceImage(text: string, image: string): Promise<
           ],
         }],
       });
-      return { ...result.output, model: MODEL_NAME, costUsd: gatewayCost(result.providerMetadata) };
+      return { ...result.output, model: servedModel(result), costUsd: gatewayCost(result.providerMetadata) };
     });
   } catch {
     return { verdict: "inconclusive", confidence: 0, evidenceType: "오류", rationale: "이미지 보조 검토 실패", model: "fallback" };
@@ -217,7 +246,7 @@ export async function summarizeAccount(input: SummaryInput): Promise<{ summary: 
         // 내부 규칙 코드는 모델에 넘기지 않는다(요약문으로 새어 나가지 않게)
         prompt: JSON.stringify({ ...input, reasonCodes: undefined, posts: input.posts.slice(0, 8).map((p) => ({ ...p, text: p.text.slice(0, 400) })) }, null, 1),
       });
-      return { summary: result.text.trim() || templateSummary(input), model: MODEL_NAME };
+      return { summary: result.text.trim() || templateSummary(input), model: servedModel(result) };
     });
   } catch {
     return { summary: templateSummary(input), model: "fallback-template" };

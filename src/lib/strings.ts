@@ -37,8 +37,22 @@ const ko = {
     demo: "합성 사례 보기",
     scope: "투자 권유 글, 메신저 링크, Threads 계정을 확인할 수 있어요.",
   },
+  // 국외 이전 고지(개인정보 보호법 §28-8, 율 #compliance 1791950335 · 테오 1791950346). 보관·연락처는 두 회사 현재 문서 원문에서(율 대조)
   notice: {
-    home: "넣은 글은 저장하지 않습니다. 확인은 이 브라우저 안에서 먼저 이루어지고, 일부 글은 보조 AI가 다시 볼 수 있습니다. 이때 글이 서버를 거쳐 AI 서비스(Anthropic Claude — 장애 때는 Google Gemini 등 대체 모델)로 전송될 수 있습니다(대체 모델이 무료 티어면 입력이 그 회사의 제품 개선에 쓰일 수 있습니다). AI 재검토 결과(판정과 한 줄 근거)는 같은 글의 재요청을 줄이려고 저장될 수 있습니다.",
+    lead: "넣은 글은 저장하지 않아요. 애매한 글만 미국 AI 회사(Anthropic)에 보내 한 번 더 확인해요. 보내기 싫으면",
+    aiOffButton: "AI 없이 확인",
+    leadTail: "을 쓰세요.",
+    more: "자세히",
+    aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요(AI 재검·신고 수 조회 없음).",
+    aiOffUndo: "AI 재검 다시 켜기",
+    details: [
+      ["보내는 것", "다시 확인할 글 원문 (글 안의 이름·연락처 포함)"],
+      ["받는 곳·나라", "Anthropic, PBC (미국, 548 Market St, PMB 90375, San Francisco, CA 94104 · privacy@anthropic.com). 거쳐 가는 곳: Vercel Inc. (미국, AI Gateway · 440 N Barranca Avenue #4133, Covina, CA 91723 · privacy@vercel.com)"],
+      ["언제·어떻게", "다시 확인할 때 바로, 암호화 통신(HTTPS)으로"],
+      ["목적", "사기 신호를 한 번 더 확인"],
+      ["보관", "저희 서버에는 원문이 남지 않아요(판정 결과와 체크 항목만 저장). Vercel AI Gateway: “요청이 끝나면 즉시·영구 삭제, 프롬프트·출력을 보관하지 않음”(Vercel 문서, 2026-09-22 갱신). Anthropic: “API 입력·출력은 받은 뒤 30일 안에 삭제. 이용 정책 위반으로 자동 탐지되면 최대 2년, 법에 따라 더 길 수 있음”(Anthropic 개인정보 안내, 2026-07-01 갱신)"],
+      ["거부", "‘AI 없이 확인’을 쓰면 글이 브라우저 밖으로 나가지 않아요. 대신 AI 재검은 없어요."],
+    ] as [string, string][],
   },
   status: {
     known: (h: string, posts: number) => `@${h} 계정의 글 ${posts}건을 확인했어요.`,
@@ -152,7 +166,7 @@ const ko = {
   analyze: {
     title: "텍스트 분석",
     lead: "게시물·댓글을 붙여 넣으면 어떤 신호가 있는지 바로 계산합니다.",
-    notice: "이 페이지는 AI 재검토를 쓰지 않고, 입력한 문구는 브라우저 밖으로 나가지 않습니다. (홈 화면의 판독에서는 일부 글을 보조 AI가 다시 볼 수 있으며, 이때 문구가 서버를 거쳐 AI 서비스(Anthropic Claude — 장애 때는 Google Gemini 등 대체 모델)로 전송될 수 있습니다.)",
+    notice: "이 페이지는 AI를 쓰지 않아요. 입력한 글은 브라우저 밖으로 나가지 않아요. (홈 화면에서는 애매한 글만 미국 AI 회사(Anthropic)에 보내 한 번 더 확인해요.)",
     followers: "팔로워 수(선택)", cluster: "동일 문구 반복 수(선택)", spread: "같은 문구 쓴 계정 수(선택)",
     sample: (i: number) => `샘플 ${i}`,
     normalized: "정규화 결과", noObf: "난독화 없음", ratio: (n: number) => `변형률 ${n}%`,
@@ -211,7 +225,20 @@ const en: Strings = {
     scope: "Works with investment messages, messenger links and Threads accounts.",
   },
   notice: {
-    home: "We do not store what you paste. It is checked in your browser first, and some messages may get a second look from an AI assistant; in that case the text is sent through our server to an AI service (Anthropic Claude — or a backup model such as Google Gemini if it is unavailable) (if a backup model's free tier is used, the input may be used to improve that company's products). That AI result (a verdict and one-line reason) may be cached to avoid repeat requests.",
+    lead: "We don't store what you paste. Only unclear messages are sent to a US AI company (Anthropic) for a second look. Don't want that? Use",
+    aiOffButton: "Check without AI",
+    leadTail: ".",
+    more: "Details",
+    aiOffOn: "Checking without AI — what you paste stays in your browser (no AI second look, no report counts).",
+    aiOffUndo: "Turn the AI second look back on",
+    details: [
+      ["What is sent", "The text of the message being re-checked (including any names or contacts in it)"],
+      ["Recipient and country", "Anthropic, PBC (USA, 548 Market St, PMB 90375, San Francisco, CA 94104 · privacy@anthropic.com). Passes through: Vercel Inc. (USA, AI Gateway · 440 N Barranca Avenue #4133, Covina, CA 91723 · privacy@vercel.com)"],
+      ["When and how", "At the moment of the re-check, over an encrypted connection (HTTPS)"],
+      ["Purpose", "A second look for scam signs"],
+      ["Retention", "Our servers keep no original text (only the verdict and checklist items). Vercel AI Gateway: “user data is immediately and permanently deleted after requests are completed; prompts and outputs are not retained” (Vercel docs, updated 2026-09-22). Anthropic: “API inputs and outputs are deleted within 30 days; up to 2 years if flagged for a Usage Policy violation; longer where the law requires” (Anthropic privacy center, updated 2026-07-01)"],
+      ["Opt out", "Use “Check without AI” and your text never leaves your browser. There is no AI second look in that mode."],
+    ],
   },
   status: {
     known: (h: string, posts: number) => `Checked ${posts} posts from @${h}.`,
@@ -328,7 +355,7 @@ const en: Strings = {
   analyze: {
     title: "Text analysis",
     lead: "Paste a post or comment and see which signals it has, instantly.",
-    notice: "This page does not use the AI second look, and the text you type never leaves your browser. (On the home page, some messages may get a second look from an AI assistant; in that case the text is sent through our server to an AI service (Anthropic Claude — or a backup model such as Google Gemini if it is unavailable).)",
+    notice: "This page uses no AI. What you type never leaves your browser. (On the home page, only unclear messages are sent to a US AI company (Anthropic) for a second look.)",
     followers: "Followers (optional)", cluster: "Times the same text repeats (optional)", spread: "Accounts using the same text (optional)",
     sample: (i: number) => `Sample ${i}`,
     normalized: "Normalized text", noObf: "No disguised text", ratio: (n: number) => `${n}% altered`,
