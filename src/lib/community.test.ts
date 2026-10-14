@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { check, countsVisible, MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
+import { ACCOUNT_KEY_TYPES, check, CONTACT_KEY_TYPES, countsVisible, isAccountKey, KEY_TYPES, MIN_DISTINCT_CONNECTIONS, normalizeKey, normalizeKeys, reporterId, shown, validSig } from "./community";
 import { accountFromInput } from "@/components/LiveAnalyzer";
 import { minhash } from "@/engine/minhash";
 import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "./result-view";
@@ -131,7 +131,13 @@ describe("교차 확인 — 신고 수 공개 = 연결 3곳 이상 AND 엔진 �
   });
   it("계정 키는 요청의 판정(HIGH)으로 열리지 않음 — 서버 판정이 없으면 DB 전에 숨김 (카이 1791950858)", async () => {
     expect(await check(["threads:real_person"], null, "HIGH")).toEqual({ counts: {}, similar: 0, gated: true });
-    expect(await check(["handle:real_person"], null, "HIGH")).toEqual({ counts: {}, similar: 0, gated: true });   // 글 속 @아이디도 계정 키
+    for (const t of ACCOUNT_KEY_TYPES) expect(await check([`${t}:real_person`], null, "HIGH"), t).toEqual({ counts: {}, similar: 0, gated: true });
+  });
+  it("모든 키 종류는 계정 키 또는 연락처 키 중 정확히 하나 (새 종류가 규칙 없이 들어오지 않게)", () => {
+    expect([...ACCOUNT_KEY_TYPES, ...CONTACT_KEY_TYPES].sort()).toEqual([...KEY_TYPES].sort());
+    expect(ACCOUNT_KEY_TYPES.filter((t) => (CONTACT_KEY_TYPES as readonly string[]).includes(t))).toEqual([]);
+    expect(isAccountKey("handle:x")).toBe(true);
+    expect(isAccountKey("telegram:x")).toBe(false);
   });
   it("두 조건이 따로 — 연결 수 기준은 그대로", () => {
     expect([2, 3].map(shown)).toEqual([0, 3]);

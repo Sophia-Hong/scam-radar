@@ -13,6 +13,13 @@ import { bandKeys, estimateJaccard, JACCARD_THRESHOLD, NUM_PERM } from "@/engine
  * - 스팸: 신고자당 새 등록 시간당 HOURLY_LIMIT, 하루 DAILY_LIMIT. 한 번에 키 MAX_KEYS_PER_POST 개까지.
  */
 export const KEY_TYPES = ["threads", "telegram", "kakao_open", "kakao_channel", "phone", "handle", "url", "line", "wechat", "whatsapp", "signal"] as const;
+/**
+ * 계정을 가리키는 키 종류 — "계정 키" 규칙(서버가 아는 판정만, 실계정은 공개 숫자 0)을 받는다(테오 1791951719).
+ * 나머지 KEY_TYPES(메신저 방·번호·링크)는 연락처 키로, 붙여넣기 판정이 적용된다. 새 키 종류를 더하면 둘 중 하나로 분류해야 시험이 통과한다.
+ */
+export const ACCOUNT_KEY_TYPES = ["threads", "handle"] as const;
+export const CONTACT_KEY_TYPES = ["telegram", "kakao_open", "kakao_channel", "phone", "url", "line", "wechat", "whatsapp", "signal"] as const;
+export const isAccountKey = (k: string) => (ACCOUNT_KEY_TYPES as readonly string[]).includes(k.slice(0, k.indexOf(":")));
 export const MAX_KEYS_PER_POST = 5;
 export const MAX_KEYS_PER_CHECK = 10;
 export const HOURLY_LIMIT = 10;
@@ -137,7 +144,6 @@ export async function check(keys: string[], sig: number[] | null, level: EngineL
   // 키마다 판정 자격: 서버가 아는 판정(keyLevels — 공개 합성 계정의 DB 판정)이 있으면 그 키에만, 없으면 요청의 판정. 한 키의 판정이 다른 키에 번지지 않는다(카이 392ac60)
   // 계정을 가리키는 키(threads:*, 글 속 @아이디 handle:*)는 요청의 판정으로 열 수 없다 — 서버가 아는 판정(공개 합성 계정)만.
   // 실계정 키는 공개 조회에서 숫자를 내지 않는다(카이 1791950858 · dbdc4f3)
-  const isAccountKey = (k: string) => k.startsWith("threads:") || k.startsWith("handle:");
   const levelOf = (k: string) => keyLevels[k] ?? (isAccountKey(k) ? null : level);
   keys = keys.filter((k) => countsVisible(levelOf(k)));
   if (!countsVisible(level)) sig = null;
