@@ -3,11 +3,27 @@
 # 전제: 이 머신에 Aside 브라우저가 Threads 수집용 계정으로 로그인돼 있고, .env 에 API_BASE·INGEST_TOKEN 이 있다.
 set -u
 cd "$(dirname "$0")/.." || exit 1
+
+# ── 폴라잇 크롤 가드 (2026-10-14, 소현 "폴라잇 크롤 강제해 내 계정이 날아갈 거 같아") ──
+# 1) 소현 O 없이는 안 돈다: ~/.config/scam-radar/collect-approved-until 에 미래 epoch 가 있어야 함.
+# 2) 하루 최대 4회, 실행 간 최소 2시간.  3) 직전 실행에서 429/차단 흔적이 있으면 다음날 09시(KST)까지 정지.
+GUARD_DIR="$HOME/.config/scam-radar"; mkdir -p "$GUARD_DIR"
+APPROVED_UNTIL=$(cat "$GUARD_DIR/collect-approved-until" 2>/dev/null || echo 0)
+NOW=$(date +%s)
+if (( NOW >= APPROVED_UNTIL )); then echo "[$(date '+%F %T')] guard: 소현 O 없음 — 수집 안 함" >> logs/collect.log; exit 0; fi
+STOP_UNTIL=$(cat "$GUARD_DIR/collect-blocked-until" 2>/dev/null || echo 0)
+if (( NOW < STOP_UNTIL )); then echo "[$(date '+%F %T')] guard: 차단 감지 후 정지 중" >> logs/collect.log; exit 0; fi
+TODAY=$(TZ=Asia/Seoul date +%F); RUNS="$GUARD_DIR/collect-runs-$TODAY"
+COUNT=$(wc -l < "$RUNS" 2>/dev/null | tr -d ' ' || echo 0); [[ -z "$COUNT" ]] && COUNT=0
+LAST=$(tail -1 "$RUNS" 2>/dev/null || echo 0); [[ -z "$LAST" ]] && LAST=0
+if (( COUNT >= 4 )) || (( NOW - LAST < 7200 )); then echo "[$(date '+%F %T')] guard: 하루 4회/2시간 간격 초과" >> logs/collect.log; exit 0; fi
+echo "$NOW" >> "$RUNS"
 export PATH="/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 BATCH="collector/inbox/$(date +%Y%m%d-%H%M)"
 mkdir -p "$BATCH" logs
 RAW="$BATCH/raw.jsonl"; : > "$RAW"
 LOG="logs/collect.log"
+LOG_START=$(wc -l < "$LOG" | tr -d ' ')
 echo "[$(date '+%F %T')] start $BATCH" >> "$LOG"
 
 while IFS= read -r kw; do
@@ -18,6 +34,10 @@ while IFS= read -r kw; do
   done
 done < collector/keywords.txt
 rm -f "$BATCH/.cur.js"
+if tail -n +$((LOG_START+1)) "$LOG" | grep -qiE '\b429\b|too many requests|rate limit|try again later|challenge'; then
+  TZ=Asia/Seoul date -v+1d -v9H -v0M -v0S +%s > "$GUARD_DIR/collect-blocked-until"
+  echo "[$(date '+%F %T')] guard: 차단 신호 — 다음날 09시까지 정지" >> "$LOG"; exit 2
+fi
 
 # raw.jsonl → 스키마 JSON 배열 (본문 8자 미만·중복 URL 제외)
 node -e '
