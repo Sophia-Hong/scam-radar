@@ -45,10 +45,16 @@ export class AiBudgetExhausted extends Error { override name = "AiBudgetExhauste
  * AI 호출 실패를 *오류 이름·HTTP 상태만* 남긴다(테오 1791962254: catch 가 오류를 삼켜 배포판 AI 불가 원인이 어디에도 없었음).
  * 메시지·본문·글 내용은 남기지 않는다 — 공급자 오류 메시지에 요청 일부가 섞일 수 있어서. Vercel 함수 로그에 한 줄.
  */
+/** 이름은 짧은 식별자 꼴(영문으로 시작, 영숫자·_ 64자 이내)만 — 아니면 "UnknownError". 이름에도 요청 일부가 들어갈 수 있어서(카이 e6a669c) */
+const safeName = (v: unknown) => (typeof v === "string" && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(v) ? v : "UnknownError");
+/** 상태는 100–599 정수만 */
+const safeStatus = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 100 && v <= 599 ? v : undefined);
 export function aiErrorSummary(e: unknown): { name: string; status?: number; cause?: string } {
-  const err = e as { name?: string; statusCode?: number; status?: number; cause?: { name?: string } } | null;
-  const status = typeof err?.statusCode === "number" ? err.statusCode : typeof err?.status === "number" ? err.status : undefined;
-  return { name: err?.name || typeof e, ...(status !== undefined ? { status } : {}), ...(err?.cause?.name ? { cause: err.cause.name } : {}) };
+  const err = e as { name?: unknown; statusCode?: unknown; status?: unknown; cause?: { name?: unknown } } | null;
+  const name = err && typeof err === "object" ? safeName(err.name) : safeName(typeof e);
+  const status = safeStatus(err?.statusCode) ?? safeStatus(err?.status);
+  const cause = err?.cause && typeof err.cause === "object" && err.cause.name !== undefined ? safeName(err.cause.name) : undefined;
+  return { name, ...(status !== undefined ? { status } : {}), ...(cause ? { cause } : {}) };
 }
 export function logAiError(feature: string, e: unknown) {
   console.error(`[ai] ${feature} failed`, JSON.stringify(aiErrorSummary(e)));
