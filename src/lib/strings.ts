@@ -50,7 +50,7 @@ const ko = {
     demo: "예시 계정 보기",
     scope: "받은 메시지, 텔레그램 같은 메신저 링크, SNS 글을 확인할 수 있어요.",
   },
-  example: { title: "이런 글은 이렇게 나와요", tag: "예시(지어낸 글)" },   // 테오 1791986598
+  example: { title: "검토는 이렇게 나와요", tag: "" },   // 소현 1791988806(테오 1791988814): 제목 변경, 예시 표시 삭제
   // 웹사이트 확인(소현 1791985819, 테오 1791985835·1791986262). Google 문구는 단정하지 않는다 + Google 판정 줄에만 출처 표시(율 1791986341, Web Risk user-warnings)
   website: {
     checking: "웹사이트를 확인하는 중이에요…",
@@ -291,7 +291,7 @@ const en: Strings = {
     demo: "See an example account",
     scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
   },
-  example: { title: "Here's what a result looks like", tag: "Example (made up)" },
+  example: { title: "Here's what a check looks like", tag: "" },
   website: {
     checking: "Checking the website…",
     title: (d: string) => `Website check: ${d}`,

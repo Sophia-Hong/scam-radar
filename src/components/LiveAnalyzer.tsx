@@ -629,7 +629,7 @@ function ResultExample() {
   return (
     <section className="result-example" aria-labelledby="example-title">
       <h2 id="example-title">{t.example.title}</h2>
-      <p className="example-input"><span className="example-tag">{t.example.tag}</span> {text}</p>
+      <p className="example-input">{t.example.tag && <span className="example-tag">{t.example.tag}</span>} {text}</p>
       <div className={`result-card ${TONE[level]}`}>
         <div className="verdict">
           <strong>{t.result.banner[level].title}</strong>
