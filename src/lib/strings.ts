@@ -110,7 +110,7 @@ const ko = {
     noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
-      guarantee: ["‘원금 보장’이라고 써 있어요.", "‘절대 안 잃는’ 투자는 없어요. 허가 없이 여러 사람에게 원금 보장을 약속하며 돈을 모으는 영업은 법으로 금지예요(유사수신행위법 제3조)."],   // 소현 1791987441, 율 1791987657, 카이 094f526(§2 조건: 불특정 다수·영업), 문구 = 테오 1791987898
+      guarantee: ["‘원금 보장’이라고 써 있어요.", "‘절대 안 잃는’ 투자는 없어요. 원금 보장을 약속하며 여러 사람 돈을 모으는 건 그 자체로 불법이에요."],   // 소현 1791987932(테오 1791987949) — 법령·조건은 아래 작은 줄(guaranteeLaw)
       profitProof: ["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "수익인증사진은 AI로 딸깍, 쉽게 만들 수 있어요. 진정한 수익인증인지 알 수 없으니, 송금 전엔 반드시 다시 확인하세요."],   // 소현 원문 1791987441   // 소현 #today-hq 1791954291, 율 OK 1791954325
       withdrawal: ["돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 해요.", "이 말을 듣고 보낸 돈은 돌려받지 못하는 일이 많아요."],
       secrecy: ["비밀로 하라고 하거나, 은행에서 물으면 뭐라고 말할지 시켜요.", "가족이나 은행이 말릴까 봐 그러는 거예요. 사기에서 아주 자주 나와요."],
@@ -136,10 +136,14 @@ const ko = {
     aiProofNote: "수익 인증 사진·영상은 AI로 쉽게 만들 수 있어요. 믿기 전에 다시 확인하세요.",   // 모든 결과 화면 일반 안내(율 OK 1791954325)
     learnLink: "이렇게 속여요 — 사기 유형 8가지 보기",
     stopTitle: "이런 말을 들으면 멈추세요",
+    // 볼드 헤드라인 + 설명 불릿(소현 1791987932, 테오 1791987949)
     stop: [
-      "‘아무한테도 말하지 마세요’라고 하면 조심하세요. 사기는 가족이 말릴까 봐 비밀로 하라고 해요.",
-      "번 돈을 찾으려는데 세금이나 수수료를 먼저 내라고 하면, 돈을 더 보내지 마세요. 사기에서 아주 자주 쓰는 말이에요.",
-    ],
+      ["아무에게도 말하지 말라고 했다?", "사기는 가족이 말릴까 봐 비밀로 하라고 해요. 이 말을 들으면 멈추세요."],
+      ["세금과 수수료를 먼저 내라고?", "번 돈을 찾으려면 세금·수수료부터 내라는 건 사기에서 아주 자주 쓰는 말이에요. 돈을 더 보내지 마세요."],
+    ] as [string, string][],
+    // 원금 보장 징후 밑 작은 회색 줄 — 법령 이름 + 율·카이 조건(허가 없이·영업)
+    guaranteeLaw: "유사수신행위의 규제에 관한 법률 제2조·제3조 (허가 없이 영업으로 하는 경우)",
+    share: "결과 공유하기",
     // 한국 번호라 한국어 화면에만(테오 1791951943, 율 1791951936)
     stopFooter: "이상하면 돈 보내지 말고 112(경찰)나 1332(금융감독원)에 전화하세요.",
     todoTitle: "이렇게 하세요",
@@ -158,7 +162,8 @@ const ko = {
       ],
     } as Record<Level, string[]>,
     // 할 일의 회사 조회 줄 — 링크와 함께(소현 1791987307, 테오 1791987317). 주소는 파인 첫 화면 메뉴에서 찾아 200 확인(10-14 23:1x KST)
-    firmCheck: { text: "투자 회사라면 금융감독원 파인 ‘제도권 금융회사 조회’에 회사 이름을 넣어 보세요. 없으면 사기일 수 있어요.", link: "파인에서 조회하기", url: "https://fine.fss.or.kr/fine/fncco/systemFncCo/list.do?menuNo=900038" },
+    // 영어 먼저·괄호 한국어, 버튼은 "금융감독원 사이트에서 조회"(소현 1791987932: "파인에서 조회"는 사기처럼 보임)
+    firmCheck: { text: "FINE(금융감독원 파인)에서 제도권 금융회사인지 조회해 보세요. 회사 이름이 없으면 사기일 수 있어요.", link: "금융감독원 사이트에서 조회", url: "https://fine.fss.or.kr/fine/fncco/systemFncCo/list.do?menuNo=900038" },
     reportTo: "상담·신고",
     reportLinks: [
       { name: "금융감독원 1332", url: "tel:1332" },
@@ -369,9 +374,11 @@ const en: Strings = {
     learnLink: "How these scams work — 8 common types",
     stopTitle: "Stop if you hear this",
     stop: [
-      "If they tell you not to tell anyone, be careful. Scams ask you to keep it secret so your family can't stop you.",
-      "If you must pay a tax or fee before you can take your money out, don't send more money. Scams use this a lot.",
-    ],
+      ["Told to keep it secret?", "Scams ask you to keep it secret so your family can't stop you. Stop here."],
+      ["Asked to pay a tax or fee first?", "Paying a tax or fee before you can take your money out is a classic scam line. Don't send more money."],
+    ] as [string, string][],
+    guaranteeLaw: "",
+    share: "Share result",
     stopFooter: "",
     todoTitle: "What to do",
     todo: {

@@ -467,7 +467,7 @@ export function LiveAnalyzer() {
             )}
 
             <div className="result-actions">
-              <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
+              <button type="button" className="act-share" onClick={shareResult}>{t.result.share}</button>
               {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: aiOff ? [] : keys, withText: !!sig && !aiOff })}   /* AI 없이 확인: 아무것도 미리 고르지 않음(테오 1791952508) */>{t.community.button}</button>}
             </div>
             {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
@@ -485,7 +485,7 @@ export function LiveAnalyzer() {
             {signs.length > 0 && (
               <div className="result-signs">
                 <h3>{t.result.signsTitle}</h3>
-                <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span></li>)}</ul>
+                <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span>{fact === t.result.signs.guarantee[0] && t.result.guaranteeLaw && <small className="sign-law">{t.result.guaranteeLaw}</small>}</li>)}</ul>
               </div>
             )}
 
@@ -494,7 +494,7 @@ export function LiveAnalyzer() {
 
             <div className="stop-box">
               <h3>{t.result.stopTitle}</h3>
-              <ul>{t.result.stop.map((line) => <li key={line}>{line}</li>)}</ul>
+              <ul className="stop-list">{t.result.stop.map(([head, body]) => <li key={head}><b>{head}</b><span>{body}</span></li>)}</ul>
               {t.result.stopFooter && <p className="stop-footer">{t.result.stopFooter}</p>}
             </div>
             <a className="learn-link" href="/learn">{t.result.learnLink}</a>
@@ -570,8 +570,8 @@ function TodoList({ level }: { level: keyof typeof TONE }) {
   const f = t.result.firmCheck;
   return (
     <ol>
-      {t.result.todo[level].map((line) => <li key={line}>{line}</li>)}
-      {level !== "HIGH" && <li>{f.text} <a className="firm-link" href={f.url} target="_blank" rel="noreferrer">{f.link} ↗</a></li>}
+      {t.result.todo[level].map((line) => <li key={line}><label><input type="checkbox" /> <span>{line}</span></label></li>)}
+      {level !== "HIGH" && <li><label><input type="checkbox" /> <span>{f.text}</span></label> <a className="firm-link" href={f.url} target="_blank" rel="noreferrer">{f.link} ↗</a></li>}
     </ol>
   );
 }
@@ -637,7 +637,7 @@ function ResultExample() {
         {signs.length > 0 && (
           <div className="result-signs">
             <h3>{t.result.signsTitle}</h3>
-            <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span></li>)}</ul>
+            <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span>{fact === t.result.signs.guarantee[0] && t.result.guaranteeLaw && <small className="sign-law">{t.result.guaranteeLaw}</small>}</li>)}</ul>
           </div>
         )}
         <div className="result-todo">
