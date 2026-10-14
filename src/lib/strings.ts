@@ -31,7 +31,7 @@ const ko = {
   hero: {
     title: "소중한 돈 보내기 전에, 먼저 위험부터 확인하세요!",   // 프리뷰안(테오 1791985375, 소현 영어 원문 1791985351의 한국어판 — 소현이 캡처 보고 고침)
     // how-to 흐름 한 줄(소현 1791985306 "3가지 스텝이면 플로우로 바로 밑에 약간 작게", 테오 1791985334) — 한 칸 4~6단어
-    howto: ["받은 메시지를 캡처하세요", "여기에 캡처를 올리세요", "결과와 할 일을 보세요"],   // 율 1791972312
+    howto: ["메시지 캡처", "캡처 확인", "의심 상황 확인"],   // 소현 #today-hq 1791987249, 테오 1791987265
     orPaste: "또는 받은 글을 붙여 넣으세요",
     upload: "캡처 올리기",   // 테오 1791958372
     uploadNote: "신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2); "가리고 올려 주세요" 삭제 = 소현 1791985819(테오 1791985835), 율 확인 요청 1791986272
@@ -40,8 +40,8 @@ const ko = {
     uploadTooMany: "캡처는 3장까지 올릴 수 있어요.",
     uploadTooBig: "5MB보다 큰 사진은 올릴 수 없어요.",
     uploadBad: "사진 파일만 올릴 수 있어요.",
-    uploadOnly: "올린 캡처를 AI가 확인하고 있어요.",   // 노인 첫 화면 1·2·3(카이·테오 1791956461)
-    placeholder: "의심 가는 글·링크·웹사이트 주소를 붙여 넣으세요\n\n예) 받은 카톡·문자 메시지, 텔레그램 링크, SNS 글, 웹사이트 주소",   // 웹사이트 확인(소현 1791985819, 테오 1791985835)
+    uploadOnly: "판독 중입니다…",   // 소현 1791987249
+    placeholder: "의심 가는 글·링크·웹사이트 주소를 붙여 넣으세요\n예) 카톡·문자, 텔레그램 링크, SNS 글, 웹사이트",   // 웹사이트 확인(소현 1791985819, 테오 1791985835)
     aria: "확인할 글, 링크 또는 계정",
     check: "확인하기",
     checking: "확인 중…",
@@ -73,12 +73,13 @@ const ko = {
     aiOffButton: "AI 없이 확인",
     leadTail: "을 쓰세요.",
     more: "자세히",
+    short: "확인하면 AI(미국)로 보내 판정해요",   // 전송 전 보이는 한 줄(소현 1791987249, 테오 1791987265) — 회사 이름·보관·캡처 문장은 "자세히" 안
     aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요(AI 확인·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
     aiOffUndo: "AI 확인 다시 켜기",
     details: [
       ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요. 올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
       ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com). Google LLC (미국 회사) — 웹사이트 주소를 바꾼 암호값의 앞부분만, 위험 사이트 확인용"],   // 율 1791986341·1791986630(hashes.search)
-      ["웹사이트 확인", "사이트 이름(도메인)만 그 도메인 등록 기관의 공개 등록 정보 조회처(RDAP, IANA 공식 목록)에 보내 만든 날짜를 봐요."],   // 율 1791986630: §28-8 이전 아님, 투명성 한 줄
+      ["웹사이트 확인", "사이트 이름(도메인)만, 그 끝자리(.com 등)를 관리하는 기관의 공개 등록 정보 조회처에 보내 만든 날짜를 봐요 (IANA 공식 목록 기준)."],   // 율 1791986630: §28-8 이전 아님, 투명성 한 줄
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사 · privacy@vercel.com). 저희 서버가 Vercel에서 돌아가서, 글은 Vercel을 거쳐 Anthropic으로 가요. Vercel AI Gateway를 거칠 때도 있어요."],   // 율 1791966604 — 직접 호출·Gateway 둘 다 맞게
       ["언제·어떻게", "글을 넣을 때마다 바로, 암호화 통신(HTTPS)으로"],
@@ -150,20 +151,20 @@ const ko = {
       REVIEW: [
         "확인하기 전에는 돈을 보내지 마세요.",
         "가족에게 먼저 보여 주세요.",
-        "투자 업체라면 금융감독원 ‘파인’(fine.fss.or.kr)에서 등록된 곳인지 확인하세요.",
       ],
       LOW: [
         "돈 이야기가 나오면 보내기 전에 가족에게 먼저 물어보세요.",
-        "투자 권유라면 금융감독원 ‘파인’에서 등록된 곳인지 확인하세요.",
       ],
     } as Record<Level, string[]>,
+    // 할 일의 회사 조회 줄 — 링크와 함께(소현 1791987307, 테오 1791987317). 주소는 파인 첫 화면 메뉴에서 찾아 200 확인(10-14 23:1x KST)
+    firmCheck: { text: "투자 회사라면 금융감독원 파인 ‘제도권 금융회사 조회’에 회사 이름을 넣어 보세요. 없으면 사기일 수 있어요.", link: "파인에서 조회하기", url: "https://fine.fss.or.kr/fine/fncco/systemFncCo/list.do?menuNo=900038" },
     reportTo: "상담·신고",
     reportLinks: [
       { name: "금융감독원 1332", url: "tel:1332" },
       { name: "경찰 112", url: "tel:112" },
       { name: "사이버범죄 신고(ECRM)", url: "https://ecrm.police.go.kr/minwon/main" },
     ],
-    disclaimer: "이 화면은 컴퓨터가 글을 자동으로 살펴본 결과예요. 이 사람이 사기를 쳤다고 정한 것은 아니에요.",
+    disclaimer: "주의: AI가 판단하여 오류가 있을 수 있고, 사기로 확정한 건 아니예요. 미리 확인하고 안전하게 진행하세요. 가족과 꼭 상의하세요.",   // 소현 원문 1791987366(테오 1791987374) — "확정한 건 아니" 요소 유지
     details: "자세한 근거 보기",
     detailsNote: "근거 이름과 인용은 엔진이 본 원문 표현입니다.",
     contactLine: "",   // 소현 답 대기: "잘못 표시됐으면: 메일주소" 한 줄 (율 1791943988)
@@ -265,7 +266,7 @@ const en: Strings = {
   },
   hero: {
     title: "Check the risk plz, BEFORE you send your precious money!",   // Sophia verbatim (#today-hq 1791985351, Theo 1791985375) — keep case, "plz" and "!"
-    howto: ["Screenshot the message", "Upload it here", "See the result and next steps"],   // Theo 1791985334
+    howto: ["Screenshot", "Check the screenshot", "See if it's suspicious"],   // Sophia 1791987249, Theo 1791987265
     orPaste: "Or paste the text you received",
     upload: "Upload screenshots",
     uploadNote: "Don't upload ID or card photos.",   // "cover … first" removed: Sophia 1791985819 (Theo 1791985835)
@@ -274,8 +275,8 @@ const en: Strings = {
     uploadTooMany: "You can upload up to 3 screenshots.",
     uploadTooBig: "Photos over 5MB can't be uploaded.",
     uploadBad: "Only image files can be uploaded.",
-    uploadOnly: "AI is checking your screenshots.",
-    placeholder: "Paste the suspicious message, link or website\n\ne.g. a chat or text message, a Telegram link, a social media post, a website address",
+    uploadOnly: "Checking…",
+    placeholder: "Paste the suspicious message, link or website\ne.g. a text, a Telegram link, a social post, a website",
     aria: "Message, link or account to check",
     check: "Check",
     checking: "Checking…",
@@ -305,12 +306,13 @@ const en: Strings = {
     aiOffButton: "Check without AI",
     leadTail: ".",
     more: "Details",
+    short: "We send it to an AI (US) to check",
     aiOffOn: "Checking without AI — your text never leaves your browser, but more scams may be missed (no AI check, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
     aiOffUndo: "Turn the AI check back on",
     details: [
       ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught. Screenshots you upload, as they are (names, numbers and faces in them are sent too). Discarded right after the check; never stored."],
       ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com). Google LLC (US company) — only the first part of a scrambled code made from the website address, to check for risky sites"],
-      ["Website check", "Only the site name (domain) is sent to the public registration lookup (RDAP, from IANA's official list) of that domain's registry to see when it was created."],
+      ["Website check", "Only the site name (domain) is sent to the public registration lookup of the body that runs its ending (like .com), as listed by IANA, to see when it was created."],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company · privacy@vercel.com). Our server runs on Vercel, so your text passes through Vercel on its way to Anthropic. Sometimes it also goes through Vercel AI Gateway."],
       ["When and how", "Each time you paste, right away, over an encrypted connection (HTTPS)"],
@@ -379,20 +381,19 @@ const en: Strings = {
       REVIEW: [
         "Don't send money until you have checked.",
         "Show it to a family member first.",
-        "If it's an investment firm, check it is registered (Korea: FSS “FINE”, fine.fss.or.kr).",
       ],
       LOW: [
         "If money comes up, ask a family member before you send anything.",
-        "For any investment pitch, check the firm is registered first.",
       ],
     },
+    firmCheck: { text: "If it's an investment firm, search its name on FINRA BrokerCheck. If it isn't listed, it may be a scam.", link: "brokercheck.finra.org", url: "https://brokercheck.finra.org/" },
     reportTo: "Get help",
     reportLinks: [
       { name: "FSS hotline 1332 (Korea)", url: "tel:1332" },
       { name: "Police 112 (Korea)", url: "tel:112" },
       { name: "Cybercrime report (ECRM)", url: "https://ecrm.police.go.kr/minwon/main" },
     ],
-    disclaimer: "A computer checked these posts automatically. This does not mean this person committed fraud.",
+    disclaimer: "Note: This is an AI judgment and may be wrong. It does not confirm a scam. Check first and go ahead safely. Always talk it over with your family.",   // Sophia 1791987366
     details: "See the detailed signals",
     detailsNote: "Signal names and quotes come from the engine's original-language analysis.",
     contactLine: "",

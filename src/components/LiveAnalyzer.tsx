@@ -378,12 +378,14 @@ export function LiveAnalyzer() {
               ))}
             </div>
           )}
-          <p className="shot-note">{aiOff ? t.hero.uploadOff : t.hero.uploadNote}</p>
+          {aiOff && <p className="shot-note">{t.hero.uploadOff}</p>}
           {aiOff ? (
             <p className="privacy-note ai-off">✓ {t.notice.aiOffOn} <button type="button" className="inline-link" onClick={() => toggleAiOff(false)}>{t.notice.aiOffUndo}</button></p>
           ) : (
             <details className="privacy-note">
-              <summary>✓ {t.notice.lead} <button type="button" className="inline-link" onClick={(e) => { e.preventDefault(); toggleAiOff(true); }}>[{t.notice.aiOffButton}]</button>{t.notice.leadTail} <span className="more">{t.notice.more} ▸</span></summary>
+              {/* 첫 화면은 한 줄만, 회사 이름·보관·캡처·신분증 안내·AI 없이 확인은 "자세히" 안(소현 1791987249, 테오 1791987265) */}
+              <summary>{t.notice.short} · <span className="more">{t.notice.more} ▸</span></summary>
+              <p className="notice-full">{t.notice.lead} <button type="button" className="inline-link" onClick={() => toggleAiOff(true)}>[{t.notice.aiOffButton}]</button>{t.notice.leadTail} {t.hero.uploadNote}</p>
               <dl>{t.notice.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
             </details>
           )}
@@ -439,7 +441,7 @@ export function LiveAnalyzer() {
 
             {/* AI 확인 못 함(하루 상한·장애·IP 상한) — 결과 위에 율 문구. 규칙만으로는 놓치는 사기가 많아 '깨끗'으로 읽히지 않게(율 1791957681) */}
             {(level || shots.length > 0) && !known && !aiOff && (aiStatus === "error" || aiStatus === "limited") && <p className="ai-unavailable" role="status">{t.result.aiUnavailable}</p>}
-            {!level && shots.length > 0 && aiStatus === "checking" && <p className="result-account" role="status">{t.hero.uploadOnly}</p>}
+            {!level && shots.length > 0 && aiStatus === "checking" && <><p className="result-account" role="status">{t.hero.uploadOnly}</p><p className="checking-note">{t.notice.short}</p></>}
             {level && (
               <>
                 <div className="verdict-top">
@@ -459,7 +461,7 @@ export function LiveAnalyzer() {
             {level && (
               <div className="result-todo">
                 <h3>{t.result.todoTitle}</h3>
-                <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+                <TodoList level={level} />
                 <p className="report-links"><b>{t.result.reportTo}</b> {t.result.reportLinks.map((l, i) => <span key={l.url}>{i > 0 && " · "}<a href={l.url} target="_blank" rel="noreferrer">{l.name}</a></span>)}</p>
               </div>
             )}
@@ -562,6 +564,18 @@ export function LiveAnalyzer() {
   );
 }
 
+/** 할 일 목록 — 조심·낮음에는 회사 조회 줄을 링크와 함께(소현 1791987307). 높음은 "돈 보내지 마세요"가 먼저라 넣지 않는다 */
+function TodoList({ level }: { level: keyof typeof TONE }) {
+  const { t } = useLang();
+  const f = t.result.firmCheck;
+  return (
+    <ol>
+      {t.result.todo[level].map((line) => <li key={line}>{line}</li>)}
+      {level !== "HIGH" && <li>{f.text} <a className="firm-link" href={f.url} target="_blank" rel="noreferrer">{f.link} ↗</a></li>}
+    </ol>
+  );
+}
+
 /** 웹사이트 확인 결과 — Google 판정 줄에만 "Advisory provided by Google"(율 1791986341). 등록일·주소 모양 징후에는 붙이지 않는다 */
 function SiteCard({ site }: { site: SiteState }) {
   const { t } = useLang();
@@ -596,7 +610,7 @@ function SiteCard({ site }: { site: SiteState }) {
       ) : <p className="result-account">{v.google === "clear" ? w.none : w.noneNoGoogle}</p>}
       <div className="result-todo">
         <h3>{t.result.todoTitle}</h3>
-        <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+        <TodoList level={level} />
       </div>
       <p className="result-disclaimer">{t.result.disclaimer}</p>
     </div>
@@ -627,7 +641,7 @@ function ResultExample() {
         )}
         <div className="result-todo">
           <h3>{t.result.todoTitle}</h3>
-          <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+          <TodoList level={level} />
         </div>
       </div>
     </section>

@@ -220,3 +220,12 @@ describe("Google canonicalization examples (docs.cloud.google.com/web-risk/docs/
     expect(hashExpressions(parseSite("https://testsafebrowsing.appspot.com/s/phishing.html")!)[0]).toBe("testsafebrowsing.appspot.com/s/phishing.html");
   });
 });
+
+describe("firm check line (Sophia 1791987307)", () => {
+  it("links the verified pages and stays non-definitive", () => {
+    expect(STRINGS.ko.result.firmCheck.url).toBe("https://fine.fss.or.kr/fine/fncco/systemFncCo/list.do?menuNo=900038");   // 파인 메뉴 '제도권 금융회사 조회', 200 확인 10-14
+    expect(STRINGS.en.result.firmCheck.url).toBe("https://brokercheck.finra.org/");
+    expect(STRINGS.ko.result.firmCheck.text).toMatch(/수 있어요/);
+    expect(STRINGS.en.result.firmCheck.text).toMatch(/may be/);
+  });
+});

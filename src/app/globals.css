@@ -546,3 +546,8 @@ h1, h2, h3 { letter-spacing:normal; }
 .example-input { margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--soft); font-size:15px; line-height:1.55; word-break:keep-all; }
 .example-tag { display:inline-block; margin-right:6px; padding:2px 8px; border:1px solid #d1d5db; border-radius:999px; background:#ffffff; font-size:12px; font-weight:600; color:var(--muted); }
 .result-card .result-todo, .result-todo { background:var(--soft); border-radius:8px; }
+
+/* 한 줄 고지 + 판독 중 밑 한 줄(소현 1791987249) — 크기·색은 율 선(1791986341) 안에서 */
+.checker .privacy-note .notice-full { margin:8px 0 0; line-height:1.55; }
+.checking-note { margin:4px 0 0; font-size:14px; color:var(--muted); }
+.firm-link { display:inline-block; min-height:44px; line-height:44px; font-weight:600; color:#111111; text-decoration:underline; }
