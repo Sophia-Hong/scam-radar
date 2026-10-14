@@ -45,19 +45,36 @@ export class AiBudgetExhausted extends Error { override name = "AiBudgetExhauste
  * AI 호출 실패를 *오류 이름·HTTP 상태만* 남긴다(테오 1791962254: catch 가 오류를 삼켜 배포판 AI 불가 원인이 어디에도 없었음).
  * 메시지·본문·글 내용은 남기지 않는다 — 공급자 오류 메시지에 요청 일부가 섞일 수 있어서. Vercel 함수 로그에 한 줄.
  */
-/** 이름은 짧은 식별자 꼴(영문으로 시작, 영숫자·_ 64자 이내)만 — 아니면 "UnknownError". 이름에도 요청 일부가 들어갈 수 있어서(카이 e6a669c) */
-const safeName = (v: unknown) => (typeof v === "string" && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(v) ? v : "UnknownError");
-/** 상태는 100–599 정수만 */
+/**
+ * 이름은 *알려진 오류 클래스 목록*에 있는 것만 남기고, 나머지는 "UnknownError"(카이 036424f: 짧은 영숫자 이름에도 번호·토큰이 들어갈 수 있음).
+ * 상태는 100–599 정수만. 속성을 읽다가 예외가 나도 로그 함수는 실패하지 않는다 — 원래 AI 실패 처리(규칙 결과 반환)를 막지 않게.
+ */
+const KNOWN_ERRORS = new Set([
+  "Error", "TypeError", "RangeError", "SyntaxError", "AbortError", "TimeoutError", "FetchError", "AiBudgetExhausted",
+  // AI SDK(ai·@ai-sdk/*) — 이름 앞 "AI_" 있는 판과 없는 판 모두
+  ...["APICallError", "EmptyResponseBodyError", "InvalidArgumentError", "InvalidPromptError", "InvalidResponseDataError", "JSONParseError",
+    "LoadAPIKeyError", "NoContentGeneratedError", "NoObjectGeneratedError", "NoOutputGeneratedError", "NoSuchModelError", "RetryError",
+    "TypeValidationError", "UnsupportedFunctionalityError", "DownloadError", "InvalidDataContentError", "UnsupportedModelVersionError"].flatMap((n) => [n, `AI_${n}`]),
+  // Vercel AI Gateway
+  "GatewayError", "GatewayAuthenticationError", "GatewayInvalidRequestError", "GatewayRateLimitError", "GatewayModelNotFoundError",
+  "GatewayInternalServerError", "GatewayResponseError", "GatewayTimeoutError",
+]);
+const safeName = (v: unknown) => (typeof v === "string" && KNOWN_ERRORS.has(v) ? v : "UnknownError");
 const safeStatus = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 100 && v <= 599 ? v : undefined);
+const read = (o: unknown, key: string): unknown => { try { return o && (typeof o === "object" || typeof o === "function") ? (o as Record<string, unknown>)[key] : undefined; } catch { return undefined; } };
 export function aiErrorSummary(e: unknown): { name: string; status?: number; cause?: string } {
-  const err = e as { name?: unknown; statusCode?: unknown; status?: unknown; cause?: { name?: unknown } } | null;
-  const name = err && typeof err === "object" ? safeName(err.name) : safeName(typeof e);
-  const status = safeStatus(err?.statusCode) ?? safeStatus(err?.status);
-  const cause = err?.cause && typeof err.cause === "object" && err.cause.name !== undefined ? safeName(err.cause.name) : undefined;
-  return { name, ...(status !== undefined ? { status } : {}), ...(cause ? { cause } : {}) };
+  try {
+    const name = safeName(read(e, "name"));
+    const status = safeStatus(read(e, "statusCode")) ?? safeStatus(read(e, "status"));
+    const c = read(e, "cause");
+    const cause = c === undefined || c === null ? undefined : safeName(read(c, "name"));
+    return { name, ...(status !== undefined ? { status } : {}), ...(cause ? { cause } : {}) };
+  } catch {
+    return { name: "UnknownError" };
+  }
 }
 export function logAiError(feature: string, e: unknown) {
-  console.error(`[ai] ${feature} failed`, JSON.stringify(aiErrorSummary(e)));
+  try { console.error(`[ai] ${feature} failed`, JSON.stringify(aiErrorSummary(e))); } catch { /* 로그 실패가 AI 실패 처리를 막지 않게 */ }
 }
 
 

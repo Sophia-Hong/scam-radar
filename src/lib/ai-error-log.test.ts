@@ -24,8 +24,20 @@ describe("AI 오류 로그", () => {
     expect(aiErrorSummary({ name: "GatewayRateLimitError", statusCode: 429.5, status: 402 })).toEqual({ name: "GatewayRateLimitError", status: 402 });
     expect(aiErrorSummary({ name: "A".repeat(65) })).toEqual({ name: "UnknownError" });
   });
+  it("알려진 클래스 이름만 — 짧은 영숫자 이름(번호·토큰)도 버린다, 속성 읽기 예외에도 안전 (카이 036424f)", () => {
+    expect(aiErrorSummary({ name: "A110123456789", cause: { name: "PrivateTokenABC123" } })).toEqual({ name: "UnknownError", cause: "UnknownError" });
+    expect(aiErrorSummary({ name: "AI_APICallError", statusCode: 401 })).toEqual({ name: "AI_APICallError", status: 401 });
+    const evil = new Proxy({}, { get() { throw new Error("boom 010-1234-5678"); } });
+    expect(aiErrorSummary(evil)).toEqual({ name: "UnknownError" });
+    const throwingName = Object.defineProperty({}, "name", { get() { throw new Error("x"); } });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => logAiError("review", throwingName)).not.toThrow();
+    expect(() => logAiError("review", evil)).not.toThrow();
+    expect(spy.mock.calls.flat().join(" ")).not.toMatch(/010|boom|PrivateToken|110123456789/);
+    spy.mockRestore();
+  });
   it("Error 가 아닌 값도 안전하게", () => {
-    expect(aiErrorSummary("x")).toEqual({ name: "string" });
-    expect(aiErrorSummary(null)).toEqual({ name: "object" });
+    expect(aiErrorSummary("x")).toEqual({ name: "UnknownError" });
+    expect(aiErrorSummary(null)).toEqual({ name: "UnknownError" });
   });
 });
