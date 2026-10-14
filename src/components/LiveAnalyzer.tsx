@@ -8,8 +8,20 @@ import { DEMO_HANDLE } from "@/lib/copy";
 import { useLang } from "@/lib/i18n";
 import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "@/lib/result-view";
 import { extractEntities } from "@/engine/entities";
+import { isThreads, parseSite } from "@/lib/website/url";
+import type { WebsiteVerdict } from "@/lib/website/check";
 
 const SAMPLE = "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
+
+/** 페이지 아래 "이런 글은 이렇게 나와요" — 합성 예시만(실제 계정·번호 없음, 테오 1791986598). 같은 엔진으로 판정해 실제 결과 화면과 같은 모양 */
+export const EXAMPLE_SCAM = {
+  ko: "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명만 리딩방 초대. 텔레그램으로 연락 주세요.",
+  en: "Free stock picks! Guaranteed returns, 300% profit proof, only 20 spots in our VIP signal group. Contact us on Telegram now.",
+} as const;
+/** Google 판정 줄의 출처·자세히 링크(율 1791986341: 속이는 사이트 → antiphishing.org, 악성코드 → Google Search Central) */
+const ADVISORY_URL = "https://cloud.google.com/web-risk/docs/advisory";
+const THREAT_MORE: Record<string, string> = { SOCIAL_ENGINEERING: "https://www.antiphishing.org/", MALWARE: "https://developers.google.com/search/docs/monitor-debug/security/malware", UNWANTED_SOFTWARE: "https://developers.google.com/search/docs/monitor-debug/security/malware" };
+type SiteState = { status: "idle" } | { status: "loading"; domain: string } | { status: "done"; v: WebsiteVerdict } | { status: "limited" } | { status: "failed" };
 
 const TONE = { HIGH: "risk-high", REVIEW: "risk-review", LOW: "risk-low" } as const;
 const STEP = { LOW: 1, REVIEW: 2, HIGH: 3 } as const;
@@ -133,6 +145,7 @@ export function LiveAnalyzer() {
   const known = account.status === "known";
   // "AI 없이 확인"(율·테오 국외 이전 거부 방법): 켜면 넣은 글·글에서 뽑은 연락처·서명이 브라우저 밖으로 나가지 않는다 — AI 재검·신고 수 조회 안 함
   const [aiOff, setAiOff] = useState(false);
+  const [site, setSite] = useState<SiteState>({ status: "idle" });
   useEffect(() => {
     const timer = window.setTimeout(() => { try { if (localStorage.getItem("sr-ai-off") === "1") setAiOff(true); } catch { /* 저장소 없음 */ } }, 0);
     return () => window.clearTimeout(timer);
@@ -231,11 +244,30 @@ export function LiveAnalyzer() {
     setPending(next);
   }
 
+  /** 웹사이트 주소 하나 → /api/website(Google 해시 앞자리·등록일·주소 모양). AI 없이 확인 중이면 부르지 않는다(주소가 브라우저 밖으로 나가므로) */
+  async function checkSite(value: string, domain: string) {
+    setSite({ status: "loading", domain });
+    try {
+      const response = await fetch("/api/website", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: value }) });
+      if (response.status === 429) { setSite({ status: "limited" }); return; }
+      if (!response.ok) { setSite({ status: "failed" }); return; }
+      setSite({ status: "done", v: (await response.json()) as WebsiteVerdict });
+    } catch { setSite({ status: "failed" }); }
+  }
+
   async function submit(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     const value = input.trim();
     if (!value && !pending.length) return;
     reset();
+    setSite({ status: "idle" });
+    const ps = !pending.length && !aiOff ? parseSite(value) : null;
+    if (ps && !isThreads(ps) && classifyInput(value).kind === "unsupported") {
+      setText(""); setShots([]); setAccount({ status: "idle" });
+      document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      await checkSite(value, ps.domain ?? ps.host);
+      return;
+    }
     const h = !pending.length && accountFromInput(value);
     if (h) { setText(""); setShots([]); await lookup(h); }
     else { setAccount({ status: "idle" }); setText(value); setShots(aiOff ? [] : pending.map((p) => p.data)); }
@@ -370,8 +402,9 @@ export function LiveAnalyzer() {
             aria-label={t.hero.aria}
             rows={4}
           />
-          <button type="submit" className="checker-go" disabled={account.status === "loading" || (!input.trim() && !pending.length)}>
-            {account.status === "loading" ? t.hero.checking : t.hero.check}
+          {!aiOff && <p className="shot-note site-note">{t.website.note}</p>}{/* 쓰기 전에 보이는 곳(율 1791986341) */}
+          <button type="submit" className="checker-go" disabled={account.status === "loading" || site.status === "loading" || (!input.trim() && !pending.length)}>
+            {account.status === "loading" || site.status === "loading" ? t.hero.checking : t.hero.check}
           </button>
         </form>
         {limited && <p className="act-msg" role="status">{t.result.limited}</p>}
@@ -393,6 +426,7 @@ export function LiveAnalyzer() {
       </div>
 
       <section id="result" className="result-area" aria-live="polite">
+        {site.status !== "idle" && <SiteCard site={site} />}
         {hasAnything && (
           <div className={`result-card ${level ? TONE[level] : "risk-none"}`}>
             {account.status === "known" && (
@@ -522,6 +556,80 @@ export function LiveAnalyzer() {
           </div>
         )}
       </section>
+
+      <ResultExample />
     </>
+  );
+}
+
+/** 웹사이트 확인 결과 — Google 판정 줄에만 "Advisory provided by Google"(율 1791986341). 등록일·주소 모양 징후에는 붙이지 않는다 */
+function SiteCard({ site }: { site: SiteState }) {
+  const { t } = useLang();
+  const w = t.website;
+  if (site.status === "loading") return <div className="result-card risk-none site-card"><p className="result-account" role="status">{w.checking}</p></div>;
+  if (site.status === "limited") return <div className="result-card risk-none site-card"><p className="result-account" role="status">{w.limited}</p></div>;
+  if (site.status !== "done") return <div className="result-card risk-none site-card"><p className="result-account" role="status">{w.failed}</p></div>;
+  const v = site.v;
+  const level = v.level;
+  return (
+    <div className={`result-card ${TONE[level]} site-card`}>
+      <p className="result-account">{w.title(v.domain ?? "")}</p>
+      <div className="verdict-top">
+        <span>{t.result.level[level]}</span>
+        <span className="level-meter" role="img" aria-label={t.result.level[level]}>{[1, 2, 3].map((n) => <i key={n} data-on={n <= STEP[level]} />)}</span>
+      </div>
+      <div className="verdict">
+        <strong>{t.result.banner[level].title}</strong>
+        <span>{t.result.banner[level].sub}</span>
+      </div>
+      {v.google === "skipped" && v.googleReason !== "no-key" && <p className="ai-unavailable" role="status">{w.googleSkipped}</p>}
+      {v.signs.length > 0 ? (
+        <div className="result-signs">
+          <h3>{t.result.signsTitle}</h3>
+          <ul>
+            {v.signs.map((sg, i) => sg.kind === "google" ? (
+              <li key={i}><b>{w.google[sg.threat]}</b>
+                <span className="advisory">{w.advisory} · <a href={ADVISORY_URL} target="_blank" rel="noreferrer">Web Risk</a> · <a href={THREAT_MORE[sg.threat]} target="_blank" rel="noreferrer">{w.more}</a></span></li>
+            ) : sg.kind === "age" ? <li key={i}><b>{w.age(sg.days)}</b></li> : <li key={i}><b>{w.url[sg.sign]}</b></li>)}
+          </ul>
+        </div>
+      ) : <p className="result-account">{w.none}</p>}
+      <div className="result-todo">
+        <h3>{t.result.todoTitle}</h3>
+        <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+      </div>
+      <p className="result-disclaimer">{t.result.disclaimer}</p>
+    </div>
+  );
+}
+
+/** "이런 글은 이렇게 나와요" — 합성 예시 1개를 같은 엔진·같은 결과 카드 모양으로(테오 1791986598). 예시 표시를 붙인다 */
+function ResultExample() {
+  const { lang, t } = useLang();
+  const text = EXAMPLE_SCAM[lang];
+  const r = scoreText(text);
+  const level = r.label as keyof typeof TONE;
+  const signs = signTexts(signIds(level, r.reasons.filter((x) => x.points > 0), extractEntities(text).map((e) => e.type), text), t.result).slice(0, 3);
+  return (
+    <section className="result-example" aria-labelledby="example-title">
+      <h2 id="example-title">{t.example.title}</h2>
+      <p className="example-input"><span className="example-tag">{t.example.tag}</span> {text}</p>
+      <div className={`result-card ${TONE[level]}`}>
+        <div className="verdict">
+          <strong>{t.result.banner[level].title}</strong>
+          <span>{t.result.banner[level].sub}</span>
+        </div>
+        {signs.length > 0 && (
+          <div className="result-signs">
+            <h3>{t.result.signsTitle}</h3>
+            <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span></li>)}</ul>
+          </div>
+        )}
+        <div className="result-todo">
+          <h3>{t.result.todoTitle}</h3>
+          <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+        </div>
+      </div>
+    </section>
   );
 }

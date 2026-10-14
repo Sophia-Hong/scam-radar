@@ -69,8 +69,8 @@ describe("AI 우선 고지·프롬프트 (율 1791957681, 테오 1791958217)", (
   it("'애매한 글만'·'only unclear' 문구가 없고, 율 문구가 들어 있다", () => {
     const all = JSON.stringify(STRINGS);
     expect(all).not.toMatch(/애매한 글만|Only unclear|only unclear/);
-    expect(STRINGS.ko.notice.lead).toBe("넣은 글과 캡처는 저장하지 않아요. 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 글 속 전화번호·계좌번호·이메일은 가리지만, 캡처는 가릴 수 없어서 그대로 보내요. 보내기 싫으면");
-    expect(`${STRINGS.en.notice.lead} [${STRINGS.en.notice.aiOffButton}]${STRINGS.en.notice.leadTail}`).toBe("We don't store what you paste or upload. Everything is sent to a US AI company (Anthropic) to be checked. Phone numbers, account numbers and emails in text are masked, but screenshots can't be masked and are sent as they are. If you don't want that, use [Check without AI].");
+    expect(STRINGS.ko.notice.lead).toBe("넣은 글과 캡처는 저장하지 않아요. 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 글 속 전화번호·계좌번호·이메일은 가리지만, 캡처는 가릴 수 없어서 그대로 보내요. 웹사이트 주소는 Google(미국)에 주소의 일부 암호값만 보내 확인해요. 보내기 싫으면");   // 율 1791986341 Google 한 마디
+    expect(`${STRINGS.en.notice.lead} [${STRINGS.en.notice.aiOffButton}]${STRINGS.en.notice.leadTail}`).toBe("We don't store what you paste or upload. Everything is sent to a US AI company (Anthropic) to be checked. Phone numbers, account numbers and emails in text are masked, but screenshots can't be masked and are sent as they are. For website addresses, only part of an encrypted value of the address goes to Google (US). If you don't want that, use [Check without AI].");
     expect(STRINGS.ko.result.aiUnavailable).toBe("지금은 AI 확인을 못 해서 AI 없이 확인한 결과예요. 놓치는 사기가 많을 수 있어요.");
     expect(STRINGS.en.result.aiUnavailable).toBe("AI checking is unavailable right now, so this result is without AI. More scams may be missed.");
     expect(STRINGS.ko.notice.details.find(([k]) => k === "언제·어떻게")?.[1]).toBe("글을 넣을 때마다 바로, 암호화 통신(HTTPS)으로");

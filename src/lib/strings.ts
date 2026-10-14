@@ -41,7 +41,7 @@ const ko = {
     uploadTooBig: "5MB보다 큰 사진은 올릴 수 없어요.",
     uploadBad: "사진 파일만 올릴 수 있어요.",
     uploadOnly: "올린 캡처를 AI가 확인하고 있어요.",   // 노인 첫 화면 1·2·3(카이·테오 1791956461)
-    placeholder: "의심 가는 글·링크를 붙여 넣으세요\n\n예) 받은 카톡·문자 메시지, 텔레그램 링크, SNS 글",
+    placeholder: "의심 가는 글·링크·웹사이트 주소를 붙여 넣으세요\n\n예) 받은 카톡·문자 메시지, 텔레그램 링크, SNS 글, 웹사이트 주소",   // 웹사이트 확인(소현 1791985819, 테오 1791985835)
     aria: "확인할 글, 링크 또는 계정",
     check: "확인하기",
     checking: "확인 중…",
@@ -50,9 +50,25 @@ const ko = {
     demo: "예시 계정 보기",
     scope: "받은 메시지, 텔레그램 같은 메신저 링크, SNS 글을 확인할 수 있어요.",
   },
+  example: { title: "이런 글은 이렇게 나와요", tag: "예시(지어낸 글)" },   // 테오 1791986598
+  // 웹사이트 확인(소현 1791985819, 테오 1791985835·1791986262). Google 문구는 단정하지 않는다 + Google 판정 줄에만 출처 표시(율 1791986341, Web Risk user-warnings)
+  website: {
+    checking: "웹사이트를 확인하는 중이에요…",
+    title: (d: string) => `웹사이트 확인: ${d}`,
+    google: { SOCIAL_ENGINEERING: "Google 정보로는 속이는 사이트일 수 있어요.", MALWARE: "기기에 해를 줄 수 있는 사이트일 수 있어요.", UNWANTED_SOFTWARE: "기기에 해를 줄 수 있는 사이트일 수 있어요." },
+    advisory: "Advisory provided by Google",
+    more: "자세히",
+    age: (n: number) => n < 30 ? `만든 지 ${n}일 된 주소예요. 새로 만든 주소는 사기에 자주 쓰여요.` : `만든 지 ${n}일(약 ${Math.round(n / 30)}개월) 된 주소예요. 아직 새 주소예요.`,
+    url: { punycode: "다른 글자를 흉내 낸 주소일 수 있어요(xn-- 로 시작하는 부분이 있어요).", "ip-host": "이름 대신 숫자(IP)로 된 주소예요.", "risky-tld": "사기에 자주 쓰이는 끝자리(도메인 끝)예요.", shortener: "줄인 주소라 실제로 어디로 가는지 알 수 없어요.", userinfo: "주소 앞에 다른 이름을 끼워 넣은 모양이에요(@가 들어 있어요)." },
+    none: "Google 정보와 주소 확인에서 뚜렷한 위험 신호는 못 찾았어요. 그래도 돈이나 개인정보를 넣기 전에 한 번 더 확인하세요.",
+    googleSkipped: "오늘은 Google 확인을 하지 못했어요. 주소 모양과 등록일만 봤어요.",
+    limited: "오늘 확인 횟수를 다 썼어요. 내일 다시 해 주세요.",
+    failed: "웹사이트를 확인하지 못했어요. 잠시 뒤 다시 해 주세요.",
+    note: "웹사이트 확인에는 Google 정보도 써요. 위험한 사이트를 다 찾지는 못하고, 안전한 사이트를 잘못 표시할 수도 있어요.",
+  },
   // 국외 이전 고지(개인정보 보호법 §28-8, 율 #compliance 1791950335·1791951502 최종 · 테오 1791950346). 보관·나라는 두 회사 현재 문서 원문에서(율 대조)
   notice: {
-    lead: "넣은 글과 캡처는 저장하지 않아요. 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 글 속 전화번호·계좌번호·이메일은 가리지만, 캡처는 가릴 수 없어서 그대로 보내요. 보내기 싫으면",   // 율 1791958415(캡처)
+    lead: "넣은 글과 캡처는 저장하지 않아요. 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 글 속 전화번호·계좌번호·이메일은 가리지만, 캡처는 가릴 수 없어서 그대로 보내요. 웹사이트 주소는 Google(미국)에 주소의 일부 암호값만 보내 확인해요. 보내기 싫으면",   // 율 1791958415(캡처) · 1791986341(Google)
     aiOffButton: "AI 없이 확인",
     leadTail: "을 쓰세요.",
     more: "자세히",
@@ -60,12 +76,13 @@ const ko = {
     aiOffUndo: "AI 확인 다시 켜기",
     details: [
       ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요. 올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
-      ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com)"],
+      ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com). Google LLC (미국 회사) — 웹사이트 주소를 바꾼 암호값의 앞부분만, 위험 사이트 확인용"],   // 율 1791986341·1791986630(hashes.search)
+      ["웹사이트 확인", "사이트 이름(도메인)만 공개 등록 정보 조회처(rdap.org)에 보내 만든 날짜를 봐요."],   // 율 1791986630: §28-8 이전 아님, 투명성 한 줄
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사 · privacy@vercel.com). 저희 서버가 Vercel에서 돌아가서, 글은 Vercel을 거쳐 Anthropic으로 가요. Vercel AI Gateway를 거칠 때도 있어요."],   // 율 1791966604 — 직접 호출·Gateway 둘 다 맞게
       ["언제·어떻게", "글을 넣을 때마다 바로, 암호화 통신(HTTPS)으로"],
       ["목적", "사기 신호 확인"],
-      ["보관", "저희 서버(Vercel)에는 원문이 남지 않아요(판정 결과와 체크 항목만 저장). Anthropic은 받은 지 30일 안에 자동으로 지워요. 이용 정책 위반으로 걸린 글은 최대 2년, 법이 정하면 더 길게 보관할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996866). AI Gateway를 거칠 때도 Vercel은 요청이 끝나면 바로 지우고 프롬프트·출력을 보관하지 않아요 (Vercel 문서 vercel.com/docs/ai-gateway/security-and-compliance/zdr)"],
+      ["보관", "저희 서버(Vercel)에는 원문이 남지 않아요(판정 결과와 체크 항목만 저장). Anthropic은 받은 지 30일 안에 자동으로 지워요. 이용 정책 위반으로 걸린 글은 최대 2년, 법이 정하면 더 길게 보관할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996866). AI Gateway를 거칠 때도 Vercel은 요청이 끝나면 바로 지우고 프롬프트·출력을 보관하지 않아요 (Vercel 문서 vercel.com/docs/ai-gateway/security-and-compliance/zdr). Google: Google Cloud 데이터 처리 조건에 따라 처리해요 (cloud.google.com/terms/data-processing-addendum)"],   // 율 1791986407
       ["거부", "‘AI 없이 확인’을 쓰면 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요."],
     ] as [string, string][],
   },
@@ -257,7 +274,7 @@ const en: Strings = {
     uploadTooBig: "Photos over 5MB can't be uploaded.",
     uploadBad: "Only image files can be uploaded.",
     uploadOnly: "AI is checking your screenshots.",
-    placeholder: "Paste the suspicious message or link\n\ne.g. a chat or text message, a Telegram link, a social media post",
+    placeholder: "Paste the suspicious message, link or website\n\ne.g. a chat or text message, a Telegram link, a social media post, a website address",
     aria: "Message, link or account to check",
     check: "Check",
     checking: "Checking…",
@@ -266,8 +283,23 @@ const en: Strings = {
     demo: "See an example account",
     scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
   },
+  example: { title: "Here's what a result looks like", tag: "Example (made up)" },
+  website: {
+    checking: "Checking the website…",
+    title: (d: string) => `Website check: ${d}`,
+    google: { SOCIAL_ENGINEERING: "Google says this site may be deceptive.", MALWARE: "This site may harm your device.", UNWANTED_SOFTWARE: "This site may harm your device." },
+    advisory: "Advisory provided by Google",
+    more: "Details",
+    age: (n: number) => n < 30 ? `This address was created ${n} days ago. New addresses are often used for scams.` : `This address was created ${n} days ago (about ${Math.round(n / 30)} months). It is still new.`,
+    url: { punycode: "The address may imitate other letters (part of it starts with xn--).", "ip-host": "The address is a number (IP) instead of a name.", "risky-tld": "The ending of this address is often used for scams.", shortener: "It is a shortened link, so you can't see where it really goes.", userinfo: "Another name is squeezed in front of the address (it contains @)." },
+    none: "No clear warning signs from Google data or the address itself. Still, check again before entering money or personal details.",
+    googleSkipped: "We couldn't check with Google today. Only the address and its registration date were checked.",
+    limited: "You've used today's checks. Please try again tomorrow.",
+    failed: "We couldn't check the website. Please try again shortly.",
+    note: "Website checks also use Google data. It can miss some risky sites and may flag a safe site by mistake.",
+  },
   notice: {
-    lead: "We don't store what you paste or upload. Everything is sent to a US AI company (Anthropic) to be checked. Phone numbers, account numbers and emails in text are masked, but screenshots can't be masked and are sent as they are. If you don't want that, use",
+    lead: "We don't store what you paste or upload. Everything is sent to a US AI company (Anthropic) to be checked. Phone numbers, account numbers and emails in text are masked, but screenshots can't be masked and are sent as they are. For website addresses, only part of an encrypted value of the address goes to Google (US). If you don't want that, use",
     aiOffButton: "Check without AI",
     leadTail: ".",
     more: "Details",
@@ -275,12 +307,13 @@ const en: Strings = {
     aiOffUndo: "Turn the AI check back on",
     details: [
       ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught. Screenshots you upload, as they are (names, numbers and faces in them are sent too). Discarded right after the check; never stored."],
-      ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com)"],
+      ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com). Google LLC (US company) — only the first part of a scrambled code made from the website address, to check for risky sites"],
+      ["Website check", "Only the site name (domain) is sent to a public registration lookup (rdap.org) to see when it was created."],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company · privacy@vercel.com). Our server runs on Vercel, so your text passes through Vercel on its way to Anthropic. Sometimes it also goes through Vercel AI Gateway."],
       ["When and how", "Each time you paste, right away, over an encrypted connection (HTTPS)"],
       ["Purpose", "Checking for scam signs"],
-      ["Retention", "Our servers (on Vercel) keep no original text (only the verdict and checklist items). Anthropic: deleted within 30 days of receipt; up to 2 years if flagged for a usage-policy violation, or longer if the law requires (privacy.claude.com/en/articles/7996866). When AI Gateway is used, Vercel deletes the data right after the request and does not keep prompts or outputs (vercel.com/docs/ai-gateway/security-and-compliance/zdr)"],
+      ["Retention", "Our servers (on Vercel) keep no original text (only the verdict and checklist items). Anthropic: deleted within 30 days of receipt; up to 2 years if flagged for a usage-policy violation, or longer if the law requires (privacy.claude.com/en/articles/7996866). When AI Gateway is used, Vercel deletes the data right after the request and does not keep prompts or outputs (vercel.com/docs/ai-gateway/security-and-compliance/zdr). Google: handled under the Google Cloud Data Processing Addendum (cloud.google.com/terms/data-processing-addendum)"],
       ["Opt out", "Use “Check without AI”: your text never leaves your browser, but more scams may be missed."],
     ],
   },
