@@ -110,7 +110,7 @@ const ko = {
     noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
-      guarantee: ["‘원금 보장’이라고 써 있어요.", "‘절대 안 잃는’ 투자는 없어요."],   // 소현 1791987441(테오 1791987454) — 법 조문 괄호는 율 답 뒤
+      guarantee: ["‘원금 보장’이라고 써 있어요.", "‘절대 안 잃는’ 투자는 없어요. 허가 없이 원금 보장을 약속하며 돈을 받는 건 법으로 금지예요(유사수신행위법 제3조)."],   // 소현 1791987441, 율 1791987657(법은 조건까지, 이 사람 위반 단정 없음)
       profitProof: ["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "수익인증사진은 AI로 딸깍, 쉽게 만들 수 있어요. 진정한 수익인증인지 알 수 없으니, 송금 전엔 반드시 다시 확인하세요."],   // 소현 원문 1791987441   // 소현 #today-hq 1791954291, 율 OK 1791954325
       withdrawal: ["돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 해요.", "이 말을 듣고 보낸 돈은 돌려받지 못하는 일이 많아요."],
       secrecy: ["비밀로 하라고 하거나, 은행에서 물으면 뭐라고 말할지 시켜요.", "가족이나 은행이 말릴까 봐 그러는 거예요. 사기에서 아주 자주 나와요."],
@@ -343,7 +343,7 @@ const en: Strings = {
     signsTitle: "What looks wrong",
     noSigns: "No clear warning signs found.",
     signs: {
-      guarantee: ["It says “guaranteed.”", "No investment is ‘guaranteed not to lose.’"],
+      guarantee: ["It says “guaranteed.”", "No real investment is risk-free. Promises of ‘guaranteed’ returns are a common scam sign."],   // Yul 1791987657: no Korean statute on the EN screen
       profitProof: ["It points to 'proof of profit' screenshots.", "Profit screenshots can be made with AI in one click. You can't tell if they're real, so check again before you send money."],
       withdrawal: ["It says you must pay a tax, fee or deposit before you can take your money out.", "People who pay this often never get their money back."],
       secrecy: ["It tells you to keep this secret, or tells you what to say if the bank asks.", "Scammers do this so your family or bank can't stop you."],
