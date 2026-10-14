@@ -410,3 +410,13 @@ main { overflow:hidden; }
 
 /* AI 확인 못 함 경고 — 결과 위(율 1791957681) */
 .ai-unavailable { margin:0 0 12px; padding:12px 14px; background:#fff3cd; color:#5c4200; border:2px solid #b07d00; font-size:17px; font-weight:800; line-height:1.5; word-break:keep-all; }
+
+/* 캡처 올리기(테오 1791958372) */
+.shot-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
+.shot-button { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 16px; border:1px solid var(--ink); border-radius:999px; background:white; font-size:16px; font-weight:800; cursor:pointer; }
+.shot-button input { position:absolute; width:1px; height:1px; opacity:0; }
+.shot-button.disabled { opacity:.45; cursor:not-allowed; }
+.shot-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 4px 4px 4px; border:1px solid #bdbab2; background:white; }
+.shot-chip img { width:40px; height:40px; object-fit:cover; }
+.shot-chip button { min-height:44px; min-width:44px; padding:0 10px; border:0; background:#f4f2ec; font-size:14px; font-weight:800; cursor:pointer; }
+.shot-note { margin:8px 0 10px; font-size:15px; font-weight:700; color:#5f5c55; line-height:1.5; word-break:keep-all; }

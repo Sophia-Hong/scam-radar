@@ -42,6 +42,22 @@ async function shareOrCopy(title: string, text: string, url: string): Promise<"s
   try { await navigator.clipboard.writeText(`${text} ${url}`); return "copied"; } catch { return "failed"; }
 }
 
+/**
+ * 캡처를 올리기 전에 브라우저에서 줄인다 — 긴 변 1600px JPEG(배포 요청 크기 4.5MB 한도 안, 사진 속 위치 정보(EXIF)도 빠진다).
+ * 원본 5MB 초과·사진 아님은 받지 않는다(테오 1791958372). 줄인 그림은 메모리에만 있고 저장하지 않는다.
+ */
+export const MAX_SHOTS = 3;
+export const MAX_SHOT_BYTES = 5 * 1024 * 1024;
+async function shrinkImage(file: File): Promise<string> {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
+  canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close();
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
 /** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
 /** 서버 응답 → 화면 상태. "AI 확인 반영"은 서버가 실제 모델 판정을 받았다고 답했을 때만, 키 없음·상한·실패는 "못 함 · 규칙 결과"(카이 1fe5e41) */
 export function aiStatusOf(data: unknown): "applied" | "error" {
@@ -81,6 +97,11 @@ export function LiveAnalyzer() {
   const [limited, setLimited] = useState(false);   // 계정 조회가 같은 IP 하루 20회에 걸림
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
+  const [pending, setPending] = useState<{ name: string; data: string }[]>([]);   // 고른 캡처(아직 확인 전)
+  const [shots, setShots] = useState<string[]>([]);   // 지금 결과에 쓴 캡처
+  const [uploadMsg, setUploadMsg] = useState("");
+  // 서버 결과가 지금 화면의 입력(글 + 캡처)에 대한 것인지 — 캡처가 바뀌면 다른 입력
+  const inputKey = `${text}|${shots.map((s) => `${s.length}:${s.slice(-24)}`).join(",")}`;
   const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error" | "limited">("idle")   // applied = 서버가 실제 모델 판정을 받았다고 답했을 때만;
   const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0 });
   const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
@@ -96,6 +117,7 @@ export function LiveAnalyzer() {
   }, []);
   function toggleAiOff(on: boolean) {
     setAiOff(on); setServerResult(null); setAiStatus("idle");
+    if (on) { setPending([]); setShots([]); }   // AI 없이 확인에서는 캡처를 쓰지 않는다(율 1791958415)
     if (on) { setCommunity({ counts: {}, similar: 0 }); setRegistry(NO_REGISTRY); }   // 이전에 받은 신고 수·열린 신고 패널도 지운다
     try { if (on) localStorage.setItem("sr-ai-off", "1"); else localStorage.removeItem("sr-ai-off"); } catch { /* 저장소 없음 */ }
   }
@@ -103,7 +125,7 @@ export function LiveAnalyzer() {
   const gen = useRef(0);
 
   useEffect(() => {
-    if (aiOff || !textResult || known) return;   // AI 우선(소현 O 1791958205): 붙여넣은 글은 모두 AI 확인 — 규칙 결과를 먼저 띄우고 AI 결과로 갱신
+    if (aiOff || known || (!textResult && !shots.length)) return;   // AI 우선(소현 O 1791958205): 붙여넣은 글·캡처는 모두 AI 확인 — 규칙 결과를 먼저 띄우고 AI 결과로 갱신
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setAiStatus("checking");
@@ -111,20 +133,20 @@ export function LiveAnalyzer() {
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, images: shots }),
           signal: controller.signal,
         });
         const data = await response.json();
         if (response.status === 429) { setAiStatus("limited"); return; }   // 같은 IP 하루 20회 — 규칙 결과는 그대로
         if (!response.ok) throw new Error("analysis failed");
-        setServerResult({ input: text, result: data as LiveResult });
+        setServerResult({ input: inputKey, result: data as LiveResult });
         setAiStatus(aiStatusOf(data));
       } catch (error) {
         if ((error as Error).name !== "AbortError") setAiStatus("error");
       }
     }, 300);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [text, textResult, known, aiOff]);
+  }, [text, textResult, known, aiOff, shots, inputKey]);
 
   const handle = account.status === "known" || account.status === "paste" ? account.handle : null;
   const keys = useMemo(() => {
@@ -156,7 +178,7 @@ export function LiveAnalyzer() {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [checkBody, aiOff, known]);
 
-  const currentServerResult = serverResult?.input === text ? serverResult.result : null;
+  const currentServerResult = serverResult?.input === inputKey && serverResult.result.label ? serverResult.result : null;
   const result = account.status === "known"
     ? { label: account.label, reasons: account.reasons, signalGroups: account.signalGroups }
     : (currentServerResult ?? textResult);
@@ -166,7 +188,7 @@ export function LiveAnalyzer() {
   // 계정 조회는 서버가 고른 문장 id(내부 코드 없이), 붙여넣은 글은 브라우저가 같은 함수로 고른다
   // 문장 id: 계정 조회·AI 재검토는 서버가 고른 것, 브라우저 판독만 같은 함수로 직접(공개 응답엔 code 가 없으므로)
   const signs = !level ? [] : signTexts(account.status === "known" ? account.signs : currentServerResult?.signs ?? signIds(level, positive, extractEntities(text).map((e) => e.type), text), t.result);
-  const hasAnything = !!result || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0;
+  const hasAnything = !!result || (shots.length > 0 && !known) || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0;
 
   function reset() {
     gen.current += 1;
@@ -174,14 +196,27 @@ export function LiveAnalyzer() {
     setCommunity({ counts: {}, similar: 0 });
   }
 
+  async function addShots(files: FileList | null) {
+    if (!files || aiOff) return;
+    setUploadMsg("");
+    const next = [...pending];
+    for (const f of Array.from(files)) {
+      if (next.length >= MAX_SHOTS) { setUploadMsg(t.hero.uploadTooMany); break; }
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { setUploadMsg(t.hero.uploadBad); continue; }
+      if (f.size > MAX_SHOT_BYTES) { setUploadMsg(t.hero.uploadTooBig); continue; }
+      try { next.push({ name: f.name, data: await shrinkImage(f) }); } catch { setUploadMsg(t.hero.uploadBad); }
+    }
+    setPending(next);
+  }
+
   async function submit(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     const value = input.trim();
-    if (!value) return;
+    if (!value && !pending.length) return;
     reset();
-    const h = accountFromInput(value);
-    if (h) { setText(""); await lookup(h); }
-    else { setAccount({ status: "idle" }); setText(value); }
+    const h = !pending.length && accountFromInput(value);
+    if (h) { setText(""); setShots([]); await lookup(h); }
+    else { setAccount({ status: "idle" }); setText(value); setShots(aiOff ? [] : pending.map((p) => p.data)); }
     document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -196,7 +231,7 @@ export function LiveAnalyzer() {
   async function lookup(h: string): Promise<boolean> {
     // 새 대상 — 이전 글·서버 결과·공유 키를 먼저 비운다(새 핸들과 이전 글의 연락처가 한 신고로 섞이지 않게, 카이 ④ 검수 1)
     gen.current += 1;
-    setText(""); setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY);
+    setText(""); setShots([]); setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY);
     setAccount({ status: "loading", handle: h }); setLimited(false);
     try {
       const response = await fetch(`/api/accounts/${encodeURIComponent(h)}`, { cache: "no-store" });
@@ -279,7 +314,18 @@ export function LiveAnalyzer() {
             aria-label={t.hero.aria}
             rows={5}
           />
-          <button type="submit" className="checker-go" disabled={account.status === "loading" || !input.trim()}>
+          <div className="shot-row">
+            <label className={`shot-button${aiOff ? " disabled" : ""}`} aria-disabled={aiOff}>
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={aiOff} onChange={(e) => { void addShots(e.target.files); e.target.value = ""; }} />
+              📷 {t.hero.upload}
+            </label>
+            {pending.map((p, i) => (
+              <span key={i} className="shot-chip"><img src={p.data} alt="" /> <button type="button" onClick={() => setPending(pending.filter((_, j) => j !== i))}>{t.hero.uploadRemove}</button></span>
+            ))}
+          </div>
+          <p className="shot-note">{aiOff ? t.hero.uploadOff : t.hero.uploadNote}</p>
+          {uploadMsg && <p className="act-msg" role="status">{uploadMsg}</p>}
+          <button type="submit" className="checker-go" disabled={account.status === "loading" || (!input.trim() && !pending.length)}>
             {account.status === "loading" ? t.hero.checking : t.hero.check}
           </button>
         </form>
@@ -287,7 +333,7 @@ export function LiveAnalyzer() {
         <div className="checker-links">
           <button type="button" onClick={() => setInput(SAMPLE)}>{t.hero.sample}</button>
           <button type="button" onClick={showDemo}>{t.hero.demo}</button>
-          {input && <button type="button" onClick={() => setInput("")}>{t.hero.clear}</button>}
+          {(input || pending.length > 0) && <button type="button" onClick={() => { setInput(""); setPending([]); }}>{t.hero.clear}</button>}
         </div>
         <p className="checker-scope">{t.hero.scope}</p>
         {aiOff ? (
@@ -319,7 +365,8 @@ export function LiveAnalyzer() {
             {account.status === "demoFail" && <p className="result-account">{t.status.demoFail}</p>}
 
             {/* AI 확인 못 함(하루 상한·장애·IP 상한) — 결과 위에 율 문구. 규칙만으로는 놓치는 사기가 많아 '깨끗'으로 읽히지 않게(율 1791957681) */}
-            {level && !known && !aiOff && (aiStatus === "error" || aiStatus === "limited") && <p className="ai-unavailable" role="status">{t.result.aiUnavailable}</p>}
+            {(level || shots.length > 0) && !known && !aiOff && (aiStatus === "error" || aiStatus === "limited") && <p className="ai-unavailable" role="status">{t.result.aiUnavailable}</p>}
+            {!level && shots.length > 0 && aiStatus === "checking" && <p className="result-account" role="status">{t.hero.uploadOnly}</p>}
             {level && (
               <>
                 <div className="verdict-top">

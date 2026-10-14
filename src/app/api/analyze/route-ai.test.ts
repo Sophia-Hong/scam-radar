@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 // AI 판정을 흉내 내 서버 결합 경로를 끝까지 본다(실제 모델 호출 없음)
 const fake = vi.hoisted(() => ({ verdict: { verdict: "scam", confidence: 0.9, checks: ["giver", "move_chat"], model: "anthropic/claude-sonnet-5.5" } as { verdict: string; confidence: number; checks: string[]; model: string } }));
-vi.mock("@/lib/llm", async (orig) => ({ ...(await orig<typeof import("@/lib/llm")>()), reviewPost: vi.fn(async () => fake.verdict) }));
+const fakeImg = vi.hoisted(() => ({ v: { verdict: "scam", confidence: 0.9, checks: ["guarantee"], model: "anthropic/claude-sonnet-5.5", imageText: "원금보장 확정수익 텔레그램 t.me/vip_room_qq 지금 입장" } as Record<string, unknown> }));
+vi.mock("@/lib/llm", async (orig) => ({ ...(await orig<typeof import("@/lib/llm")>()), reviewPost: vi.fn(async () => fake.verdict), reviewPostWithImages: vi.fn(async () => fakeImg.v) }));
 import { POST } from "./route";
 import { scoreText } from "@/engine";
 
@@ -29,5 +30,32 @@ describe("/api/analyze AI 우선 (소현 O 1791958205)", () => {
       fake.verdict = { verdict: "unsure", confidence: 0, checks: [], model };
       expect(await call(text, "203.0.113.203")).toMatchObject({ label: scoreText(text).label, ai: "unavailable" });
     }
+  });
+});
+
+const PNG = "data:image/png;base64," + "iVBORw0KGgo".padEnd(400, "A");
+const post = async (body: unknown, ip: string) => POST(new Request("http://x/api/analyze", { method: "POST", headers: { "content-type": "application/json", "x-real-ip": ip }, body: JSON.stringify(body) }));
+
+describe("캡처 업로드 (테오 1791958372, 율 1791958415)", () => {
+  it("캡처만 올려도 AI 가 판단하고, 캡처 속 글자로 징후를 고른다(응답에 글자 원문 없음)", async () => {
+    fakeImg.v = { verdict: "scam", confidence: 0.9, checks: ["guarantee"], model: "anthropic/claude-sonnet-5.5", imageText: "원금보장 확정수익 텔레그램 t.me/vip_room_qq 지금 입장" };
+    const r = await (await post({ text: "", images: [PNG] }, "203.0.113.210")).json();
+    expect(r).toMatchObject({ label: "HIGH", ai: "applied" });
+    expect(r.signs).toContain("guarantee");
+    expect(r).not.toHaveProperty("imageText");   // 캡처 글자 전문은 응답·저장 어디에도 없다(근거 줄의 짧은 표기는 올린 사람 본인에게만 돌아감)
+    expect(JSON.stringify(r)).not.toContain("원금보장 확정수익 텔레그램 t.me/vip_room_qq 지금 입장");
+  });
+  it("캡처만 + AI 불가 → 단계 없음 + unavailable", async () => {
+    fakeImg.v = { verdict: "unsure", confidence: 0, checks: [], model: "quota-rule" };
+    expect(await (await post({ images: [PNG] }, "203.0.113.211")).json()).toMatchObject({ label: null, ai: "unavailable" });
+  });
+  it("4장·사진 아닌 것·5MB 초과·빈 요청은 400", async () => {
+    const big = "data:image/jpeg;base64," + "A".repeat(Math.ceil(5 * 1024 * 1024 * 4 / 3) + 8);
+    for (const body of [{ images: [PNG, PNG, PNG, PNG] }, { images: ["data:text/html;base64,PGgxPg=="] }, { images: [big] }, { text: "  " }]) expect((await post(body, "203.0.113.212")).status).toBe(400);
+  });
+  it("IP 하루 20회는 1 + 장수만큼 센다 — 3장짜리 5번(20) 뒤 6번째는 429", async () => {
+    fakeImg.v = { verdict: "unsure", confidence: 0, checks: [], model: "quota-rule" };
+    for (let i = 0; i < 5; i++) expect((await post({ text: "안녕", images: [PNG, PNG, PNG] }, "203.0.113.213")).status).toBe(200);
+    expect((await post({ text: "안녕" }, "203.0.113.213")).status).toBe(429);
   });
 });

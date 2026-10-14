@@ -28,7 +28,15 @@ const ko = {
   },
   hero: {
     title: "돈 보내기 전에, 받은 글을 여기 넣어 보세요",
-    steps: ["받은 문자 길게 누르기 → 복사", "아래 칸에 붙여넣기", "[확인하기] 누르기"],   // 노인 첫 화면 1·2·3(카이·테오 1791956461)
+    steps: ["받은 문자 길게 누르기 → 복사", "아래 칸에 붙여넣기", "[확인하기] 누르기"],
+    upload: "캡처 올리기",   // 테오 1791958372
+    uploadNote: "다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2)
+    uploadOff: "캡처는 AI로만 확인할 수 있어요. 여기서는 글만 넣을 수 있어요.",   // 율 1791958415
+    uploadRemove: "빼기",
+    uploadTooMany: "캡처는 3장까지 올릴 수 있어요.",
+    uploadTooBig: "5MB보다 큰 사진은 올릴 수 없어요.",
+    uploadBad: "사진 파일만 올릴 수 있어요.",
+    uploadOnly: "올린 캡처를 AI가 확인하고 있어요.",   // 노인 첫 화면 1·2·3(카이·테오 1791956461)
     placeholder: "의심 가는 글·링크를 붙여 넣으세요\n\n예) 받은 카톡·문자 메시지, 텔레그램 링크, SNS 글",
     aria: "확인할 글, 링크 또는 계정",
     check: "확인하기",
@@ -40,14 +48,14 @@ const ko = {
   },
   // 국외 이전 고지(개인정보 보호법 §28-8, 율 #compliance 1791950335·1791951502 최종 · 테오 1791950346). 보관·나라는 두 회사 현재 문서 원문에서(율 대조)
   notice: {
-    lead: "넣은 글은 저장하지 않아요. 넣은 글은 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 보내기 전에 전화번호·계좌번호·이메일은 가려요. 보내기 싫으면",   // 율 1791957681
+    lead: "넣은 글과 캡처는 저장하지 않아요. 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 글 속 전화번호·계좌번호·이메일은 가리지만, 캡처는 가릴 수 없어서 그대로 보내요. 보내기 싫으면",   // 율 1791958415(캡처)
     aiOffButton: "AI 없이 확인",
     leadTail: "을 쓰세요.",
     more: "자세히",
     aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요(AI 확인·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
     aiOffUndo: "AI 확인 다시 켜기",
     details: [
-      ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
+      ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요. 올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
       ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com)"],
       ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
       ["거쳐 가는 곳", "Vercel Inc. (미국 회사, AI Gateway · privacy@vercel.com)"],
@@ -234,6 +242,14 @@ const en: Strings = {
   hero: {
     title: "Before you send money, paste what you received here",
     steps: ["Press and hold the message you got → Copy", "Paste it in the box below", "Tap [Check]"],
+    upload: "Upload screenshots",
+    uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
+    uploadOff: "Screenshots can only be checked with AI. Here you can paste text only.",
+    uploadRemove: "Remove",
+    uploadTooMany: "You can upload up to 3 screenshots.",
+    uploadTooBig: "Photos over 5MB can't be uploaded.",
+    uploadBad: "Only image files can be uploaded.",
+    uploadOnly: "AI is checking your screenshots.",
     placeholder: "Paste the suspicious message or link\n\ne.g. a chat or text message, a Telegram link, a social media post",
     aria: "Message, link or account to check",
     check: "Check",
@@ -244,14 +260,14 @@ const en: Strings = {
     scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
   },
   notice: {
-    lead: "We don't store what you paste. Everything you paste is sent to a US AI company (Anthropic) to be checked, with phone numbers, account numbers and emails masked first. If you don't want that, use",
+    lead: "We don't store what you paste or upload. Everything is sent to a US AI company (Anthropic) to be checked. Phone numbers, account numbers and emails in text are masked, but screenshots can't be masked and are sent as they are. If you don't want that, use",
     aiOffButton: "Check without AI",
     leadTail: ".",
     more: "Details",
     aiOffOn: "Checking without AI — your text never leaves your browser, but more scams may be missed (no AI check, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
     aiOffUndo: "Turn the AI check back on",
     details: [
-      ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught."],
+      ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught. Screenshots you upload, as they are (names, numbers and faces in them are sent too). Discarded right after the check; never stored."],
       ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com)"],
       ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
       ["Passes through", "Vercel Inc. (US company, AI Gateway · privacy@vercel.com)"],

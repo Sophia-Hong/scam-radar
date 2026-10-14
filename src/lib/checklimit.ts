@@ -19,16 +19,18 @@ export function checkerId(ip: string, secret: string): string {
 }
 
 /** 한 번 쓸 수 있으면 true(그 자리에서 1회 소진), 오늘 다 썼으면 false */
-export async function reserveCheck(req: Request, now = new Date()): Promise<boolean> {
+/** units = 이번 요청이 세는 몫(캡처는 장당 1을 더 센다, 테오 1791958372) */
+export async function reserveCheck(req: Request, now = new Date(), units = 1): Promise<boolean> {
   const ip = clientIp(req);
   const secret = reporterSecret();
   if (hasDb && secret) {
     try {
       await ensureTables();
-      return await reserve(`checks:${checkerId(ip, secret)}`, `d:${kstDay(now)}`, 1, IP_DAILY_CHECKS);
+      return await reserve(`checks:${checkerId(ip, secret)}`, `d:${kstDay(now)}`, units, IP_DAILY_CHECKS);
     } catch { /* 아래 메모리 카운터로 */ }
   }
-  return !memory(`${ip}|${kstDay(now)}`);
+  for (let i = 0; i < units; i++) if (memory(`${ip}|${kstDay(now)}`)) return false;
+  return true;
 }
 
 export const DAILY_LIMIT_ERROR = "daily_limit";
