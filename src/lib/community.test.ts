@@ -57,6 +57,17 @@ describe("결과 첫 화면", () => {
     ["감점 근거는 무시", "REVIEW", [{ code: "term:원금보장", points: -3 }], [], ["fallback"]],
     ["낮음은 찾은 게 있어도 징후 칸 없음", "LOW", [P("term:원금보장"), P("obfuscation")], ["telegram"], []],
     ["낮음 + 아무것도 없음", "LOW", [], [], []],
+    // 받은 메시지 수법(엔진 v2 tactic:*, 율 #compliance 1791951936)
+    ["비밀 요구", "HIGH", [P("tactic:secrecy")], [], ["secrecy"]],
+    ["출금 전 돈 요구", "HIGH", [P("tactic:withdrawal")], [], ["withdrawal"]],
+    ["앱 설치 요구", "HIGH", [P("tactic:install")], [], ["appInstall"]],
+    ["가족 사칭 새 번호", "HIGH", [P("tactic:family")], [], ["familyNewNumber"]],
+    ["택배·기관 사칭 + 링크", "HIGH", [P("tactic:delivery")], ["url"], ["deliveryLink"]],
+    ["기관 사칭 + 전화번호", "HIGH", [P("tactic:authority")], ["phone"], ["deliveryLink"]],
+    ["택배 언급만(링크·전화 없음)은 문장 없음", "REVIEW", [P("tactic:delivery")], [], ["fallback"]],
+    ["대출 선수수료", "HIGH", [P("tactic:loan")], [], ["loanFee"]],
+    ["부업·알바", "HIGH", [P("tactic:task")], [], ["sideJob"]],
+    ["받은 메시지 수법이 앞 순서", "HIGH", [P("cta"), P("tactic:secrecy"), P("tactic:withdrawal"), P("term:무료")], ["telegram"], ["withdrawal", "secrecy", "conversion"]],
     ["순서·최대 3", "HIGH", [P("obfuscation"), P("spread"), P("term:원금보장"), P("cta"), P("term:무료")], ["telegram"], ["guarantee", "conversion", "telegram"]],
     ["쇼츠 예시(영어)", "HIGH", [P("term:en:profit:guaranteed"), P("term:en:urgency:spots"), P("term:en:contact:tme"), P("combo:contact+invest")], ["telegram"], ["guarantee", "conversion", "telegram"]],
   ];
@@ -143,5 +154,14 @@ describe("교차 확인 — 신고 수 공개 = 연결 3곳 이상 AND 엔진 �
   });
   it("두 조건이 따로 — 연결 수 기준은 그대로", () => {
     expect([2, 3].map(shown)).toEqual([0, 3]);
+  });
+});
+
+describe("받은 메시지 징후 문장 (율 1791951936·1791951972)", () => {
+  it("4번 문장에는 회사·기관 이름이 없음 · 7번 KR 에 '법으로 금지' 없음 · 일반 안내 마지막 줄은 KR 에만", () => {
+    for (const L of [STRINGS.ko, STRINGS.en]) expect(L.result.signs.deliveryLink.join(" ")).not.toMatch(/CJ|한진|롯데|우체국|경찰청|국세청|FedEx|UPS|USPS|IRS/i);
+    expect(STRINGS.ko.result.signs.loanFee.join(" ")).not.toContain("법으로 금지");
+    expect(STRINGS.ko.result.stopFooter).toContain("112");
+    expect(STRINGS.en.result.stopFooter).toBe("");
   });
 });

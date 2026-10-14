@@ -386,3 +386,4 @@ main { overflow:hidden; }
 .checker .privacy-note dt { font-weight:800; color:var(--ink); }
 .checker .privacy-note dd { margin:0; line-height:1.55; word-break:keep-all; overflow-wrap:anywhere; }
 .checker .privacy-note.ai-off { color:#247651; font-weight:700; line-height:1.55; }
+.stop-box .stop-footer { margin:10px 0 0; font-weight:800; font-size:16px; }

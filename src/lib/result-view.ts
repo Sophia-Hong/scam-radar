@@ -14,8 +14,11 @@ const EVIDENCE_CODES = ["term:사원증", "term:급여명세", "term:명세서",
 const CHAT_ENTITY_TYPES = ["kakao_open", "kakao_channel", "whatsapp", "line", "wechat", "signal"];
 
 /** 화면 문장 id — 규칙 코드가 아니라 문장 목록의 자리. 공개 응답에는 이 id 만 나간다 */
-export type SignId = "guarantee" | "conversion" | "telegram" | "chatRoom" | "impersonation" | "evidence" | "spreadAccounts" | "sharedContact" | "repeatSelf" | "normalization" | "identity" | "fallback";
-export const SIGN_ORDER: SignId[] = ["guarantee", "conversion", "telegram", "chatRoom", "impersonation", "evidence", "spreadAccounts", "sharedContact", "repeatSelf", "normalization", "identity"];
+export type SignId = "guarantee" | "withdrawal" | "secrecy" | "appInstall" | "familyNewNumber" | "deliveryLink" | "loanFee" | "sideJob"
+  | "conversion" | "telegram" | "chatRoom" | "impersonation" | "evidence" | "spreadAccounts" | "sharedContact" | "repeatSelf" | "normalization" | "identity" | "fallback";
+/** 받은 메시지 수법(엔진 v2 tactic:*)은 돈이 바로 나가는 단계라 앞에 둔다 */
+export const SIGN_ORDER: SignId[] = ["guarantee", "withdrawal", "secrecy", "appInstall", "familyNewNumber", "deliveryLink", "loanFee", "sideJob",
+  "conversion", "telegram", "chatRoom", "impersonation", "evidence", "spreadAccounts", "sharedContact", "repeatSelf", "normalization", "identity"];
 
 /** 근거 코드 → 어휘 범주(contact·invest·profit·urgency·link·free·impersonate). 영어 엔진 코드는 `term:en:<범주>:…` */
 function catOf(code: string): string {
@@ -37,6 +40,15 @@ export function signIds(level: Level, reasons: { code?: string; points: number }
   const movesYou = !quoted && has((c) => c === "cta" || c === "combo:triple" || c.startsWith("combo:contact"));
   const found: Record<SignId, boolean> = {
     guarantee: has((c) => GUARANTEE_CODES.includes(c)),
+    // 받은 메시지 수법 — 엔진이 그 수법을 실제로 찾았을 때만(율 #compliance 1791951936)
+    withdrawal: has((c) => c === "tactic:withdrawal"),
+    secrecy: has((c) => c === "tactic:secrecy"),
+    appInstall: has((c) => c === "tactic:install"),
+    familyNewNumber: has((c) => c === "tactic:family"),
+    // 택배·기관이라며 링크·전화 — 사칭 수법 + 글에서 링크나 전화번호를 실제로 뽑았을 때만. 문장에는 회사·기관 이름을 넣지 않는다(그 회사도 피해자)
+    deliveryLink: has((c) => ["tactic:delivery", "tactic:authority", "tactic:toll", "tactic:grant"].includes(c)) && entityTypes.some((t) => t === "url" || t === "phone"),
+    loanFee: has((c) => c === "tactic:loan"),
+    sideJob: has((c) => c === "tactic:task"),
     conversion: has((c) => ["profit", "free", "invest"].includes(catOf(c)) && c.startsWith("term:")) && has((c) => c === "cta" || (c.startsWith("term:") && catOf(c) === "urgency")),
     telegram: movesYou && entityTypes.includes("telegram"),
     chatRoom: movesYou && !entityTypes.includes("telegram") && entityTypes.some((t) => CHAT_ENTITY_TYPES.includes(t)),

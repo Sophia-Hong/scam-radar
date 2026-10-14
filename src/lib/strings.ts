@@ -76,6 +76,13 @@ const ko = {
     // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
     signs: {
       guarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
+      withdrawal: ["돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 해요.", "이 말을 듣고 보낸 돈은 돌려받지 못하는 일이 많아요."],
+      secrecy: ["비밀로 하라고 하거나, 은행에서 물으면 뭐라고 말할지 시켜요.", "가족이나 은행이 말릴까 봐 그러는 거예요. 사기에서 아주 자주 나와요."],
+      appInstall: ["앱을 깔라고 하거나 링크로 설치하라고 해요.", "모르는 앱을 깔면 남이 내 폰을 조종하거나 돈을 빼 갈 수 있어요."],
+      familyNewNumber: ["가족이라며 폰이 고장 나 새 번호라고 하고, 돈·상품권·신분증 사진을 달라고 해요.", "먼저 원래 번호로 전화해서 진짜 가족인지 확인하세요."],
+      deliveryLink: ["택배회사나 관공서라며 링크를 누르거나 전화하라고 해요.", "문자 속 링크나 번호는 쓰지 말고, 그곳 번호를 직접 찾아서 확인하세요."],
+      loanFee: ["싼 이자로 바꿔 준다며 지금 대출을 먼저 갚거나 수수료를 내라고 해요.", "대출해 준다며 먼저 돈을 달라는 건 사기에서 아주 자주 나와요. 돈을 보내기 전에 원래 은행에 직접 전화하세요."],
+      sideJob: ["조금만 일해도 큰돈을 준다는 부업·알바예요.", "처음엔 조금 주다가 나중에 내 돈을 넣게 하는 일이 많아요."],
       conversion: ["큰 수익이나 공짜 정보를 주겠다며 지금 하라고 해요.", "서두르게 하는 말은 생각할 시간을 빼앗아요."],
       telegram: ["텔레그램 같은 채팅방으로 오라고 해요.", "사기는 이렇게 모르는 방으로 데려가는 일이 많아요."],
       chatRoom: ["모르는 채팅방으로 오라고 해요.", "사기는 이렇게 다른 방으로 데려가서 돈 얘기를 해요."],
@@ -95,6 +102,8 @@ const ko = {
       "‘아무한테도 말하지 마세요’라고 하면 조심하세요. 사기는 가족이 말릴까 봐 비밀로 하라고 해요.",
       "번 돈을 찾으려는데 세금이나 수수료를 먼저 내라고 하면, 돈을 더 보내지 마세요. 사기에서 아주 자주 쓰는 말이에요.",
     ],
+    // 한국 번호라 한국어 화면에만(테오 1791951943, 율 1791951936)
+    stopFooter: "이상하면 돈 보내지 말고 112(경찰)나 1332(금융감독원)에 전화하세요.",
     todoTitle: "이렇게 하세요",
     todo: {
       HIGH: [
@@ -264,6 +273,13 @@ const en: Strings = {
     noSigns: "No clear warning signs found.",
     signs: {
       guarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
+      withdrawal: ["It says you must pay a tax, fee or deposit before you can take your money out.", "People who pay this often never get their money back."],
+      secrecy: ["It tells you to keep this secret, or tells you what to say if the bank asks.", "Scammers do this so your family or bank can't stop you."],
+      appInstall: ["It asks you to install an app, or to install one from a link.", "An unknown app can let someone control your phone or take your money."],
+      familyNewNumber: ["It says it is a family member with a broken phone and a new number, and asks for money, gift cards or a photo of your ID.", "Call their old number first to check it is really them."],
+      deliveryLink: ["It says it is from a delivery company or a government office and asks you to tap a link or call.", "Don't use the link or number in the message. Look up the real number yourself."],
+      loanFee: ["It offers a lower-interest loan, but asks you to pay off your current loan or pay a fee first.", "Asking for a fee before a loan is a common scam. Call your own bank directly before paying anything."],
+      sideJob: ["It offers big money for a little work, like a side job or writing reviews.", "These often pay a little at first, then ask you to put in your own money."],
       conversion: ["It offers big profits or free tips and tells you to act now.", "Rushing you leaves no time to think."],
       telegram: ["It asks you to move to a chat app like Telegram.", "Scams often pull you into a private chat."],
       chatRoom: ["It asks you to join a chat room you don't know.", "Scams often move you to another chat to talk about money."],
@@ -282,6 +298,7 @@ const en: Strings = {
       "If they tell you not to tell anyone, be careful. Scams ask you to keep it secret so your family can't stop you.",
       "If you must pay a tax or fee before you can take your money out, don't send more money. Scams use this a lot.",
     ],
+    stopFooter: "",
     todoTitle: "What to do",
     todo: {
       HIGH: [

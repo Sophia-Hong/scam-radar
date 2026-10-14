@@ -347,6 +347,7 @@ export function LiveAnalyzer() {
             <div className="stop-box">
               <h3>{t.result.stopTitle}</h3>
               <ul>{t.result.stop.map((line) => <li key={line}>{line}</li>)}</ul>
+              {t.result.stopFooter && <p className="stop-footer">{t.result.stopFooter}</p>}
             </div>
 
             <div className="result-actions">
