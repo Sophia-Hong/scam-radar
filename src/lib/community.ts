@@ -135,7 +135,8 @@ export function countsVisible(level: EngineLevel | null | undefined): boolean {
 /** 화면용 조회 — 숨김 규칙(서로 다른 신고자 3명 미만)을 적용한 값만 돌려준다 */
 export async function check(keys: string[], sig: number[] | null, level: EngineLevel | null = null, keyLevels: Record<string, EngineLevel> = {}): Promise<CheckResult> {
   // 키마다 판정 자격: 서버가 아는 판정(keyLevels — 공개 합성 계정의 DB 판정)이 있으면 그 키에만, 없으면 요청의 판정. 한 키의 판정이 다른 키에 번지지 않는다(카이 392ac60)
-  const levelOf = (k: string) => keyLevels[k] ?? level;
+  // 계정 키(threads:*)는 요청의 판정으로 열 수 없다 — 서버가 아는 판정(공개 합성 계정)만. 실계정 키는 공개 조회에서 숫자를 내지 않는다(카이 1791950858)
+  const levelOf = (k: string) => keyLevels[k] ?? (k.startsWith("threads:") ? null : level);
   keys = keys.filter((k) => countsVisible(levelOf(k)));
   if (!countsVisible(level)) sig = null;
   if (!keys.length && !sig) return { counts: {}, similar: 0, gated: true };   // DB 를 읽기 전에 — 낮음이면 숫자 자체를 만들지 않는다
