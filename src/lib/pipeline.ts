@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { db, schema } from "@/db";
 import { normalize, exactKey, minhash, bandKeys, jaccard, scoreText, fnv1a64, JACCARD_THRESHOLD, extractEntities, entityId, entityLabel, STRONG_ENTITY_TYPES, type Label, type Reason, type Entity } from "@/engine";
-import { reviewEvidenceImage, reviewPost } from "./llm";
+import { REVIEW_CHECK_LABEL, reviewEvidenceImage, reviewPost } from "./llm";
 import { accountIdOf } from "./ids";
 export { accountIdOf };
 
@@ -286,9 +286,9 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
   if (r.needsLlmReview) {
     const v = await reviewPost(payload.text, r.reasons.map((x) => x.label), baseFeatures);
     llmVerdict = { ...(typeof llmVerdict === "object" && llmVerdict ? llmVerdict : {}), text: v };
-    if (v.verdict === "scam" && v.confidence >= 0.6) { score = Math.min(100, score + 20); reasons.unshift({ code: "llm:scam", label: `LLM 재판정: 유인글 (${v.rationale})`, points: 20 }); }
+    if (v.verdict === "scam" && v.confidence >= 0.6) { score = Math.min(100, score + 20); reasons.unshift({ code: "llm:scam", label: "AI 재검토: 유인 수법이 보임", points: 20, evidence: v.checks.map((c) => REVIEW_CHECK_LABEL[c]).join(", ") || undefined }); }
     const hasCoordinationEvidence = r.reasons.some((reason) => /^(cluster|spread|spray|shared-contact)/.test(reason.code) && reason.points > 0);
-    if (v.verdict === "benign" && v.confidence >= 0.6 && !hasCoordinationEvidence) { score = Math.max(0, score - 20); reasons.unshift({ code: "llm:benign", label: `LLM 재판정: 정상 (${v.rationale})`, points: -20 }); }
+    if (v.verdict === "benign" && v.confidence >= 0.6 && !hasCoordinationEvidence) { score = Math.max(0, score - 20); reasons.unshift({ code: "llm:benign", label: "AI 재검토: 정상 맥락으로 보임", points: -20, evidence: v.checks.map((c) => REVIEW_CHECK_LABEL[c]).join(", ") || undefined }); }
     label = score >= 70 ? "HIGH" : score >= 40 ? "REVIEW" : "LOW";
   }
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { scoreText } from "@/engine";
 import { json } from "@/lib/auth";
-import { reviewPost } from "@/lib/llm";
+import { REVIEW_CHECK_LABEL, reviewPost } from "@/lib/llm";
 import { publicReasons } from "@/lib/visibility";
 import { signIds } from "@/lib/result-view";
 import { extractEntities } from "@/engine/entities";
@@ -32,11 +32,12 @@ export async function POST(req: Request) {
 
   if (modelReview?.verdict === "scam" && modelReview.confidence >= 0.6) {
     score = Math.min(100, score + 20);
-    reasons.unshift({ code: "llm:scam", label: `AI 재판정: 유인 정황 (${modelReview.rationale})`, points: 20 });
+    // 모델의 자유 문장은 공개하지 않는다 — 고른 체크리스트 항목 이름만(테오 1791949447)
+    reasons.unshift({ code: "llm:scam", label: "AI 재검토: 유인 수법이 보임", points: 20, evidence: modelReview.checks.map((c) => REVIEW_CHECK_LABEL[c]).join(", ") || undefined });
   }
   if (modelReview?.verdict === "benign" && modelReview.confidence >= 0.6 && !hasCoordinationEvidence) {
     score = Math.max(0, score - 20);
-    reasons.unshift({ code: "llm:benign", label: `AI 재판정: 정상 맥락 (${modelReview.rationale})`, points: -20 });
+    reasons.unshift({ code: "llm:benign", label: "AI 재검토: 정상 맥락으로 보임", points: -20, evidence: modelReview.checks.map((c) => REVIEW_CHECK_LABEL[c]).join(", ") || undefined });
   }
   label = score >= 70 ? "HIGH" : score >= 40 ? "REVIEW" : "LOW";
 

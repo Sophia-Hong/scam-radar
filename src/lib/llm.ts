@@ -10,22 +10,23 @@ import { fnv1a64 } from "@/engine";
  *  1) REVIEW 밴드 게시물만 텍스트 재검토
  *  2) 기관 사칭 후보이면서 캡처가 있을 때만 이미지 검토
  *  3) HIGH 계정 요약은 내용 해시로 1회만 생성
- * Google API 키가 있으면 보유 크레딧을 쓰는 직접 호출을 우선한다.
- * 키가 없으면 Gateway를 사용하고, 호출 실패 시 룰/템플릿으로 즉시 폴백한다.
+ * 모델 = AI_REVIEW_MODEL (`제공자/모델`, AI Gateway 경유). 기본 Claude Sonnet 5.5 = Gateway ID anthropic/claude-sonnet-5.5 (소현 1791949427 "ai 판단은 소넷 정도로").
+ * 폴백 = AI_REVIEW_FALLBACK_MODELS(쉼표) — 기본은 이전 모델 google/gemini-3.1-flash-lite, 그다음 deepseek. 다 실패하면 룰/템플릿.
+ * 기본 모델이 google/ 이고 GOOGLE_GENERATIVE_AI_API_KEY 가 있을 때만 Google 직접 호출(보유 크레딧).
  */
-const GOOGLE_MODEL = (process.env.AI_REVIEW_MODEL ?? "gemini-3.1-flash-lite").replace(/^google\//, "");
-const GATEWAY_MODEL = `google/${GOOGLE_MODEL}`;
-const FALLBACK_MODEL = process.env.AI_REVIEW_FALLBACK_MODEL ?? "deepseek/deepseek-v4.1-flash";
-const useDirectGoogle = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-const MODEL_NAME = useDirectGoogle ? `google-direct/${GOOGLE_MODEL}` : GATEWAY_MODEL;
+const PRIMARY_MODEL = process.env.AI_REVIEW_MODEL?.includes("/") ? process.env.AI_REVIEW_MODEL : process.env.AI_REVIEW_MODEL ? `google/${process.env.AI_REVIEW_MODEL}` : "anthropic/claude-sonnet-5.5";
+const FALLBACK_MODELS = (process.env.AI_REVIEW_FALLBACK_MODELS ?? process.env.AI_REVIEW_FALLBACK_MODEL ?? "google/gemini-3.1-flash-lite,deepseek/deepseek-v4.1-flash")
+  .split(",").map((m) => m.trim()).filter((m) => m && m !== PRIMARY_MODEL);
+const useDirectGoogle = PRIMARY_MODEL.startsWith("google/") && !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+export const MODEL_NAME = useDirectGoogle ? `google-direct/${PRIMARY_MODEL.slice(7)}` : PRIMARY_MODEL;
 export const llmEnabled = !!(useDirectGoogle || process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL);
 const DAILY_LLM_BUDGET = Number(process.env.AI_DAILY_REQUEST_BUDGET ?? 450);
 
 function modelConfig(tags: string[]) {
-  if (useDirectGoogle) return { model: google(GOOGLE_MODEL) };
+  if (useDirectGoogle) return { model: google(PRIMARY_MODEL.slice(7)) };
   return {
-    model: GATEWAY_MODEL,
-    providerOptions: { gateway: { models: [FALLBACK_MODEL], tags } },
+    model: PRIMARY_MODEL,
+    providerOptions: { gateway: { models: FALLBACK_MODELS, tags } },
   };
 }
 
@@ -36,7 +37,7 @@ function gatewayCost(metadata: unknown): number | undefined {
 }
 
 async function cached<T>(kind: string, key: string, fn: () => Promise<T>): Promise<T> {
-  const k = `${kind}:${key}`;
+  const k = `${kind}:${fnv1a64(MODEL_NAME)}:${key}`;   // 캐시 키에 모델 — 모델을 바꾸면 옛 판정(예: gemini)이 섞이지 않는다(테오 1791949447)
   if (hasDb) {
     const hit = await db().select().from(schema.llmCache).where(eq(schema.llmCache.key, k)).limit(1);
     if (hit[0]) return hit[0].result as T;
@@ -63,10 +64,22 @@ async function hasDailyBudget(): Promise<boolean> {
   }
 }
 
+/**
+ * 재검토 체크리스트(소현 1791948138 "사람처럼 판별", 테오 1791949447). 모델은 항목 id 만 고르고 자유 문장은 내지 않는다(공개하지 않음).
+ * quote_warning = 인용·경고·연구·피해 후기 글 — 정상 쪽 근거.
+ */
+export const REVIEW_CHECKS = ["giver", "money_promise", "guarantee", "move_chat", "secrecy_urgency", "impersonation", "withdrawal_fee", "quote_warning"] as const;
+export type ReviewCheck = (typeof REVIEW_CHECKS)[number];
+export const REVIEW_CHECK_LABEL: Record<ReviewCheck, string> = {
+  giver: "정보·수익을 주겠다는 쪽", money_promise: "돈·수익 약속", guarantee: "원금·수익 보장", move_chat: "다른 방으로 유도",
+  secrecy_urgency: "비밀·서두름", impersonation: "기관·직원 사칭", withdrawal_fee: "출금 전 수수료", quote_warning: "인용·경고·연구 글",
+};
+
 export interface ReviewVerdict {
   verdict: "scam" | "benign" | "unsure";
   confidence: number;
-  rationale: string;
+  /** 체크리스트에서 해당한 항목 id (자유 문장 없음) */
+  checks: ReviewCheck[];
   model: string;
   costUsd?: number;
 }
@@ -87,26 +100,41 @@ export interface ReviewContext {
 const ReviewSchema = z.object({
   verdict: z.enum(["scam", "benign", "unsure"]),
   confidence: z.number().min(0).max(1),
-  rationale: z.string().max(300),
+  checks: z.array(z.enum(REVIEW_CHECKS)).max(8),
 });
 
+const REVIEW_SYSTEM = [
+  "너는 SNS 글·받은 메시지가 투자 사기 유인인지 사람처럼 판별하는 검수자다. 단어가 아니라 수법을 본다.",
+  "아래 체크리스트를 글에서 *관측되는 것만* 고른다(추측 금지):",
+  "- giver: 글쓴이가 정보·종목·수익을 *주겠다는* 쪽이다(구하는 쪽·묻는 쪽이면 아님)",
+  "- money_promise: 돈·수익을 약속한다",
+  "- guarantee: 원금·수익을 보장한다고 말한다(인용·경고 속의 문구는 해당 안 함). 이것만으로도 강한 유인이다",
+  "- move_chat: 텔레그램·오픈채팅·DM 등 다른 방으로 옮기라고 한다",
+  "- secrecy_urgency: 비밀로 하라거나, 서두르게 한다(선착순·마감·지금)",
+  "- impersonation: 증권사·기관·회사 직원이나 유명인을 내세운다",
+  "- withdrawal_fee: 번 돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 한다",
+  "- quote_warning: 유인 문구를 인용해 경고·풍자·연구·뉴스·피해 후기로 쓰는 글이다",
+  "판정: 유인 수법이 분명하면 scam, quote_warning 이 분명하거나 수법이 없으면 benign, 애매하면 unsure. 가입일·팔로워 같은 계정 정보가 없으면 추정하지 않는다.",
+  "출력은 verdict·confidence·checks 만. 설명 문장은 쓰지 않는다.",
+].join("\n");
+
 export async function reviewPost(text: string, reasonLabels: string[], context: ReviewContext = {}): Promise<ReviewVerdict> {
-  const key = fnv1a64(`review-v2|${text}|${reasonLabels.join("|")}|${JSON.stringify(context)}`);
-  if (!llmEnabled) return { verdict: "unsure", confidence: 0, rationale: "보조 모델 미설정 — 룰 점수 유지", model: "template" };
-  if (!(await hasDailyBudget())) return { verdict: "unsure", confidence: 0, rationale: "무료 AI 일일 한도 보호 — 룰 점수 유지", model: "quota-rule" };
+  const key = fnv1a64(`review-v3|${text}|${reasonLabels.join("|")}|${JSON.stringify(context)}`);
+  if (!llmEnabled) return { verdict: "unsure", confidence: 0, checks: [], model: "template" };
+  if (!(await hasDailyBudget())) return { verdict: "unsure", confidence: 0, checks: [], model: "quota-rule" };
   try {
     return await cached<ReviewVerdict>("review", key, async () => {
       const result = await generateText({
         ...modelConfig(["feature:scam-review", "tier:mvp"]),
-        maxOutputTokens: 180,
+        maxOutputTokens: 120,
         output: Output.object({ schema: ReviewSchema }),
-        system: "한국 SNS의 주식·코인 리딩방 유인 사기 검수자다. 외부 메신저 이동, 투자 수익 미끼, 한국 기관 재직·퇴직 사칭, 페이크 증빙 제시, 유사 서사의 반복 살포를 함께 본다. 피해 후기·뉴스·경고·정상 직장인 글은 benign으로 구분한다. 관측되지 않은 사실은 추측하지 말고 애매하면 unsure로 답한다. 특히 가입일이 없으면 팔로워 수만으로 신규 계정이라고 추정하지 말고, 계정 관측 정보에서 누락된 속성은 근거로 언급하지 않는다.",
-        prompt: `룰 엔진 근거: ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n게시물:\n\"\"\"\n${text.slice(0, 1800)}\n\"\"\"`,
+        system: REVIEW_SYSTEM,
+        prompt: `룰 엔진이 본 것(참고): ${reasonLabels.join(", ") || "없음"}\n계정 관측 정보: ${JSON.stringify(context)}\n\n글:\n\"\"\"\n${text.slice(0, 1800)}\n\"\"\"`,
       });
       return { ...result.output, model: MODEL_NAME, costUsd: gatewayCost(result.providerMetadata) };
     });
   } catch {
-    return { verdict: "unsure", confidence: 0, rationale: "보조 모델 호출 실패 — 룰 점수 유지", model: "fallback" };
+    return { verdict: "unsure", confidence: 0, checks: [], model: "fallback" };
   }
 }
 
