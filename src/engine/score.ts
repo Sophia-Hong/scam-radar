@@ -1,5 +1,5 @@
 import { activeContext } from "./context";
-import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence } from "./tactics";
+import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence, receivedActionSignals } from "./tactics";
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
 import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
@@ -221,14 +221,30 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // DM, where no separate public contact channel is expected.
   const financialDemand = tactics.some(t => t.family === "withdrawal" || t.family === "advance");
   const taskRecruitment = tactics.some(t => t.family === "task") && tactics.some(t => t.family === "recruiter");
-  const receivedCombo = financialDemand && tactics.length >= 2;
+  const legacyReceivedCombo = financialDemand && tactics.length >= 2;
+  const receivedActions = receivedActionSignals(n.text);
+  const receivedLure = tactics.some(t => ["delivery", "authority", "family", "task", "romance"].includes(t.family));
+  const receivedImpersonation = tactics.some(t => ["authority", "family", "recruiter"].includes(t.family));
+  const hasReceivedAction = receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.money || receivedActions.credential;
+  // A pasted message needs three independent facts before it can become HIGH:
+  // a lure, a concrete action, and urgency, impersonation, or payment.  This
+  // deliberately leaves a greeting, a lone link, or an ordinary notice below
+  // the automatic threshold for the checklist reviewer.
+  const receivedMessageCombo = receivedLure && hasReceivedAction &&
+    (receivedActions.urgency || receivedImpersonation ||
+      (receivedActions.money && (receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.credential)));
+  const receivedCombo = legacyReceivedCombo || receivedMessageCombo;
   for (const t of tactics) {
     score += t.points;
     reasons.push({ code: `tactic:${t.family}`, label: t.label, points: t.points, evidence: t.evidence });
   }
-  if (receivedCombo || (taskRecruitment && categories.contact > 0 && categories.profit > 0)) {
+  if (legacyReceivedCombo || (taskRecruitment && categories.contact > 0 && categories.profit > 0)) {
     score += 24;
     reasons.push({ code: "combo:received", label: "금전 요구와 복수 유인 정황 결합", points: 24 });
+  }
+  if (receivedMessageCombo) {
+    score += 54;
+    reasons.push({ code: "combo:received-message", label: "받은 메시지의 위험 정황이 결합됨", points: 54 });
   }
   if (context.excluded.length) {
     reasons.push({ code: "counter", label: "인용·부정 범위의 표현 제외", points: 0 });
@@ -383,7 +399,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
 
   // A generic app install, job, fee or affectionate phrase alone must not turn
   // an otherwise sub-HIGH message into HIGH. Require corroborating families.
-  if (tactics.length === 1 && scoreWithoutTactics < THRESHOLD_HIGH) {
+  if (tactics.length === 1 && scoreWithoutTactics < THRESHOLD_HIGH && !receivedMessageCombo) {
     capAt(NO_CONTACT_CAP, "gate:tactic-corroboration", "추가 정황 확인 필요");
   }
 
@@ -403,7 +419,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const taskOnlyPitch = tactics.some(t => t.family === "task") &&
     !financialDemand && !hasEasyMoneyPitch(n.text) &&
     !tactics.some(t => ["secrecy", "install", "room", "romance", "authority"].includes(t.family));
-  if (taskOnlyPitch) capAt(NO_CONTACT_CAP, "veto:ordinary-job", "일반 채용 안내와 구분 필요");
+  if (taskOnlyPitch && !receivedMessageCombo) capAt(NO_CONTACT_CAP, "veto:ordinary-job", "일반 채용 안내와 구분 필요");
 
   // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
   if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {

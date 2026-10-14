@@ -107,6 +107,35 @@ describe("received-message families", () => {
   });
 });
 
+describe("received-message action combinations", () => {
+  it.each([
+    "Parcel delivery is held because the address does not match. Update it today at https://qzrmn.info/check.",
+    "세관 수수료가 미납되어 배송이 보류되었습니다. 지금 hxxps://shorturl[.]at/claim 에서 납부하세요.",
+    "Court notice: pay the traffic penalty now through https://paxvu.co/pay or your case will proceed.",
+    "건강보험 담당자입니다. 12시간 안에 본인인증을 완료하려면 http://mzaqp.kr 로 접속하세요.",
+    "Dad, my phone is broken and this is my new number. Please buy gift cards and send the codes today.",
+    "엄마, 임시 폰이라서 신분증 사진을 이 번호로 바로 보내줘.",
+    "Amazon recruiter: rate products for daily pay. Reply YES now to begin the task.",
+    "하루 30분 리뷰 알바로 수당을 드립니다. 텔레그램으로 지금 답장하세요.",
+    "Darling, transfer money to the crypto account today so we can plan our future.",
+  ])("marks a lure with an action and corroboration HIGH: %s", text => {
+    expect(scoreText(text).label).toBe("HIGH");
+    expect(scoreText(text).reasons.some(r => r.code === "combo:received-message")).toBe(true);
+  });
+
+  it.each([
+    "CJ Logistics says your parcel is scheduled for tomorrow: https://www.cjlogistics.com/track/123.",
+    "UPS delivery update: https://www.ups.com/track?loc=en_US",
+    "[우리은행] 인증번호 [123456] 타인에게 알려주지 마세요.",
+    "[정부24] 민원 처리 안내는 https://www.gov.kr 에서 확인할 수 있습니다.",
+    "엄마, 내 휴대폰 수리 맡겼어. 저녁에 전화할게.",
+    "Part-time library assistant, $20 per hour. Apply through the university careers page.",
+    "News report: police warned that a text saying 'pay the fine now at this link' was fraudulent.",
+    "https://bit.ly/example",
+    "Hi Mum, hope your day is going well.",
+  ])("keeps hard benign negatives below HIGH: %s", text => expect(scoreText(text).label).not.toBe("HIGH"));
+});
+
 describe("local quote and negation scope", () => {
   it.each([
     'A research dataset contains "risk-free stock picks, guaranteed profits, message me on Telegram" for analysis.',
