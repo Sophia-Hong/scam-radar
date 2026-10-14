@@ -8,7 +8,7 @@ import type { Level, Strings } from "./strings";
  * 규칙은 여기서 새로 만들지 않는다: 단계(HIGH/REVIEW/LOW)와 근거는 엔진이 낸 것을 그대로 옮기고, 문장만 고른다.
  */
 
-const GUARANTEE_CODES = ["term:원금보장", "term:손실보전", "term:확정수익", "term:확정지급", "term:en:profit:guaranteed"];   // 마지막 = 영어 엔진(theo/en-engine)
+const GUARANTEE_CODES = ["guarantee:illegal", "term:원금보장", "term:손실보전", "term:확정수익", "term:확정지급", "term:en:profit:guaranteed"];   // 마지막 = 영어 엔진(theo/en-engine)
 const EVIDENCE_CODES = ["term:사원증", "term:급여명세", "term:명세서", "term:재직증명"];
 /** 채팅방 문장은 글에서 메신저 링크·아이디를 실제로 뽑았을 때만 — 일반 링크·프로필 링크는 문장 없음 (테오 1791947403) */
 const CHAT_ENTITY_TYPES = ["kakao_open", "kakao_channel", "whatsapp", "line", "wechat", "signal"];

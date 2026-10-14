@@ -75,12 +75,11 @@ describe("received-message families", () => {
     "쿠팡 인사팀입니다. 하루 고수익 재택 알바, 카톡으로 문의하세요. 일급 40만원.",
     "Darling, invest in our future. Pay the tax before withdrawal; I will cover half.",
     "출금하려면 수수료 먼저 입금하세요. 전용 거래 앱을 설치하세요.",
-  ])("combines independent families while preserving the contact gate: %s", text => {
+  ])("promotes a payment demand plus independent tactic families: %s", text => {
     const result = scoreText(text);
     expect(result.reasons.some(r => r.code === "combo:received")).toBe(true);
-    expect(result.label).toBe(result.categories.contact > 0 ? "HIGH" : "REVIEW");
-    if (result.categories.contact === 0) expect(result.reasons.some(r => r.code === "gate:no-contact")).toBe(true);
-    expect(scoreText(text + " Telegram @help_desk").label).toBe("HIGH");
+    expect(result.label).toBe("HIGH");
+    expect(result.reasons.some(r => r.code === "gate:no-contact")).toBe(false);
   });
 
   it.each([
@@ -126,5 +125,28 @@ describe("local quote and negation scope", () => {
   ])("preserves independent positive solicitations: %s", text => expect(scoreText(text).label).toBe("HIGH"));
   it("does not erase quoted recruiter text without warning attribution", () => {
     expect(activeContext('Received: "Complete tasks. Prepay to unlock commission."').excluded).toHaveLength(0);
+  });
+});
+
+describe("illegal investment guarantees", () => {
+  it.each([
+    "원금 보장으로 투자금을 운용합니다.",
+    "손실 보전 약속, 확정 수익을 드립니다.",
+    "주식 매수는 제 지시대로 하고 손실 나면 제가 메꿔드립니다.",
+    "Guaranteed returns from this investment package.",
+    "No risk, guaranteed profit on your capital.",
+  ])("is HIGH as a single prohibited promise: %s", text => {
+    const result = scoreText(text);
+    expect(result.label).toBe("HIGH");
+    expect(result.reasons.some(r => r.code === "guarantee:illegal")).toBe(true);
+  });
+
+  it.each([
+    "원금 보장을 약속하는 투자는 불법이니 피하세요.",
+    "We do not guarantee returns; investments can lose value.",
+    'News analysis quotes "guaranteed profits" as a warning sign.',
+    "Our appliance repair comes with guaranteed results.",
+  ])("keeps warning, negation, quotation, and non-investment use below HIGH: %s", text => {
+    expect(scoreText(text).label).not.toBe("HIGH");
   });
 });

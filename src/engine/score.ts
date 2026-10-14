@@ -1,5 +1,5 @@
 import { activeContext } from "./context";
-import { findTactics, hasEasyMoneyPitch } from "./tactics";
+import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence } from "./tactics";
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
 import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
@@ -145,6 +145,10 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const context = activeContext(raw.toLowerCase());
   const n = normalize(context.text);
   const tactics = findTactics(n.text);
+  // Context has already removed only locally attributed quotes, warnings and
+  // explicit denials.  Outside those spans, a principal/return guarantee is a
+  // prohibited investment solicitation even without a contact address.
+  const illegalGuarantee = hasIllegalInvestmentGuarantee(n.text);
 
   const reasons: Reason[] = [];
   const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0, impersonate: 0 };
@@ -205,8 +209,16 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     score += categories[c];
   }
 
+  if (illegalGuarantee) {
+    const evidence = illegalGuaranteeEvidence(n.text);
+    const points = Math.max(0, THRESHOLD_HIGH - score);
+    score += points;
+    reasons.push({ code: "guarantee:illegal", label: "원금·수익 보장 약속", points, evidence });
+  }
+
   // Received-message families cannot produce HIGH from a lone word/family.
-  // Payment conditioning adds evidence but does not bypass the existing HIGH gate.
+  // A payment demand plus an independent family is enough evidence in a pasted
+  // DM, where no separate public contact channel is expected.
   const financialDemand = tactics.some(t => t.family === "withdrawal" || t.family === "advance");
   const taskRecruitment = tactics.some(t => t.family === "task") && tactics.some(t => t.family === "recruiter");
   const receivedCombo = financialDemand && tactics.length >= 2;
@@ -398,10 +410,10 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정", `팔로워 ${account.followers}`);
   }
 
-  // 8) HARD GATE — 다음 셋 중 하나는 있어야 HIGH 가 된다.
-  //    ① 연락채널 유도("어디로 오라")  ② 기관 사칭 결합(기관명+재직·증빙+제안)  ③ 서로 다른 계정 3개 이상의 동일 문구 살포
-  //    셋 다 없는 글(투자 자랑·시황 과장·수익 인증만 있는 글)을 HIGH 로 올리면 방어할 수 없는 지목이 된다.
-  const gateOpen = categories.contact > 0 || impersonateCombo || clusterAccounts >= SPREAD_GATE_ACCOUNTS;
+  // 8) HARD GATE — public-contact evidence is normally required. Exceptions
+  // are a prohibited guarantee and a payment-demand + independent DM tactic;
+  // those are complete solicitations even when copied from a private message.
+  const gateOpen = illegalGuarantee || receivedCombo || categories.contact > 0 || impersonateCombo || clusterAccounts >= SPREAD_GATE_ACCOUNTS;
   if (!gateOpen && score > NO_CONTACT_CAP) {
     reasons.push({
       code: "gate:no-contact",
