@@ -1,3 +1,5 @@
+import { activeContext } from "./context";
+import { findTactics, hasEasyMoneyPitch, hasIllegalInvestmentGuarantee, illegalGuaranteeEvidence, receivedActionSignals, receivedTopicSignals, type TacticHit } from "./tactics";
 import { normalize, type Normalized } from "./normalize";
 import { choseongSeq, jamoMixedTokens, hasCompatJamo } from "./hangul";
 import { TERMS, PATTERNS, COUNTER_TERMS, VETO_PATTERNS, CTA_PATTERNS, QUOTED_LURE, OFFER_PATTERN, type Category, type Term } from "./lexicon";
@@ -10,6 +12,8 @@ export interface AccountFeatures {
   postCount?: number | null;
   /** 계정 생성일 ISO. 없으면 무시 */
   createdAt?: string | null;
+  /** 계정 나이를 잴 기준 시각(ms). 없으면 지금. 평가는 측정일로 고정해 결과가 날짜에 따라 흔들리지 않게 (카이 1791945667 ④) */
+  asOf?: number | null;
   /** 프로필 bio 텍스트 (있으면 본문과 함께 검사) */
   bio?: string | null;
   /** 프로필 외부 링크 */
@@ -44,6 +48,8 @@ export interface ScoreResult {
   normalized: Normalized;
   needsLlmReview: boolean;
   signalGroups: SignalGroup[];
+  /** Internal structured facts for selecting UI signs; never sent as public API rules. */
+  tactics: TacticHit[];
 }
 
 export interface SignalGroup {
@@ -105,10 +111,18 @@ function foreignProfileCountry(country?: string | null): boolean {
 
 const TERM_CHOSUNG = TERMS.filter((t) => t.chosung).map((t) => ({ t, cs: choseongSeq(t.term) }));
 
-function findTerms(compact: string): { term: Term; via: "exact" }[] {
-  const out: { term: Term; via: "exact" }[] = [];
+/** 어휘 매칭. 한국어는 compact substring, 영어(re 있음)는 단어 경계 정규식 — 매칭 조각을 함께 돌려준다 */
+function findTerms(n: Normalized): { term: Term; hit: string; at: number; in: "text" | "compact" }[] {
+  const out: { term: Term; hit: string; at: number; in: "text" | "compact" }[] = [];
   for (const t of TERMS) {
-    if (compact.includes(t.term)) out.push({ term: t, via: "exact" });
+    if (t.re) {
+      const where = t.on === "compact" ? "compact" : "text";
+      const m = (where === "compact" ? n.compact : n.text).match(t.re);
+      if (m) out.push({ term: t, hit: m[0], at: m.index ?? 0, in: where });
+    } else {
+      const at = n.compact.indexOf(t.term);
+      if (at >= 0) out.push({ term: t, hit: t.term, at, in: "compact" });
+    }
   }
   return out;
 }
@@ -129,11 +143,24 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const bio = account.bio ? `\n${account.bio}` : "";
   const url = account.externalUrl ? `\n${account.externalUrl}` : "";
   const raw = rawText + bio + url;
-  const n = normalize(raw);
+  const original = normalize(raw);
+  const context = activeContext(raw.toLowerCase());
+  const n = normalize(context.text);
+  // Product and OSS notices may mention a chat channel and a price-alert use,
+  // then explicitly deny selling signals.  Without a contrastive new offer,
+  // that denial governs the notice rather than merely its final list item.
+  const explicitSignalDenial = /(?:\b(?:we|i|our (?:bot|service|app))\s+(?:do not|don't|never)\s+(?:sell|offer|provide)\b[^.!?\n]{0,90}\b(?:signals?|trading advice|stock picks?)\b|(?:매수|매도)\s*(?:신호|시그널|종목)\s*(?:를\s*)?(?:판매|제공|추천|권유)\s*(?:하지\s*않|안\s*합))/.test(raw.toLowerCase());
+  const contrastiveOffer = /\b(?:but|however)\b|하지만|그런데/.test(raw.toLowerCase());
+  const tactics = findTactics(n.text);
+  // Context has already removed only locally attributed quotes, warnings and
+  // explicit denials.  Outside those spans, a principal/return guarantee is a
+  // prohibited investment solicitation even without a contact address.
+  const illegalGuarantee = hasIllegalInvestmentGuarantee(n.text);
 
   const reasons: Reason[] = [];
   const categories: Record<Category, number> = { contact: 0, invest: 0, profit: 0, urgency: 0, free: 0, link: 0, impersonate: 0 };
   let sawInstitution = false;
+  let sawKoreanInstitution = false;
   let sawCredential = false;
   let sawEvidenceImageClaim = false;
   const institutionHits: string[] = [];
@@ -147,26 +174,31 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     seenLabel.add(key);
     const pts = CAT_WEIGHT[t.cat] * (t.w ?? 1);
     categories[t.cat] += pts;
-    if (t.sub === "institution") { sawInstitution = true; institutionHits.push(t.term); }
-    if (t.sub === "credential") { sawCredential = true; credentialHits.push(t.term); }
-    if (["사원증", "급여명세", "명세서", "재직증명"].includes(t.term)) sawEvidenceImageClaim = true;
+    if (t.sub === "institution") { sawInstitution = true; if (!t.lang) sawKoreanInstitution = true; institutionHits.push(t.lang ? evidence : t.term); }
+    if (t.sub === "credential") { sawCredential = true; credentialHits.push(t.lang ? evidence : t.term); }
+    if (t.evidenceDoc || ["사원증", "급여명세", "명세서", "재직증명"].includes(t.term)) sawEvidenceImageClaim = true;
     matched.push({ term: t.term, cat: t.cat, label: t.label });
     reasons.push({ code: `term:${t.term}`, label: viaLabel ? `${t.label} (${viaLabel})` : t.label, points: Math.round(pts), evidence });
   };
 
   // 1) 정규화 텍스트 어휘 매칭
   const cps = Array.from(n.compact); // 코드포인트 단위 슬라이스 — 이모지 서로게이트 쌍이 잘리면 JSON 이 깨진다
-  for (const { term } of findTerms(n.compact)) {
-    const idx = Array.from(n.compact.slice(0, n.compact.indexOf(term.term))).length;
-    add(term, cps.slice(Math.max(0, idx - 8), idx + Array.from(term.term).length + 8).join(""));
+  const tps = Array.from(n.text);
+  for (const { term, hit, at, in: where } of findTerms(n)) {
+    const src = where === "compact" ? n.compact : n.text;
+    const pts = where === "compact" ? cps : tps;
+    const idx = Array.from(src.slice(0, at)).length;
+    const pad = where === "compact" ? 8 : 16;
+    add(term, pts.slice(Math.max(0, idx - pad), idx + Array.from(hit).length + pad).join("").trim());
   }
   // 2) 초성 매칭 (원문에 호환 자모가 있을 때만)
-  for (const { term, token } of findChosungTerms(raw)) {
+  for (const { term, token } of findChosungTerms(context.text)) {
     add(term, token, "초성 난독화");
   }
   // 3) 정규식 구조 신호
+  const rawLower = context.text.toLowerCase();
   for (const p of PATTERNS) {
-    const m = n.text.match(p.re);
+    const m = (p.on === "raw" ? rawLower : n.text).match(p.re);
     if (m) {
       const key = p.cat + ":" + p.label;
       if (seenLabel.has(key)) continue;
@@ -184,10 +216,53 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     score += categories[c];
   }
 
+  if (illegalGuarantee) {
+    const evidence = illegalGuaranteeEvidence(n.text);
+    const points = Math.max(0, THRESHOLD_HIGH - score);
+    score += points;
+    reasons.push({ code: "guarantee:illegal", label: "원금·수익 보장 약속", points, evidence });
+  }
+
+  // Received-message families cannot produce HIGH from a lone word/family.
+  // A payment demand plus an independent family is enough evidence in a pasted
+  // DM, where no separate public contact channel is expected.
+  const financialDemand = tactics.some(t => t.family === "withdrawal" || t.family === "advance");
+  const taskRecruitment = tactics.some(t => t.family === "task") && tactics.some(t => t.family === "recruiter");
+  const legacyReceivedCombo = financialDemand && tactics.length >= 2;
+  const receivedActions = receivedActionSignals(n.text);
+  const receivedTopics = receivedTopicSignals(n.text);
+  const receivedLure = tactics.some(t => ["delivery", "authority", "family", "task", "romance"].includes(t.family));
+  const receivedImpersonation = tactics.some(t => ["authority", "family", "recruiter"].includes(t.family));
+  const hasReceivedAction = receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.money || receivedActions.credential;
+  // A pasted message needs three independent facts before it can become HIGH:
+  // a lure, a concrete action, and urgency, impersonation, or payment.  This
+  // deliberately leaves a greeting, a lone link, or an ordinary notice below
+  // the automatic threshold for the checklist reviewer.
+  const receivedMessageCombo = receivedLure && hasReceivedAction &&
+    (receivedActions.urgency || receivedImpersonation ||
+      (receivedActions.money && (receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.credential)));
+  const receivedCombo = legacyReceivedCombo || receivedMessageCombo;
+  for (const t of tactics) {
+    score += t.points;
+    reasons.push({ code: `tactic:${t.family}`, label: t.label, points: t.points, evidence: t.evidence });
+  }
+  if (legacyReceivedCombo || (taskRecruitment && categories.contact > 0 && categories.profit > 0)) {
+    score += 24;
+    reasons.push({ code: "combo:received", label: "금전 요구와 복수 유인 정황 결합", points: 24 });
+  }
+  if (receivedMessageCombo) {
+    score += 54;
+    reasons.push({ code: "combo:received-message", label: "받은 메시지의 위험 정황이 결합됨", points: 54 });
+  }
+  if (context.excluded.length) {
+    reasons.push({ code: "counter", label: "인용·부정 범위의 표현 제외", points: 0 });
+    reasons.push({ code: "veto:scoped-context", label: "인용·부정 범위의 표현 제외", points: 0 });
+  }
+
   // 3b) 프로필 외부 링크가 메신저·링크모음 — 본문과 무관하게 계정 자체가 유입 장치다.
   //     연락채널 신호로 친다(결합 규칙·게이트에 그대로 반영).
   const extUrl = (account.externalUrl ?? "").toLowerCase();
-  if (/t\.me|telegram\.me|open\.kakao|pf\.kakao|linktr\.ee|litt\.ly|bit\.ly|han\.gl|vo\.la|line\.me|wechat/.test(extUrl)) {
+  if (/t\.me|telegram\.me|open\.kakao|pf\.kakao|linktr\.ee|litt\.ly|bit\.ly|han\.gl|vo\.la|line\.me|wechat|wa\.me|whatsapp\.com|signal\.me|signal\.group/.test(extUrl)) {
     reasons.push({ code: "acct:lure-link", label: "프로필 외부 링크가 메신저·링크모음", points: 10, evidence: account.externalUrl! });
     categories.contact = Math.min(CAT_CAP.contact, categories.contact + 10);
     score += 10;
@@ -224,7 +299,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
 
   // 4d) 한국 기관 재직·퇴직 사칭과 프로필 국가가 불일치하는 경우의 보조 신호.
   //     해외 거주자·출장·VPN 등 정상 사례가 많으므로 단독 가점·게이트로는 절대 사용하지 않는다.
-  const countryMismatch = impersonateCombo && foreignProfileCountry(account.profileCountry);
+  const countryMismatch = impersonateCombo && sawKoreanInstitution && foreignProfileCountry(account.profileCountry);
   if (countryMismatch) {
     reasons.push({
       code: "identity:country-mismatch",
@@ -264,7 +339,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     }
     if (cta > 0) {
       const pts = Math.min(14, Math.round(cta));
-      reasons.push({ code: "cta", label: "행동 유도 문구 (연락채널·사칭 구조 동반)", points: pts, evidence: ctaLabels.join(", ") });
+      reasons.push({ code: "cta", label: "행동 유도 문구", points: pts, evidence: ctaLabels.join(", ") });
       score += pts;
     }
   }
@@ -272,30 +347,32 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   // 5b) 피해자·경고 맥락 감점 — "리딩방 사기 당한 후기" 는 유인글이 아니다
   let counter = 0;
   let strongCounters = 0;
-  const hitCounters = COUNTER_TERMS.filter((c) => n.compact.includes(c.term));
+  const hasActiveOffer = categories.contact > 0 && categories.invest + categories.profit > 0 && CTA_PATTERNS.some(c => c.re.test(n.text));
+  const counterContext = hasActiveOffer ? n : original;
+  const hitCounters = COUNTER_TERMS.filter((c) => (c.re ? c.re.test(counterContext.text) : counterContext.compact.includes(c.term)));
   for (const c of hitCounters) {
     counter += 12 * c.w;
     if (c.strong) strongCounters++;
   }
   if (counter > 0) {
     const pts = -Math.min(45, Math.round(counter));
-    reasons.push({ code: "counter", label: "피해 경험·경고 맥락 (유인글 아닐 가능성)", points: pts, evidence: hitCounters.map((c) => c.term).join(", ") });
+    reasons.push({ code: "counter", label: "피해 경험·경고 맥락 (유인글 아닐 가능성)", points: pts, evidence: hitCounters.map((c) => (c.re ? c.label : c.term)).join(", ") });
     score += pts;
   }
 
   // 6) 계정 특성
   if (account.createdAt) {
-    const days = (Date.now() - Date.parse(account.createdAt)) / 86400000;
-    if (days >= 0 && days < 30) { reasons.push({ code: "acct:new", label: "생성 30일 미만 계정", points: 8, evidence: `${Math.floor(days)}일` }); score += 8; }
+    const days = ((account.asOf ?? Date.now()) - Date.parse(account.createdAt)) / 86400000;
+    if (days >= 0 && days < 30) { reasons.push({ code: "acct:new", label: "최근 생성된 계정", points: 8, evidence: `${Math.floor(days)}일` }); score += 8; }
   }
   if (typeof account.followers === "number" && account.followers < 50 && categories.contact > 0) {
-    reasons.push({ code: "acct:lowfollow", label: "팔로워 50 미만", points: 4, evidence: `${account.followers}` }); score += 4;
+    reasons.push({ code: "acct:lowfollow", label: "팔로워 적은 계정", points: 4, evidence: `${account.followers}` }); score += 4;
   }
   if (typeof account.following === "number" && typeof account.followers === "number" && account.followers > 0 && account.following / account.followers > 20) {
     reasons.push({ code: "acct:ratio", label: "팔로잉/팔로워 비율 비정상", points: 4 }); score += 4;
   }
   // 6b) 일회용(버너) 프로필 + 채널 유도 + 투자 언급 — 세 가지가 같이 오면 계정 목적이 유입이다
-  const fresh = account.createdAt ? (Date.now() - Date.parse(account.createdAt)) / 86400000 < 60 : false;
+  const fresh = account.createdAt ? ((account.asOf ?? Date.now()) - Date.parse(account.createdAt)) / 86400000 < 60 : false;
   const fewFollowers = typeof account.followers === "number" && account.followers < 200;
   const skewed = typeof account.following === "number" && typeof account.followers === "number" && account.following > account.followers * 3;
   if (fresh && fewFollowers && skewed && categories.contact > 0 && categories.invest + categories.profit > 0) {
@@ -316,6 +393,7 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     reasons.push({ code: "spray", label: "무관한 여러 원글에 동일 댓글 살포", points: 10, evidence: `${account.distinctTargets}개 원글` }); score += 10;
   }
 
+  const scoreWithoutTactics = score - tactics.reduce((sum, t) => sum + t.points, 0);
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   // 7) 상한(veto) — 여기부터는 "점수를 깎는" 게 아니라 "HIGH 를 포기한다".
@@ -323,9 +401,15 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   //    보이는 신호가 하나라도 있으면 자동 판정을 포기하고 사람/LLM 에 넘긴다.
   const capAt = (cap: number, code: string, label: string, evidence?: string) => {
     if (score <= cap) return;
-    reasons.push({ code, label: `${label} → ${cap}점으로 상한`, points: cap - score, evidence });
+    reasons.push({ code, label, points: cap - score, evidence });   // 표시 라벨에 상한 숫자를 쓰지 않는다 (규칙 비공개, 소현 10-05)
     score = cap;
   };
+
+  // A generic app install, job, fee or affectionate phrase alone must not turn
+  // an otherwise sub-HIGH message into HIGH. Require corroborating families.
+  if (tactics.length === 1 && scoreWithoutTactics < THRESHOLD_HIGH && !receivedMessageCombo) {
+    capAt(NO_CONTACT_CAP, "gate:tactic-corroboration", "추가 정황 확인 필요");
+  }
 
   for (const v of VETO_PATTERNS) {
     const m = n.text.match(v.re);
@@ -336,24 +420,54 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
     capAt(59, "veto:quote", "유인 문구 인용(풍자·해설 맥락)", n.text.match(QUOTED_LURE)?.[0]);
   }
   // 경고·피해 어휘. 하나만 있어도 자동 HIGH 는 포기한다 (유인글이 스스로 "신고하세요" 라고 쓰진 않는다).
-  if (strongCounters >= 2) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호", `강한 신호 ${strongCounters}개`);
-  else if (strongCounters === 1) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
-  // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
-  if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
-    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정 — 자동 HIGH 보류", `팔로워 ${account.followers}`);
+  if (strongCounters >= 2) {
+    if (score > 55) capAt(55, "veto:victim", "피해·경고 맥락 다중 신호");
+    else reasons.push({ code: "veto:victim", label: "피해·경고 맥락 다중 신호", points: 0 });
+  } else if (strongCounters === 1) {
+    if (score > NO_CONTACT_CAP) capAt(NO_CONTACT_CAP, "veto:victim", "피해·경고 맥락 신호");
+    else reasons.push({ code: "veto:victim", label: "피해·경고 맥락 신호", points: 0 });
+  }
+  // A recruiter, contact channel and ordinary salary can describe a real job.
+  // Do not let newly added employment families alone promote that to HIGH.
+  const taskOnlyPitch = tactics.some(t => t.family === "task") &&
+    !financialDemand && !hasEasyMoneyPitch(n.text) &&
+    !tactics.some(t => ["secrecy", "install", "room", "romance", "authority"].includes(t.family));
+  if (taskOnlyPitch && !receivedMessageCombo) capAt(NO_CONTACT_CAP, "veto:ordinary-job", "일반 채용 안내와 구분 필요");
+
+  if (explicitSignalDenial && !contrastiveOffer) {
+    capAt(NO_CONTACT_CAP, "veto:explicit-denial", "명시적 비판매·비권유 고지");
   }
 
-  // 8) HARD GATE — 다음 셋 중 하나는 있어야 HIGH 가 된다.
-  //    ① 연락채널 유도("어디로 오라")  ② 기관 사칭 결합(기관명+재직·증빙+제안)  ③ 서로 다른 계정 3개 이상의 동일 문구 살포
-  //    셋 다 없는 글(투자 자랑·시황 과장·수익 인증만 있는 글)을 HIGH 로 올리면 방어할 수 없는 지목이 된다.
-  const gateOpen = categories.contact > 0 || impersonateCombo || clusterAccounts >= SPREAD_GATE_ACCOUNTS;
+  // 대형 계정(언론·인플루언서)은 자동 HIGH 대상에서 제외한다
+  if ((account.followers ?? 0) >= BIG_ACCOUNT_FOLLOWERS) {
+    capAt(NO_CONTACT_CAP, "veto:bigaccount", "대형 계정", `팔로워 ${account.followers}`);
+  }
+
+  // 8) HARD GATE — public-contact evidence is normally required. Exceptions
+  // are a prohibited guarantee and a payment-demand + independent DM tactic;
+  // those are complete solicitations even when copied from a private message.
+  const gateOpen = illegalGuarantee || receivedCombo || categories.contact > 0 || impersonateCombo || clusterAccounts >= SPREAD_GATE_ACCOUNTS;
   if (!gateOpen && score > NO_CONTACT_CAP) {
     reasons.push({
       code: "gate:no-contact",
-      label: `연락채널 유도·기관 사칭 결합·다계정 살포 중 어느 것도 없음 — ${NO_CONTACT_CAP}점으로 상한`,
+      label: "결정적 정황 없음",   // 관문 조건·상한 숫자는 표시하지 않는다 (카이 1791940174, 소현 10-05)
       points: NO_CONTACT_CAP - score,
     });
     score = NO_CONTACT_CAP;
+  }
+
+  // A received-message action plus a weak lure is useful checklist material,
+  // but is not enough to accuse a sender automatically.  This deliberately
+  // promotes only LOW results to REVIEW; all existing HIGH paths still need
+  // their independent corroboration above.
+  const receivedTopic = Object.values(receivedTopics).some(Boolean);
+  const reviewActionVector = receivedActions.link || receivedActions.callback || receivedActions.install || receivedActions.money;
+  const weakReceivedCue = receivedActions.urgency || receivedLure || receivedImpersonation ||
+    tactics.some(t => ["loan", "marketplace", "grant", "crypto", "support", "gift", "toll", "pressure"].includes(t.family));
+  if ((hasReceivedAction && weakReceivedCue || receivedTopic && reviewActionVector) && score < THRESHOLD_REVIEW) {
+    const points = THRESHOLD_REVIEW - score;
+    reasons.push({ code: "received:escalation", label: "받은 메시지의 행동 요청과 약한 유인 정황", points });
+    score = THRESHOLD_REVIEW;
   }
 
   const label: Label = score >= THRESHOLD_HIGH ? "HIGH" : score >= THRESHOLD_REVIEW ? "REVIEW" : "LOW";
@@ -366,12 +480,12 @@ export function scoreText(rawText: string, account: AccountFeatures = {}): Score
   const signalGroups: SignalGroup[] = [
     { code: "normalization", label: "숨긴 글자 복원", active: n.techniques.length > 0, evidence: n.techniques },
     { code: "impersonation", label: "재직·퇴직 사칭 서사", active: impersonateCombo, evidence: reasonEvidence(["impersonate:"]) },
-    { code: "evidence", label: "페이크 증빙 이미지 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "evidence:"]) },
+    { code: "evidence", label: "증빙 언급 정황", active: sawEvidenceImageClaim || visualConfidence >= 0.75, evidence: reasonEvidence(["term:사원증", "term:급여명세", "term:명세서", "term:재직증명", "term:en:evidence:", "evidence:"]) },
     { code: "conversion", label: "투자 유인 전환 구조", active: reasons.some((r) => r.code.startsWith("combo:") || r.code === "cta"), evidence: reasonEvidence(["combo:", "cta"]) },
-    { code: "infrastructure", label: "외부 이동 인프라", active: categories.contact > 0, evidence: reasonEvidence(["term:텔레", "term:카카오", "term:오픈", "acct:lure-link", "pattern:"]) },
+    { code: "infrastructure", label: "외부 이동 인프라", active: categories.contact > 0, evidence: reasonEvidence(["term:텔레", "term:카카오", "term:오픈", "term:telegram", "term:en:contact:", "acct:lure-link", "pattern:"]) },
     { code: "coordination", label: "계정·캠페인 연결", active: clusterAccounts >= 2 || (account.clusterSize ?? 0) >= 3 || (account.distinctTargets ?? 0) >= 3, evidence: reasonEvidence(["spread", "cluster", "spray", "shared-contact"]) },
     { code: "identity", label: "신원·활동 맥락 불일치", active: countryMismatch, evidence: reasonEvidence(["identity:"]) },
   ];
 
-  return { score, label, reasons, matched, categories, normalized: n, needsLlmReview: label === "REVIEW", signalGroups };
+  return { score, label, reasons, matched, categories, normalized: original, needsLlmReview: label === "REVIEW", signalGroups, tactics };
 }

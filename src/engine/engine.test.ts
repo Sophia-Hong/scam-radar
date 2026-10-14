@@ -86,14 +86,19 @@ describe("피해자 맥락", () => {
   });
 });
 
-describe("HARD GATE: 연락채널 없으면 HIGH 불가", () => {
+describe("HARD GATE: 연락채널 없으면 HIGH 불가 (불법 보장 약속 제외)", () => {
   const lureNoContact = "급등주 종목추천 무료로 공개합니다 🚀🚀 수익인증 320% 원금보장 확정수익 선착순 20명 마감임박 지금 바로";
-  it("채널 유도가 없으면 아무리 점수가 높아도 HIGH 가 아니다", () => {
-    const r = scoreText(lureNoContact, { followers: 3, following: 900, createdAt: new Date().toISOString() });
+  it("채널 유도가 없으면 일반 투자 유인은 HIGH 가 아니다", () => {
+    const r = scoreText("급등주 종목추천 무료로 공개합니다 수익인증 320% 선착순 20명 마감임박 지금 바로", { followers: 3, following: 900, createdAt: new Date().toISOString() });
     expect(r.categories.contact).toBe(0);
     expect(r.label).not.toBe("HIGH");
     expect(r.score).toBeLessThanOrEqual(69);
     expect(r.reasons.some((x) => x.code === "gate:no-contact")).toBe(true);
+  });
+  it("원금·수익 보장 약속은 연락처 없이도 HIGH 다", () => {
+    const r = scoreText(lureNoContact);
+    expect(r.label).toBe("HIGH");
+    expect(r.reasons.some((x) => x.code === "guarantee:illegal")).toBe(true);
   });
   it("같은 글에 채널 유도가 붙으면 HIGH 가 된다", () => {
     const r = scoreText(lureNoContact + " 텔레그램 @syn_room 으로 오세요", { followers: 3, following: 900, createdAt: new Date().toISOString() });
@@ -215,7 +220,7 @@ describe("기관 사칭 (2026-09-20 실데이터 후 재설계)", () => {
 });
 
 describe("살포 (clusterAccounts) — 서로 다른 계정의 동일 문구", () => {
-  const noContact = "급등주 종목추천 무료로 공개합니다 🚀🚀 수익인증 320% 원금보장 확정수익 선착순 20명 마감임박 지금 바로";
+  const noContact = "급등주 종목추천 무료로 공개합니다 🚀🚀 수익인증 320% 선착순 20명 마감임박 지금 바로";
   it("계정 3개 이상이 같은 문구를 쓰면 연락채널 없이도 HIGH", () => {
     const solo = scoreText(noContact);
     expect(solo.label).not.toBe("HIGH");

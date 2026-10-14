@@ -1,21 +1,26 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db, hasDb, schema } from "@/db";
+import { isAdminPage } from "@/lib/auth";
+import { SYNTHETIC_IDS_SQL } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClustersPage() {
   if (!hasDb) return <p className="text-sm text-zinc-600">데이터베이스가 연결되지 않았습니다.</p>;
   const d = db();
-  const rows = await d.select().from(schema.clusters).orderBy(desc(schema.clusters.size), desc(schema.clusters.lastSeen)).limit(50);
+  // 공개 열람자에게는 구성원이 전부 합성 계정인 캠페인만
+  const admin = await isAdminPage();
+  const publicOnly = admin ? undefined : sql`not exists (select 1 from posts p where p.cluster_id = ${schema.clusters.id} and p.account_id not in (${SYNTHETIC_IDS_SQL}))`;
+  const rows = await d.select().from(schema.clusters).where(publicOnly).orderBy(desc(schema.clusters.size), desc(schema.clusters.lastSeen)).limit(50);
   const members = await Promise.all(rows.map((c) =>
     d.select({ accountId: schema.posts.accountId, score: schema.posts.score, postUrl: schema.posts.postUrl }).from(schema.posts).where(eq(schema.posts.clusterId, c.id)).limit(20)
   ));
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">캠페인 (유사 문구 묶음)</h1>
-      <p className="text-sm text-zinc-600">문자 3-gram MinHash/LSH 로 묶은 뒤 실제 Jaccard ≥ 0.75 만 남긴 결과입니다.</p>
-      {rows.length === 0 && <p className="text-sm text-zinc-500">아직 클러스터가 없습니다. 게시물이 3건 이상 유사할 때 생성됩니다.</p>}
+      <p className="text-sm text-zinc-600">여러 계정에서 거의 같은 문구로 올라온 글을 한 묶음으로 보여 줍니다.</p>
+      {rows.length === 0 && <p className="text-sm text-zinc-500">아직 묶인 캠페인이 없습니다.</p>}
       <ul className="space-y-3">
         {rows.map((c, i) => (
           <li key={c.id} id={c.id} className="rounded-lg border border-zinc-200 bg-white p-4 text-sm">

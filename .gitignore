@@ -47,3 +47,9 @@ collector/done/*
 !collector/inbox/.gitkeep
 !collector/done/.gitkeep
 logs/
+
+# English eval raw/derived data (see eval/en/data/manifest.json)
+eval/en/data/raw/
+eval/en/data/*.jsonl
+eval/en/out/
+collector/rejected/

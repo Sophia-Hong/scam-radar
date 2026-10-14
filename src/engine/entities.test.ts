@@ -69,6 +69,28 @@ describe("extractEntities — 전화·라인·위챗·링크", () => {
     expect(vals(e, "url")).toEqual(expect.arrayContaining(["linktr.ee/viproom", "bit.ly/3xyz"]));
     expect(e.filter((x) => x.type === "url").every((x) => !isStrongEntity(x.type))).toBe(true);
   });
+  it.each([
+    ["hxxp://example.com/claim", "example.com/claim"],
+    ["hxxps://example.com/claim", "example.com/claim"],
+    ["example[.]com/claim", "example.com/claim"],
+    ["example . com/claim", "example.com/claim"],
+    ["example(dot)com/claim", "example.com/claim"],
+    ["ex\u200bample．com/claim", "example.com/claim"],
+  ])("extracts obfuscated URL: %s", (text, expected) => {
+    expect(vals(extractEntities(text), "url")).toContain(expected);
+  });
+  it.each(["Use e.g. a normal example.", "The price moved from 1.5 to 2.0."])("does not treat normal prose as a URL: %s", text => {
+    expect(vals(extractEntities(text), "url")).toEqual([]);
+  });
+  it("does not extract an email domain as a URL beside an obfuscated link", () => {
+    const entities = extractEntities("info@company.com hxxps://evil[.]com");
+    expect(vals(entities, "email")).toContain("info@company.com");
+    expect(vals(entities, "url")).not.toContain("company.com");
+    expect(vals(entities, "url")).toContain("evil.com");
+  });
+  it("does not turn a bracket-dot email domain into a URL", () => {
+    expect(vals(extractEntities("name@domain[.]com"), "url")).not.toContain("domain.com");
+  });
 });
 
 describe("extractEntities — 일반 핸들·중복·출처", () => {

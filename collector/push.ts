@@ -8,6 +8,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import type { CollectedItem } from "./schema";
+import { partition, type IngestItemResult } from "../src/lib/ingest-outcome";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3000";
 const TOKEN = process.env.INGEST_TOKEN ?? "";
@@ -16,6 +17,9 @@ const MAX_SHOT_BYTES = 3.5 * 1024 * 1024; // Vercel 요청 본문 4.5MB 제한 �
 
 const root = process.argv[2] ?? path.join("collector", "inbox");
 const move = !process.argv[2];
+/** 시드 폴더 *정확히* collector/fixtures 를 올릴 때만 fixture 표식 — 접두어(fixtures-temp 등)는 아님(카이 a40a047, 테오 1791950541) */
+const realOrSelf = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+const FIXTURE = realOrSelf(root) === realOrSelf(path.join("collector", "fixtures"));
 
 function walk(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -58,11 +62,11 @@ function load(file: string): CollectedItem | CollectedItem[] {
 async function send(batch: CollectedItem[]) {
   const res = await fetch(`${API_BASE}/api/ingest`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}) },
+    headers: { "content-type": "application/json", ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}), ...(FIXTURE ? { "x-ingest-source": "fixture" } : {}) },
     body: JSON.stringify(batch),
   });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  return (await res.json()) as { error?: unknown; duplicate?: boolean; accountId?: string; score?: number; label?: string; accountLabel?: string }[];
+  return (await res.json()) as IngestItemResult[];
 }
 
 async function main() {
@@ -71,16 +75,28 @@ async function main() {
   const all = files.flatMap((f) => ({ file: f, items: load(f) })).flatMap((x) => (Array.isArray(x.items) ? x.items : [x.items]).map((it) => ({ file: x.file, it })));
   console.log(`${all.length} items from ${files.length} files → ${API_BASE}`);
   let ok = 0, dup = 0, high = 0;
+  const rejected: { file: string; item: CollectedItem; error: unknown }[] = [];
   for (let i = 0; i < all.length; i += BATCH) {
     const chunk = all.slice(i, i + BATCH);
     const results = await send(chunk.map((c) => c.it));
     results.forEach((r, j) => {
-      const label = r.error ? `ERROR ${JSON.stringify(r.error).slice(0, 120)}` : `${r.duplicate ? "dup " : ""}${r.label} ${r.score} → account ${r.accountId} ${r.accountLabel}`;
+      if (!chunk[j]) return;
+      const label = r.status !== "accepted" || r.error ? `REJECTED ${JSON.stringify(r.error ?? r.status ?? "no status").slice(0, 120)}` : `${r.duplicate ? "dup " : ""}${r.label} ${r.score} → account ${r.accountId} ${r.accountLabel}`;
       console.log(`  ${chunk[j].it.author.handle.padEnd(24)} ${label}`);
-      if (!r.error) { ok++; if (r.duplicate) dup++; if (r.accountLabel === "HIGH") high++; }
+      if (r.status === "accepted" && !r.error) { ok++; if (r.duplicate) dup++; if (r.accountLabel === "HIGH") high++; }
     });
+    for (const x of partition(chunk, results).rejected) rejected.push({ file: x.item.file, item: x.item.it, error: x.error });
   }
-  console.log(`done: ${ok} ok (${dup} dup), ${high} HIGH accounts`);
+  console.log(`done: ${ok} ok (${dup} dup), ${high} HIGH accounts, ${rejected.length} rejected`);
+  if (rejected.length) {
+    // 거부된 항목은 보존하고, 원본 배치는 done/ 으로 옮기지 않는다 — 충돌한 실제 글이 재처리 대기열에서 사라지지 않게(카이 a40a047)
+    const rejDir = path.join("collector", "rejected");
+    fs.mkdirSync(rejDir, { recursive: true });
+    const out = path.join(rejDir, `${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.jsonl`);
+    fs.writeFileSync(out, rejected.map((r) => JSON.stringify({ file: r.file, error: r.error, item: { ...r.item, screenshot: undefined, author: { ...r.item.author, profileScreenshot: undefined } } })).join("\n") + "\n");
+    console.error(`${rejected.length} rejected → ${out} (원본 배치는 그대로 둠)`);
+    process.exit(2);
+  }
   if (move) {
     const doneDir = path.join("collector", "done", new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-"));
     fs.mkdirSync(doneDir, { recursive: true });

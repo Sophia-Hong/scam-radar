@@ -1,0 +1,444 @@
+/**
+ * 공개 화면 문구 한영 정본 — 홈(LiveAnalyzer·판독 기준)·nav·footer.
+ * - 규칙(조건·임계값·가점)은 어느 언어로도 쓰지 않는다 — 신호의 *종류*만 (소현 10-05, 테오 10-14).
+ * - 사람 검토자·"확정 N건" 같은 표현은 쓰지 않는다 (소현 10-14 1791942256).
+ * - 단정하지 않는다: "사기입니다" 대신 "~일 수 있어요/주의" — 업무방해·명예훼손 위험 (소현 10-14 1791943017). 법무 문구 검토 = 율(#compliance).
+ * - 첫 화면은 누구나(특히 어르신) 쓴다: 큰 입력칸 하나 + 버튼 하나. "소중한 사람에게 보내기"로 링크를 보낸다 (소현 1791943795).
+ * - 결과 문구 = 율 최종(#compliance 1791943988, 소현 O). [검토 요청]은 뺐다(소현).
+ */
+export type Lang = "ko" | "en";
+export type Level = "HIGH" | "REVIEW" | "LOW";
+export type GroupCode = "normalization" | "impersonation" | "evidence" | "conversion" | "infrastructure" | "coordination" | "identity";
+import type { SignId } from "./result-view";
+
+export function langFrom(cookie: string | undefined, acceptLanguage: string | null | undefined): Lang {
+  if (cookie === "ko" || cookie === "en") return cookie;
+  return /^\s*ko\b/i.test(acceptLanguage ?? "") ? "ko" : "en";
+}
+
+const ko = {
+  meta: { title: "Scam Radar — 돈 보내기 전에 확인", description: "받은 투자 권유 글·링크·계정을 넣으면 위험 신호가 있는지, 어떤 점이 이상한지, 지금 무엇을 하면 되는지 쉬운 말로 알려 드립니다. 자동 분석은 참고용이며 법적 판단이 아닙니다." },
+  layout: { navCheck: "확인하기", navCriteria: "무엇을 보나", navCta: "지금 확인", footer: "자동 분석 결과는 참고용이며 법적 판단이 아닙니다. 특정 계정이나 사람을 사기로 단정하지 않습니다." },
+  family: {
+    lead: "누구나 이상한 투자 권유를 받을 수 있어요. 소중한 사람에게 이 페이지를 보내 주세요.",
+    button: "소중한 사람에게 보내기",
+    text: "이상한 투자 권유나 링크 받으면 여기 먼저 넣어 보세요. 의심되는 문자를 길게 눌러 복사한 뒤, 이 링크에 들어가 붙여넣기 하세요.",   // 테오 1791956461
+    copied: "링크를 복사했어요. 메신저에 붙여넣어 보내세요.",
+    failed: "복사하지 못했어요. 주소창의 링크를 복사해 주세요.",
+  },
+  hero: {
+    title: "돈 보내기 전에, 받은 글을 여기 넣어 보세요",
+    steps: ["받은 문자 길게 누르기 → 복사", "아래 칸에 붙여넣기", "[확인하기] 누르기"],
+    upload: "캡처 올리기",   // 테오 1791958372
+    uploadNote: "다른 사람의 얼굴·이름·번호는 가리고 올려 주세요. 신분증·카드 사진은 올리지 마세요.",   // 율 1791958415(§24의2)
+    uploadOff: "캡처는 AI로만 확인할 수 있어요. 여기서는 글만 넣을 수 있어요.",   // 율 1791958415
+    uploadRemove: "빼기",
+    uploadTooMany: "캡처는 3장까지 올릴 수 있어요.",
+    uploadTooBig: "5MB보다 큰 사진은 올릴 수 없어요.",
+    uploadBad: "사진 파일만 올릴 수 있어요.",
+    uploadOnly: "올린 캡처를 AI가 확인하고 있어요.",   // 노인 첫 화면 1·2·3(카이·테오 1791956461)
+    placeholder: "의심 가는 글·링크를 붙여 넣으세요\n\n예) 받은 카톡·문자 메시지, 텔레그램 링크, SNS 글",
+    aria: "확인할 글, 링크 또는 계정",
+    check: "확인하기",
+    checking: "확인 중…",
+    sample: "예시로 해 보기",
+    clear: "지우기",
+    demo: "예시 계정 보기",
+    scope: "받은 메시지, 텔레그램 같은 메신저 링크, SNS 글을 확인할 수 있어요.",
+  },
+  // 국외 이전 고지(개인정보 보호법 §28-8, 율 #compliance 1791950335·1791951502 최종 · 테오 1791950346). 보관·나라는 두 회사 현재 문서 원문에서(율 대조)
+  notice: {
+    lead: "넣은 글과 캡처는 저장하지 않아요. 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 글 속 전화번호·계좌번호·이메일은 가리지만, 캡처는 가릴 수 없어서 그대로 보내요. 보내기 싫으면",   // 율 1791958415(캡처)
+    aiOffButton: "AI 없이 확인",
+    leadTail: "을 쓰세요.",
+    more: "자세히",
+    aiOffOn: "AI 없이 확인하는 중이에요 — 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요(AI 확인·신고 수 조회 없음). 직접 신고할 때만 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명을 보내요.",
+    aiOffUndo: "AI 확인 다시 켜기",
+    details: [
+      ["보내는 것", "다시 확인할 글. 전화번호·계좌번호·이메일은 가린 뒤 보내요(번호는 끝 4자리 정도만, 이메일은 첫 글자 정도만 남아요). 글 속 이름·메신저 아이디·링크는 그대로 갈 수 있고, 모양이 특이한 번호는 못 가릴 수도 있어요. 올린 캡처(그대로 — 캡처에 찍힌 이름·번호·얼굴도 같이 가요). 판정이 끝나면 바로 버리고 저장하지 않아요."],   // 율 OK 1791956132 — 코드(maskForAi 일반·대표번호)와 같은 커밋
+      ["받는 곳", "Anthropic, PBC (미국 회사 · privacy@anthropic.com)"],
+      ["나라", "저장은 미국. 처리는 미국·유럽·아시아·호주의 일부 나라에서 할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996890)"],
+      ["거쳐 가는 곳", "Vercel Inc. (미국 회사, AI Gateway · privacy@vercel.com)"],
+      ["언제·어떻게", "글을 넣을 때마다 바로, 암호화 통신(HTTPS)으로"],
+      ["목적", "사기 신호 확인"],
+      ["보관", "저희 서버에는 원문이 남지 않아요(판정 결과와 체크 항목만 저장). Anthropic은 받은 지 30일 안에 자동으로 지워요. 이용 정책 위반으로 걸린 글은 최대 2년, 법이 정하면 더 길게 보관할 수 있어요 (Anthropic 안내 privacy.claude.com/en/articles/7996866). Vercel AI Gateway는 요청이 끝나면 바로 영구 삭제하고 프롬프트·출력을 보관하지 않아요 (Vercel 문서 vercel.com/docs/ai-gateway/security-and-compliance/zdr)"],
+      ["거부", "‘AI 없이 확인’을 쓰면 넣은 글이 브라우저 밖으로 나가지 않아요. 대신 놓치는 사기가 많을 수 있어요."],
+    ] as [string, string][],
+  },
+  status: {
+    known: (h: string, posts: number) => `@${h} 계정의 글 ${posts}건을 확인했어요.`,
+    report: "자세한 리포트 →",
+    noRecord: (h: string) => `@${h} 계정은 아직 확인한 기록이 없어요. 안전하다는 뜻은 아니에요 — 이 계정에서 받은 글을 붙여 넣어 보세요.`,
+    open: "계정 열기 ↗",
+    demoFail: "합성 데모 계정을 지금 불러오지 못해 예시 글로 대신 보여 드려요.",
+  },
+  result: {
+    level: { HIGH: "위험 신호 높음", REVIEW: "위험 신호 중간", LOW: "위험 신호 낮음" } as Record<Level, string>,
+    banner: {
+      HIGH: { title: "사기일 수 있어요.", sub: "돈을 보내지 마세요. 먼저 가족이나 은행에 물어보세요." },   // 율 OK 1791956479
+      REVIEW: { title: "조심하세요.", sub: "돈을 보내기 전에 가족이나 은행에 먼저 물어보세요." },
+      LOW: { title: "뚜렷한 위험 신호는 못 찾았어요.", sub: "그래도 돈 이야기가 나오면 가족이나 은행에 먼저 물어보세요." },
+    } as Record<Level, { title: string; sub: string }>,
+    aiUnavailable: "지금은 AI 확인을 못 해서 AI 없이 확인한 결과예요. 놓치는 사기가 많을 수 있어요.",   // 율 1791957681
+    engine: { checking: "AI가 확인 중…", applied: "AI 확인 반영", error: "AI 확인 못 함", rule: "자동 분석", limited: "오늘 검사 횟수를 다 썼어요. 내일 다시 해 주세요" },
+    limited: "오늘 검사 횟수를 다 썼어요. 내일 다시 해 주세요.",
+    signsTitle: "이런 점이 이상해요",
+    noSigns: "뚜렷한 위험 신호는 찾지 못했어요.",
+    // 문장 id → [사실, 왜 조심하나] (율 최종 1791943988·1791944215, sharedContact·repeatSelf 율 OK 1791947465). 매핑은 lib/result-view.ts signIds
+    signs: {
+      guarantee: ["‘원금 보장’이라고 써 있어요.", "투자는 돈을 잃을 수 있어요. ‘절대 안 잃는다’는 말은 사기에서 자주 나와요."],
+      profitProof: ["번 돈을 보여 준다는 '수익 인증'을 내세워요.", "이런 사진은 AI로 쉽게 만들 수 있어요. 돈을 보내기 전에 반드시 다시 확인하세요."],   // 소현 #today-hq 1791954291, 율 OK 1791954325
+      withdrawal: ["돈을 찾으려면 세금·수수료·보증금을 먼저 내라고 해요.", "이 말을 듣고 보낸 돈은 돌려받지 못하는 일이 많아요."],
+      secrecy: ["비밀로 하라고 하거나, 은행에서 물으면 뭐라고 말할지 시켜요.", "가족이나 은행이 말릴까 봐 그러는 거예요. 사기에서 아주 자주 나와요."],
+      appInstall: ["앱을 깔라고 하거나 링크로 설치하라고 해요.", "모르는 앱을 깔면 남이 내 폰을 조종하거나 돈을 빼 갈 수 있어요."],
+      familyNewNumber: ["가족이라며 폰이 고장 나 새 번호라고 하고, 돈·상품권·신분증 사진을 달라고 해요.", "먼저 원래 번호로 전화해서 진짜 가족인지 확인하세요."],
+      deliveryLink: ["택배회사나 관공서라며 링크를 누르거나 전화하라고 해요.", "문자 속 링크나 번호는 쓰지 말고, 그곳 번호를 직접 찾아서 확인하세요."],
+      loanFee: ["싼 이자로 바꿔 준다며 지금 대출을 먼저 갚거나 수수료를 내라고 해요.", "대출을 도와준다며 수수료를 받는 건 법으로 금지예요. 돈을 보내기 전에 원래 은행에 직접 전화하세요."],
+      sideJob: ["조금만 일해도 큰돈을 준다는 부업·알바예요.", "처음엔 조금 주다가 나중에 내 돈을 넣게 하는 일이 많아요."],
+      conversion: ["큰 수익이나 공짜 정보를 주겠다며 지금 하라고 해요.", "서두르게 하는 말은 생각할 시간을 빼앗아요."],
+      telegram: ["텔레그램 같은 채팅방으로 오라고 해요.", "사기는 이렇게 모르는 방으로 데려가는 일이 많아요."],
+      chatRoom: ["모르는 채팅방으로 오라고 해요.", "사기는 이렇게 다른 방으로 데려가서 돈 얘기를 해요."],
+      impersonation: ["증권사나 큰 회사 직원이라고 소개해요.", "진짜 직원이 SNS에서 모르는 사람에게 투자 정보를 주는 일은 거의 없어요."],
+      evidence: ["사원증이나 월급명세서 같은 ‘증거’를 보여 줘요.", "이런 사진은 쉽게 꾸며 만들 수 있어요."],
+      spreadAccounts: ["똑같은 글이 여러 계정에 올라와 있어요.", "사기 글은 이렇게 여러 계정에 뿌려지는 일이 많아요."],
+      sharedContact: ["같은 연락처를 쓰는 다른 계정이 있어요.", "사기에서는 여러 계정을 만들어 한 연락처로 사람을 모으기도 해요."],
+      repeatSelf: ["같은 글을 여러 번 되풀이해 올렸어요.", "사기 글은 이렇게 반복해서 뿌려지는 일이 많아요."],
+      normalization: ["글자를 일부러 이상하게 바꿔 썼어요.", "검사를 피하려고 이렇게 쓰는 일이 많아요."],
+      identity: ["글의 자기소개와 계정 정보가 서로 달라요.", "사는 곳이나 하는 일을 꾸며 낸 경우가 있어요."],
+      fallback: ["사기 글에서 자주 보이는 말이 여러 개 있어요.", "돈 이야기가 나오면 한 번 더 확인하세요."],
+    } as Record<SignId, [string, string]>,
+    similar: (n: number) => `비슷한 글을 조심하라는 신고 ${n}건`,
+    // 모든 결과 화면에 위험도와 상관없이 똑같이 — 계정 이야기가 아니라 일반 안내 (율 1791944215). 출처 표기는 금감원 원문 대조 뒤
+    aiProofNote: "수익 인증 사진·영상은 AI로 쉽게 만들 수 있어요. 믿기 전에 다시 확인하세요.",   // 모든 결과 화면 일반 안내(율 OK 1791954325)
+    stopTitle: "이런 말을 들으면 멈추세요",
+    stop: [
+      "‘아무한테도 말하지 마세요’라고 하면 조심하세요. 사기는 가족이 말릴까 봐 비밀로 하라고 해요.",
+      "번 돈을 찾으려는데 세금이나 수수료를 먼저 내라고 하면, 돈을 더 보내지 마세요. 사기에서 아주 자주 쓰는 말이에요.",
+    ],
+    // 한국 번호라 한국어 화면에만(테오 1791951943, 율 1791951936)
+    stopFooter: "이상하면 돈 보내지 말고 112(경찰)나 1332(금융감독원)에 전화하세요.",
+    todoTitle: "이렇게 하세요",
+    todo: {
+      HIGH: [
+        "돈을 보내지 마세요. 앱이나 파일도 설치하지 마세요.",
+        "보내기 전에 가족에게 이 화면을 먼저 보여 주세요.",
+        "이미 보냈다면 바로 은행이나 112에 전화해 지급정지를 요청하세요.",
+      ],
+      REVIEW: [
+        "확인하기 전에는 돈을 보내지 마세요.",
+        "가족에게 먼저 보여 주세요.",
+        "투자 업체라면 금융감독원 ‘파인’(fine.fss.or.kr)에서 등록된 곳인지 확인하세요.",
+      ],
+      LOW: [
+        "돈 이야기가 나오면 보내기 전에 가족에게 먼저 물어보세요.",
+        "투자 권유라면 금융감독원 ‘파인’에서 등록된 곳인지 확인하세요.",
+      ],
+    } as Record<Level, string[]>,
+    reportTo: "상담·신고",
+    reportLinks: [
+      { name: "금융감독원 1332", url: "tel:1332" },
+      { name: "경찰 112", url: "tel:112" },
+      { name: "사이버범죄 신고(ECRM)", url: "https://ecrm.police.go.kr/minwon/main" },
+    ],
+    disclaimer: "이 화면은 컴퓨터가 글을 자동으로 살펴본 결과예요. 이 사람이 사기를 쳤다고 정한 것은 아니에요.",
+    details: "자세한 근거 보기",
+    detailsNote: "근거 이름과 인용은 엔진이 본 원문 표현입니다.",
+    contactLine: "",   // 소현 답 대기: "잘못 표시됐으면: 메일주소" 한 줄 (율 1791943988)
+    empty: "위 칸에 받은 글이나 링크를 넣고 ‘확인하기’를 눌러 주세요.",
+  },
+  community: {
+    warn: (n: number, type: string) => `이 ${type === "threads" || type === "handle" ? "계정을" : type === "url" ? "링크를" : "연락처를"} 조심하라는 신고 ${n}건`,
+    warnNote: "(저희가 확인한 건 아니에요)",
+    button: "피해를 당했어요 · 신고하기",
+    title: "주의 대상으로 신고",
+    lead: "서로 다른 곳에서 신고가 여러 건 모이면, 같은 계정·링크·연락처나 비슷한 글을 확인하는 다음 사람에게 ‘조심하라는 신고 N건’으로 보입니다.",
+    textOption: "받은 글도 함께 신고 (글은 저장하지 않고, 비슷한 글을 알아보는 서명만 저장)",
+    privacy: "넣은 글과 내 정보는 저장하지 않습니다. 한곳에서 여러 번 신고해도 1건으로 세요. 허위 신고는 다른 사람에게 피해를 줄 수 있어요.",
+    none: "신고할 계정·링크·연락처나 글이 없어요.",
+    submit: "신고하기",
+    aiOffConfirm: "‘AI 없이 확인’ 중이에요. 신고하면 고른 연락처·링크·계정, 그리고 (고른 경우) 글의 유사도 서명이 저희 서버로 가요. 보낼까요?",
+    sending: "신고 중…",
+    cancel: "닫기",
+    done: "신고했어요. 서로 다른 곳에서 신고가 여러 건 모이면 다음 사람에게 주의 표시로 보입니다.",
+    limited: "잠시 후 다시 시도해 주세요. 신고는 시간당 횟수가 정해져 있어요.",
+    failed: "지금은 신고할 수 없어요. 잠시 후 다시 시도해 주세요.",
+    textKey: "받은 글(서명만)",
+    kind: { threads: "Threads 계정", telegram: "텔레그램", kakao_open: "카카오 오픈채팅", kakao_channel: "카카오톡/채널", phone: "전화번호", handle: "아이디", url: "링크", line: "라인", wechat: "위챗", whatsapp: "왓츠앱", signal: "시그널", email: "이메일" } as Record<string, string>,
+  },
+  report: {
+    kicker: "투자 유인 신호 · 참고 리포트",
+    generated: "생성",
+    print: "인쇄/PDF",
+    s1: "1. 대상 계정", platform: "플랫폼 / 계정명", url: "계정 URL", bio: "프로필 소개", ext: "프로필 외부 링크", follow: "팔로워 / 팔로잉", created: "계정 생성일", unknown: "미확인", capture: "프로필 캡처",
+    s2: "2. 일시",
+    timeline: (first: string, last: string, posts: number, targets: number) => `최초 관측 ${first} · 최근 관측 ${last} · 게시물/댓글 ${posts}건 · 댓글이 달린 서로 다른 원글 ${targets}개`,
+    s3: "3. 내용 요약 (관측 사실)", byTemplate: "작성: 템플릿(규칙 기반)", byAi: (m: string) => `작성: AI(${m}) 초안`, summaryNote: "",
+    s4: "4. 유도 수단 (연락처·링크)", noContacts: "본문·프로필에서 식별된 연락처가 없습니다.",
+    source: { text: "본문", bio: "프로필 소개", externalUrl: "프로필 링크" } as Record<string, string>,
+    linked: (n: number) => `같은 연락처를 쓰는 다른 계정 (${n})`, noLinked: "현재까지 수집된 범위에서는 없습니다.",
+    s5: "5. 증거 (게시물 캡처)", evidence: (i: number) => `증거 ${i}`, comment: "댓글", post: "게시물", posted: "게시", captured: "캡처", parent: "원글", obf: "난독화", campaign: "동일 문구 캠페인",
+    s6: "6. 감지된 신호와 설명",
+    s7: "7. 신고처",
+    filing: {} as Record<string, { name: string; note: string }>,
+    noDb: "데이터베이스가 연결되지 않았습니다.",
+    enSignsNote: "",
+  },
+  reasons: {
+    none: "감지된 신호 없음",
+    head: (n: number) => `신호 ${n}개 · 항목별로 무엇이 감지됐고 왜 계산에 들어갔는지 풀어서 적었습니다. 판단은 읽는 분이 합니다.`,
+    eased: "완화", what: "무엇이 감지됐나", why: "왜 신호가 되나", example: "실제로는 이렇게 쓰인다", benign: "신호가 아닐 때", more: "자세히 보기", sourceNote: "",
+  },
+  analyze: {
+    title: "텍스트 분석",
+    lead: "게시물·댓글을 붙여 넣으면 어떤 신호가 있는지 바로 계산합니다.",
+    notice: "이 페이지는 AI를 쓰지 않아요. 입력한 글은 브라우저 밖으로 나가지 않아요. (홈 화면에서는 넣은 글을 모두 미국 AI 회사(Anthropic)에 보내 확인해요. 보내기 전에 전화번호·계좌번호·이메일은 가려요.)",
+    followers: "팔로워 수(선택)", cluster: "동일 문구 반복 수(선택)", spread: "같은 문구 쓴 계정 수(선택)",
+    sample: (i: number) => `샘플 ${i}`,
+    normalized: "정규화 결과", noObf: "난독화 없음", ratio: (n: number) => `변형률 ${n}%`,
+    ai: "홈 화면에서는 넣은 글을 모두 AI가 확인합니다. 서버 수집 파이프라인에서는 일부 글을 AI가 다시 볼 수 있습니다. 이 페이지는 AI를 쓰지 않습니다.",
+    samples: [
+      "급등주 종목 무료로 공개합니다 🚀🚀 수익인증 300% 선착순 20명 ㅌㄹㄱㄹ @stock_king77",
+      "요즘 물린 분들 많죠? 복구 도와드려요. 프로필 링크 참고하세요 Ｔеlеgrаm 문의",
+      "텔.레.그.램 무료 리딩방 입장 → t.me/vipstock77 원금보장 마감임박",
+      "대신증권 재직중입니다. 사원증 인증 사진 올려요. 요즘 장 흐름이랑 종목 정보 필요하신 분 댓글 남겨주세요, 제가 직접 상담해 드릴게요",
+      "오늘 삼성전자 좀 올랐네요. 다들 어떻게 보세요?",
+    ],
+  },
+  status3: { HIGH: "위험 신호 높음", REVIEW: "위험 신호 중간", LOW: "위험 신호 낮음", UNKNOWN: "기록 없음", signals: (n: number) => `신호 ${n}` } as { HIGH: string; REVIEW: string; LOW: string; UNKNOWN: string; signals: (n: number) => string },
+  criteria: {
+    kicker: "무엇을 보나",
+    title1: "사기 유인 신호",
+    title2: " 판독 단계",
+    lead: "어떤 종류의 신호를 보는지만 공개합니다. 점수 계산 방식과 기준값은 공개하지 않습니다.",
+    fold: "어떻게 판단하나요?",   // 기본 접힘(테오 1791956699)
+    badge: "입력이 같으면 결과도 같음",   // 한국어 화면에 영어 기술 라벨 없음(테오 1791956699)
+    aria: "판독 7단계",
+    steps: [
+      { label: "", title: "숨긴 글자 복원", description: "글자를 가리거나 바꿔 쓴 표기를 같은 글자로 되돌려 봅니다.", chips: ["표기 변형 복원"] },
+      { label: "", title: "기관·직업 주장", description: "기관이나 직업을 내세우는 이야기가 있는지 봅니다.", chips: ["기관·직업 주장"] },
+      { label: "", title: "증빙 언급 정황", description: "사원증·재직증명·급여명세 같은 증빙을 내세우는 표현이 글에 있는지 봅니다. 증빙의 진위를 판별하지는 않습니다.", chips: ["글 속 증빙 언급", "진위 판별 아님"] },
+      { label: "", title: "투자 유인", description: "수익이나 정보를 미끼로 다음 행동을 요구하는 글인지 봅니다.", chips: ["수익 미끼", "행동 유도"] },
+      { label: "", title: "외부 이동 안내", description: "다른 채널로 옮기자는 안내가 있는지, 같은 연락처를 쓰는 계정이 있는지 봅니다.", chips: ["외부 채널 안내", "공유 연락처"] },
+      { label: "", title: "계정·캠페인 연결", description: "비슷한 글이 여러 계정에서 반복되는지, 이용자들이 신고한 글과 비슷한지 봅니다.", chips: ["반복 게시", "다계정", "이용자 신고"] },
+      { label: "", title: "맥락·오탐 방어", description: "피해 후기·경고·뉴스 같은 정상 맥락은 신호로 세지 않으려 합니다.", chips: ["피해·경고 맥락", "정상 활동"] },
+    ],
+    closing: "보내기 전에, 한 번 확인.",
+    closingLink: "다른 글 확인하기 ↑",
+  },
+};
+
+export type Strings = typeof ko;
+
+const en: Strings = {
+  meta: { title: "Scam Radar — check before you send money", description: "Paste an investment pitch, link or account you received. Scam Radar shows in plain words whether it has warning signs, what looks unusual, and what to do now. Automated analysis for reference only, not a legal judgment." },
+  layout: { navCheck: "Check", navCriteria: "What we look at", navCta: "Check now", footer: "Automated analysis for reference only. Not a legal judgment, and it does not say that any account or person is a scammer." },
+  family: {
+    lead: "Anyone can get a strange investment offer. Send this page to someone you care about.",
+    button: "Share with someone you care about",
+    text: "Got a strange investment tip or link? Check it here first. Press and hold the suspicious message to copy it, then open this link and paste it.",
+    copied: "Link copied. Paste it into a chat to send.",
+    failed: "Couldn't copy. Please copy the link from the address bar.",
+  },
+  hero: {
+    title: "Before you send money, paste what you received here",
+    steps: ["Press and hold the message you got → Copy", "Paste it in the box below", "Tap [Check]"],
+    upload: "Upload screenshots",
+    uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
+    uploadOff: "Screenshots can only be checked with AI. Here you can paste text only.",
+    uploadRemove: "Remove",
+    uploadTooMany: "You can upload up to 3 screenshots.",
+    uploadTooBig: "Photos over 5MB can't be uploaded.",
+    uploadBad: "Only image files can be uploaded.",
+    uploadOnly: "AI is checking your screenshots.",
+    placeholder: "Paste the suspicious message or link\n\ne.g. a chat or text message, a Telegram link, a social media post",
+    aria: "Message, link or account to check",
+    check: "Check",
+    checking: "Checking…",
+    sample: "Try an example",
+    clear: "Clear",
+    demo: "See an example account",
+    scope: "Works with messages you got, Telegram and other messenger links, and social media posts.",
+  },
+  notice: {
+    lead: "We don't store what you paste or upload. Everything is sent to a US AI company (Anthropic) to be checked. Phone numbers, account numbers and emails in text are masked, but screenshots can't be masked and are sent as they are. If you don't want that, use",
+    aiOffButton: "Check without AI",
+    leadTail: ".",
+    more: "Details",
+    aiOffOn: "Checking without AI — your text never leaves your browser, but more scams may be missed (no AI check, no report counts). Only if you choose to report do we send the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message.",
+    aiOffUndo: "Turn the AI check back on",
+    details: [
+      ["What is sent", "The message to be re-checked. Phone numbers, account numbers and emails are masked first (roughly the last 4 digits of numbers and the first letter of emails remain). Names, messenger IDs and links may still be sent, and unusual number formats may not be caught. Screenshots you upload, as they are (names, numbers and faces in them are sent too). Discarded right after the check; never stored."],
+      ["Recipient", "Anthropic, PBC (US company · privacy@anthropic.com)"],
+      ["Country", "Stored in the US; may be processed in select countries in the US, Europe, Asia and Australia (Anthropic: privacy.claude.com/en/articles/7996890)"],
+      ["Passes through", "Vercel Inc. (US company, AI Gateway · privacy@vercel.com)"],
+      ["When and how", "Each time you paste, right away, over an encrypted connection (HTTPS)"],
+      ["Purpose", "Checking for scam signs"],
+      ["Retention", "Our servers keep no original text (only the verdict and checklist items). Anthropic: deleted within 30 days of receipt; up to 2 years if flagged for a usage-policy violation, or longer if the law requires (privacy.claude.com/en/articles/7996866). Vercel AI Gateway: user data is immediately and permanently deleted after requests are completed; prompts and outputs are not retained (vercel.com/docs/ai-gateway/security-and-compliance/zdr)"],
+      ["Opt out", "Use “Check without AI”: your text never leaves your browser, but more scams may be missed."],
+    ],
+  },
+  status: {
+    known: (h: string, posts: number) => `Checked ${posts} posts from @${h}.`,
+    report: "Full report →",
+    noRecord: (h: string) => `We have no record of @${h} yet. That does not mean it is safe — paste a message you got from this account.`,
+    open: "Open account ↗",
+    demoFail: "We couldn't load the synthetic demo account, so here is an example message instead.",
+  },
+  result: {
+    level: { HIGH: "Warning signs: high", REVIEW: "Warning signs: medium", LOW: "Warning signs: low" },
+    banner: {
+      HIGH: { title: "This could be a scam.", sub: "Do not send money. Ask your family or your bank first." },
+      REVIEW: { title: "Be careful.", sub: "Before you send money, ask your family or your bank first." },
+      LOW: { title: "No clear warning signs found.", sub: "If money comes up, still ask your family or your bank first." },
+    },
+    aiUnavailable: "AI checking is unavailable right now, so this result is without AI. More scams may be missed.",
+    engine: { checking: "AI is checking…", applied: "AI check applied", error: "AI check unavailable", rule: "Automated check", limited: "You've used today's checks. Please try again tomorrow" },
+    limited: "You've used today's checks. Please try again tomorrow.",
+    signsTitle: "What looks wrong",
+    noSigns: "No clear warning signs found.",
+    signs: {
+      guarantee: ["It says “guaranteed.”", "Investing can lose money. Scams often promise you can't lose."],
+      profitProof: ["It points to 'proof of profit' screenshots.", "Pictures like these can easily be made with AI. Check again before you send money."],
+      withdrawal: ["It says you must pay a tax, fee or deposit before you can take your money out.", "People who pay this often never get their money back."],
+      secrecy: ["It tells you to keep this secret, or tells you what to say if the bank asks.", "Scammers do this so your family or bank can't stop you."],
+      appInstall: ["It asks you to install an app, or to install one from a link.", "An unknown app can let someone control your phone or take your money."],
+      familyNewNumber: ["It says it is a family member with a broken phone and a new number, and asks for money, gift cards or a photo of your ID.", "Call their old number first to check it is really them."],
+      deliveryLink: ["It says it is from a delivery company or a government office and asks you to tap a link or call.", "Don't use the link or number in the message. Look up the real number yourself."],
+      loanFee: ["It offers a lower-interest loan, but asks you to pay off your current loan or pay a fee first.", "Asking for a fee before a loan is a common scam. Call your own bank directly before paying anything."],
+      sideJob: ["It offers big money for a little work, like a side job or writing reviews.", "These often pay a little at first, then ask you to put in your own money."],
+      conversion: ["It offers big profits or free tips and tells you to act now.", "Rushing you leaves no time to think."],
+      telegram: ["It asks you to move to a chat app like Telegram.", "Scams often pull you into a private chat."],
+      chatRoom: ["It asks you to join a chat room you don't know.", "Scams often move you to another chat to talk about money."],
+      impersonation: ["It says the writer works at a brokerage or big company.", "Real employees rarely give investment tips to strangers online."],
+      evidence: ["It shows “proof” like a staff ID or pay slip.", "Pictures like these are easy to fake."],
+      spreadAccounts: ["The same text appears on many accounts.", "Scam posts are often spread this way."],
+      sharedContact: ["Another account uses the same contact.", "In scams, several accounts sometimes gather people through one contact."],
+      repeatSelf: ["This account posted the same message many times.", "Scam posts are often spread like this, over and over."],
+      normalization: ["Some letters are changed on purpose.", "This is often done to slip past filters."],
+      identity: ["The self-introduction doesn't match the account details.", "Where someone lives or works is sometimes made up."],
+      fallback: ["It uses several phrases common in scam messages.", "Double-check before any money is involved."],
+    },
+    similar: (n: number) => `${n} reports about messages like this`,
+    aiProofNote: "Profit photos and videos can easily be made with AI. Check again before you believe them.",
+    stopTitle: "Stop if you hear this",
+    stop: [
+      "If they tell you not to tell anyone, be careful. Scams ask you to keep it secret so your family can't stop you.",
+      "If you must pay a tax or fee before you can take your money out, don't send more money. Scams use this a lot.",
+    ],
+    stopFooter: "",
+    todoTitle: "What to do",
+    todo: {
+      HIGH: [
+        "Do not send money. Do not install any app or file.",
+        "Show this screen to a family member before you do anything.",
+        "Already paid? Call your bank (or 112 in Korea) now and ask them to stop the transfer.",
+      ],
+      REVIEW: [
+        "Don't send money until you have checked.",
+        "Show it to a family member first.",
+        "If it's an investment firm, check it is registered (Korea: FSS “FINE”, fine.fss.or.kr).",
+      ],
+      LOW: [
+        "If money comes up, ask a family member before you send anything.",
+        "For any investment pitch, check the firm is registered first.",
+      ],
+    },
+    reportTo: "Get help",
+    reportLinks: [
+      { name: "FSS hotline 1332 (Korea)", url: "tel:1332" },
+      { name: "Police 112 (Korea)", url: "tel:112" },
+      { name: "Cybercrime report (ECRM)", url: "https://ecrm.police.go.kr/minwon/main" },
+    ],
+    disclaimer: "A computer checked these posts automatically. This does not mean this person committed fraud.",
+    details: "See the detailed signals",
+    detailsNote: "Signal names and quotes come from the engine's original-language analysis.",
+    contactLine: "",
+    empty: "Paste a message or link above and press “Check”.",
+  },
+  community: {
+    warn: (n: number, type: string) => `${n} reports about this ${type === "threads" || type === "handle" ? "account" : type === "url" ? "link" : "contact"}`,
+    warnNote: "(we have not checked these reports)",
+    button: "I was scammed · report it",
+    title: "Report as suspicious",
+    lead: "Once there are several reports from different places, the next person who checks the same account, link or contact — or a similar message — will see “N reports about this”.",
+    textOption: "Also report the message (we keep only a similarity signature, not the text)",
+    privacy: "We do not store what you pasted or who you are. Several reports from the same place count as 1. False reports can harm others.",
+    none: "There is no account, link, contact or message to report.",
+    submit: "Report",
+    aiOffConfirm: "You are checking without AI. Reporting sends the contacts, links and accounts you selected, and (if chosen) a similarity signature of the message, to our server. Send?",
+    sending: "Reporting…",
+    cancel: "Close",
+    done: "Reported. Once there are several reports from different places, the next person will see a caution.",
+    limited: "Please try again later — reports are limited per hour.",
+    failed: "We couldn't send the report right now. Please try again shortly.",
+    textKey: "The message (signature only)",
+    kind: { threads: "Threads account", telegram: "Telegram", kakao_open: "KakaoTalk open chat", kakao_channel: "KakaoTalk channel", phone: "Phone", handle: "Username", url: "Link", line: "LINE", wechat: "WeChat", whatsapp: "WhatsApp", signal: "Signal", email: "Email" },
+  },
+  report: {
+    kicker: "Investment-lure signals · reference report",
+    generated: "Generated",
+    print: "Print / PDF",
+    s1: "1. Account", platform: "Platform / username", url: "Account URL", bio: "Profile bio", ext: "Profile link", follow: "Followers / following", created: "Account created", unknown: "Unknown", capture: "Profile capture",
+    s2: "2. Timeline",
+    timeline: (first: string, last: string, posts: number, targets: number) => `First seen ${first} · last seen ${last} · ${posts} posts/comments · ${targets} different posts commented on`,
+    s3: "3. Summary (observed facts)", byTemplate: "Written by: template (rule-based)", byAi: (m: string) => `Written by: AI draft (${m})`, summaryNote: "The summary is generated in Korean from the original posts.",
+    s4: "4. Contacts and links used", noContacts: "No contacts were found in the posts or profile.",
+    source: { text: "post", bio: "profile bio", externalUrl: "profile link" },
+    linked: (n: number) => `Other accounts using the same contact (${n})`, noLinked: "None in the data collected so far.",
+    s5: "5. Evidence (post captures)", evidence: (i: number) => `Evidence ${i}`, comment: "Comment", post: "Post", posted: "posted", captured: "captured", parent: "Original post", obf: "Disguised text", campaign: "Same-text campaign",
+    s6: "6. Signals found and what they mean",
+    s7: "7. Where to report",
+    filing: {
+      "https://ecrm.police.go.kr/minwon/main": { name: "Korean National Police cybercrime report (ECRM)", note: "Cyber fraud → other. Attach this report's JSON or captures." },
+      "https://www.fss.or.kr/fss/main/contents.do?menuNo=200168": { name: "Financial Supervisory Service — illegal finance report", note: "For unregistered investment advice." },
+      "tel:1332": { name: "Financial Supervisory Service hotline 1332", note: "Phone advice and reports." },
+      "https://help.instagram.com/2922067214679225": { name: "Report the post on Threads (Meta)", note: "In-app report. Done by hand — there is no third-party reporting API." },
+    },
+    noDb: "The database is not connected.",
+    enSignsNote: "Plain-language summary of the signals found. The detailed engine signals are shown in Korean — switch to 한국어 to see them.",
+  },
+  reasons: {
+    none: "No signals found",
+    head: (n: number) => `${n} signals · each one explains what was found and why it counts. You make the call.`,
+    eased: "Eases", what: "What was found", why: "Why it is a signal", example: "How it is used in practice", benign: "When it is not a signal", more: "More", sourceNote: "Signal names, quotes and explanations below are from the Korean engine (original language).",
+  },
+  analyze: {
+    title: "Text analysis",
+    lead: "Paste a post or comment and see which signals it has, instantly.",
+    notice: "This page uses no AI. What you type never leaves your browser. (On the home page, everything you paste is sent to a US AI company (Anthropic) to be checked, with phone numbers, account numbers and emails masked first.)",
+    followers: "Followers (optional)", cluster: "Times the same text repeats (optional)", spread: "Accounts using the same text (optional)",
+    sample: (i: number) => `Sample ${i}`,
+    normalized: "Normalized text", noObf: "No disguised text", ratio: (n: number) => `${n}% altered`,
+    ai: "On the home page, everything you paste is checked by AI. In the server collection pipeline, some messages may get a second look from AI. This page does not use AI.",
+    samples: [
+      "I'm a senior analyst at a big brokerage. Guaranteed returns, no risk. Limited spots — join our free Telegram group t.me/alpha_signals77 now",
+      "Lost money on stocks lately? I can help you recover it. DM me on T e l e g r a m, link in bio",
+      "Free daily stock picks, 30% a month guaranteed. Only 20 spots left — WhatsApp +1 555 0100 to join",
+      "Great earnings season — anyone holding index funds through this?",
+      "급등주 종목 무료로 공개합니다 🚀🚀 수익인증 300% 선착순 20명 ㅌㄹㄱㄹ @stock_king77",
+    ],
+  },
+  status3: { HIGH: "Warning signs: high", REVIEW: "Warning signs: medium", LOW: "Warning signs: low", UNKNOWN: "No record", signals: (n: number) => `${n} signals` },
+  criteria: {
+    kicker: "What we look at",
+    title1: "Scam-lure signals",
+    title2: ", step by step",
+    lead: "We publish only the kinds of signals we look at. How scores are calculated and the thresholds stay private.",
+    fold: "How do we decide?",
+    badge: "DETERMINISTIC RULE ENGINE · same input, same result",
+    aria: "Seven checking steps",
+    steps: [
+      { label: "NORMALIZE", title: "Restore hidden text", description: "Characters swapped or broken up to dodge filters are turned back into plain text.", chips: ["Disguised spelling"] },
+      { label: "IDENTITY", title: "Claimed employer or job", description: "Does the post lean on a company name or a job title?", chips: ["Employer claims"] },
+      { label: "EVIDENCE", title: "“Proof” on display", description: "Does the post point to an ID badge, employment certificate or pay slip? We do not judge whether the document is genuine.", chips: ["Proof mentioned", "No forgery verdict"] },
+      { label: "CONVERSION", title: "Investment bait", description: "Does it use profit or tips as bait and ask you to take the next step?", chips: ["Profit bait", "Call to act"] },
+      { label: "INFRA", title: "Off-platform move", description: "Does it push you to another channel, and do other accounts share the same contact?", chips: ["Outside channel", "Shared contact"] },
+      { label: "NETWORK", title: "Accounts and campaigns", description: "Is the same text repeated across many accounts, or similar to messages that were reported?", chips: ["Repeated posts", "Many accounts", "User reports"] },
+      { label: "CONTEXT", title: "Context and false alarms", description: "Victim stories, warnings and news are not counted as lures.", chips: ["Victims & warnings", "Normal activity"] },
+    ],
+    closing: "Before you send, check once.",
+    closingLink: "Check another message ↑",
+  },
+};
+
+export const STRINGS: Record<Lang, Strings> = { ko, en };

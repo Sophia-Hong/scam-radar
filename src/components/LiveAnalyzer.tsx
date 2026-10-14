@@ -1,53 +1,139 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import { scoreText, type Label, type Reason, type SignalGroup } from "@/engine";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { scoreText, type Label, type SignalGroup } from "@/engine";
+import { minhash } from "@/engine/minhash";
+import type { ShownReason } from "./Reasons";
+import { DEMO_HANDLE } from "@/lib/copy";
+import { useLang } from "@/lib/i18n";
+import { communityKeys, keyLabel, shareUrl, signIds, signTexts, type SignId } from "@/lib/result-view";
+import { extractEntities } from "@/engine/entities";
 
-const SAMPLE = "급등주 종목 무료로 공개합니다. 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
+const SAMPLE = "급등주 종목 무료로 공개합니다. 원금보장 수익 인증 300%, 선착순 20명. ㅌㄹㄱㄹ @stock_king77";
 
-const LEVEL = {
-  HIGH: { eyebrow: "강한 유인 신호", title: "가능성 높음", tone: "risk-high" },
-  REVIEW: { eyebrow: "의심 신호 감지", title: "주의 필요", tone: "risk-review" },
-  LOW: { eyebrow: "뚜렷한 신호 없음", title: "가능성 낮음", tone: "risk-low" },
-} as const;
+const TONE = { HIGH: "risk-high", REVIEW: "risk-review", LOW: "risk-low" } as const;
+const STEP = { LOW: 1, REVIEW: 2, HIGH: 3 } as const;
 
 type AccountLookup =
   | { status: "idle" }
   | { status: "loading"; handle: string }
-  | { status: "known"; handle: string; profileUrl: string; score: number; label: Label; reasons: Reason[]; postCount: number; profileCountry?: string | null; sharedAccounts: number }
+  | { status: "known"; handle: string; label: Label; reasons: ShownReason[]; signalGroups: SignalGroup[]; signs: SignId[]; postCount: number }
   | { status: "paste"; handle: string; profileUrl: string }
-  | { status: "error"; message: string };
+  | { status: "demoFail" };
 
 type LiveResult = {
   score: number;
   label: Label;
-  reasons: Reason[];
+  reasons: ShownReason[];
   signalGroups: SignalGroup[];
-  modelReview?: { verdict: "scam" | "benign" | "unsure"; confidence: number; rationale: string; model: string } | null;
+  signs?: SignId[];
 };
 
-function accountHandle(value: string) {
+type Check = { counts: Record<string, number>; similar: number; unavailable?: boolean };
+type PanelStatus = "closed" | "open" | "sending" | "done" | "limited" | "failed";
+type Registry = { status: PanelStatus; picked: string[]; withText: boolean };
+const NO_REGISTRY: Registry = { status: "closed", picked: [], withText: false };
+
+/** 공유창(모바일) 또는 복사 — 성공 여부만 돌려준다 */
+async function shareOrCopy(title: string, text: string, url: string): Promise<"shared" | "copied" | "failed"> {
+  if (typeof navigator.share === "function" && window.matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title, text, url }); return "shared"; } catch (e) { if ((e as Error).name === "AbortError") return "shared"; }
+  }
+  try { await navigator.clipboard.writeText(`${text} ${url}`); return "copied"; } catch { return "failed"; }
+}
+
+/**
+ * 캡처를 올리기 전에 브라우저에서 줄인다 — 긴 변 1600px JPEG(배포 요청 크기 4.5MB 한도 안, 사진 속 위치 정보(EXIF)도 빠진다).
+ * 원본 5MB 초과·사진 아님은 받지 않는다(테오 1791958372). 줄인 그림은 메모리에만 있고 저장하지 않는다.
+ */
+export const MAX_SHOTS = 3;
+export const MAX_SHOT_BYTES = 5 * 1024 * 1024;
+/** 서버 합계 한도(MAX_IMAGES_TOTAL_CHARS 4,000,000)보다 작게 — 한 장 1.2M 글자 이하가 되도록 더 줄인다(카이 01fa686 HOLD 3) */
+export const MAX_SHOT_CHARS = 1_200_000;
+async function shrinkImage(file: File): Promise<string> {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  let out = "";
+  for (const [side, q] of [[1600, 0.82], [1280, 0.72], [1024, 0.62], [800, 0.55]] as const) {
+    const scale = Math.min(1, side / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    out = canvas.toDataURL("image/jpeg", q);
+    if (out.length <= MAX_SHOT_CHARS) break;
+  }
+  bmp.close();
+  if (out.length > MAX_SHOT_CHARS) throw new Error("too big");
+  return out;
+}
+
+/** 한 칸 입력이 계정인가: 공백 없이 @핸들이거나 Threads 프로필 주소일 때만 */
+/** 서버 응답 → 화면 상태. "AI 확인 반영"은 서버가 실제 모델 판정을 받았다고 답했을 때만, 키 없음·상한·실패는 "못 함 · 규칙 결과"(카이 1fe5e41) */
+export function aiStatusOf(data: unknown): "applied" | "error" {
+  return (data as { ai?: string } | null)?.ai === "applied" ? "applied" : "error";
+}
+
+export function accountFromInput(value: string): string | null {
+  const v = value.trim();
+  if (!v || /\s/.test(v)) return null;
+  if (!v.startsWith("@") && !/threads\.(?:com|net)\//i.test(v)) return null;
+  const c = classifyInput(v);
+  return c.kind === "handle" ? c.handle : null;
+}
+
+const TLDS = "com|net|org|kr|co|io|me|shop|store|site|online|xyz|top|vip|app|dev|ai|info|biz|cc|tv|ly|link|click|club|live|page";
+
+/** 입력 분류: Threads 계정(@핸들 · 프로필 주소) / 지원 범위 밖(다른 주소) / 읽을 수 없음. 핸들에는 점이 들어갈 수 있어(john.doe) 주소 판단은 글자 모양으로만 한다 */
+export function classifyInput(value: string): { kind: "handle"; handle: string } | { kind: "unsupported" } | { kind: "invalid" } {
   const trimmed = value.trim();
-  const urlMatch = trimmed.match(/threads\.(?:com|net)\/@([a-zA-Z0-9._]+)/i);
-  const raw = urlMatch?.[1] ?? trimmed.replace(/^@/, "").split(/[/?#]/)[0];
-  return /^[a-zA-Z0-9._]{1,64}$/.test(raw) ? raw : "";
+  if (!trimmed) return { kind: "invalid" };
+  const urlLike = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) || /^www\./i.test(trimmed)
+    || /^[^\s@/]+\.[^\s@/]+\//.test(trimmed)
+    || (!trimmed.startsWith("@") && new RegExp(`^[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.(?:${TLDS})$`, "i").test(trimmed));
+  if (urlLike) {
+    const m = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?threads\.(?:com|net)\/@([a-zA-Z0-9._]{1,64})(?:[/?#]|$)/i);
+    return m ? { kind: "handle", handle: m[1] } : { kind: "unsupported" };
+  }
+  const raw = trimmed.replace(/^@/, "").split(/[/?#]/)[0];
+  return /^[a-zA-Z0-9._]{1,64}$/.test(raw) ? { kind: "handle", handle: raw } : { kind: "invalid" };
 }
 
 export function LiveAnalyzer() {
+  const { lang, t } = useLang();
+  const [input, setInput] = useState("");
   const [text, setText] = useState("");
-  const [accountQuery, setAccountQuery] = useState("");
   const [account, setAccount] = useState<AccountLookup>({ status: "idle" });
-  const [manualOverride, setManualOverride] = useState(false);
+  const [limited, setLimited] = useState(false);   // 계정 조회가 같은 IP 하루 20회에 걸림
   const textResult = useMemo(() => text.trim() ? scoreText(text) : null, [text]);
   const [serverResult, setServerResult] = useState<{ input: string; result: LiveResult } | null>(null);
-  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error">("idle");
+  const [pending, setPending] = useState<{ name: string; data: string }[]>([]);   // 고른 캡처(아직 확인 전)
+  const [shots, setShots] = useState<string[]>([]);   // 지금 결과에 쓴 캡처
+  const [uploadMsg, setUploadMsg] = useState("");
+  // 서버 결과가 지금 화면의 입력(글 + 캡처)에 대한 것인지 — 캡처가 바뀌면 다른 입력
+  const inputKey = `${text}|${shots.map((s) => `${s.length}:${s.slice(-24)}`).join(",")}`;
+  const [aiStatus, setAiStatus] = useState<"idle" | "checking" | "applied" | "error" | "limited">("idle")   // applied = 서버가 실제 모델 판정을 받았다고 답했을 때만;
+  const [community, setCommunity] = useState<Check>({ counts: {}, similar: 0 });
+  const [registry, setRegistry] = useState<Registry>(NO_REGISTRY);
+  const [familyMsg, setFamilyMsg] = useState<"" | "copied" | "failed">("");
+  const [shareMsg, setShareMsg] = useState<"" | "copied" | "failed">("");
+
+  const known = account.status === "known";
+  // "AI 없이 확인"(율·테오 국외 이전 거부 방법): 켜면 넣은 글·글에서 뽑은 연락처·서명이 브라우저 밖으로 나가지 않는다 — AI 재검·신고 수 조회 안 함
+  const [aiOff, setAiOff] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { try { if (localStorage.getItem("sr-ai-off") === "1") setAiOff(true); } catch { /* 저장소 없음 */ } }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  function toggleAiOff(on: boolean) {
+    setAiOff(on); setServerResult(null); setAiStatus("idle");
+    if (on) { setPending([]); setShots([]); }   // AI 없이 확인에서는 캡처를 쓰지 않는다(율 1791958415)
+    if (on) { setCommunity({ counts: {}, similar: 0 }); setRegistry(NO_REGISTRY); }   // 이전에 받은 신고 수·열린 신고 패널도 지운다
+    try { if (on) localStorage.setItem("sr-ai-off", "1"); else localStorage.removeItem("sr-ai-off"); } catch { /* 저장소 없음 */ }
+  }
+  // 대상이 바뀌면 세대를 올린다 — 이전 대상의 신고 요청 응답이 늦게 와도 새 화면에 "신고했어요"가 뜨지 않게(카이 5808c65)
+  const gen = useRef(0);
 
   useEffect(() => {
-    if (!textResult || !textResult.needsLlmReview || (account.status === "known" && !manualOverride)) {
-      return;
-    }
-
+    if (aiOff || known || (!textResult && !shots.length)) return;   // AI 우선(소현 O 1791958205): 붙여넣은 글·캡처는 모두 AI 확인 — 규칙 결과를 먼저 띄우고 AI 결과로 갱신
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setAiStatus("checking");
@@ -55,199 +141,355 @@ export function LiveAnalyzer() {
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, images: shots }),
           signal: controller.signal,
         });
         const data = await response.json();
+        if (response.status === 429) { setAiStatus("limited"); return; }   // 같은 IP 하루 20회 — 규칙 결과는 그대로
         if (!response.ok) throw new Error("analysis failed");
-        setServerResult({ input: text, result: data as LiveResult });
-        setAiStatus("applied");
+        setServerResult({ input: inputKey, result: data as LiveResult });
+        setAiStatus(aiStatusOf(data));
       } catch (error) {
         if ((error as Error).name !== "AbortError") setAiStatus("error");
       }
-    }, 900);
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [text, textResult, known, aiOff, shots, inputKey]);
 
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [text, textResult, account.status, manualOverride]);
+  const handle = account.status === "known" || account.status === "paste" ? account.handle : null;
+  const keys = useMemo(() => {
+    // 계정 조회의 글은 공개 응답에서 연락처가 가려져 있다 — 신고·조회 키는 확인한 계정만(가린 값을 키로 쓰지 않게)
+    const own = communityKeys(handle, known ? "" : text);
+    return own.slice(0, 6);
+  }, [handle, text, known]);
+  // 비슷한 신고 글 대조용 서명 — 브라우저에서 계산하고 원문은 보내지 않는다. 계정 조회(여러 글을 이은 것)는 대조하지 않는다
+  const sig = useMemo(() => (text.trim() && !known ? minhash(text) : null), [text, known]);
+  // 신고 수는 *규칙(엔진) 판정*이 중간 이상일 때만 보인다(서버가 강제, 테오 1791948637·율 1791948645).
+  // AI 우선 뒤에도 카이 주입 시험 결과가 나올 때까지는 AI 를 섞지 않은 규칙 단계로 묻는다(테오 1791958217, 율 ②-3) — 서버 결과(AI 결합)가 아니라 브라우저 엔진 결과
+  const engineLevel = (account.status === "known" ? account.label : textResult?.label) ?? undefined;
+  const checkBody = useMemo(() => (keys.length || sig ? JSON.stringify({ keys, sig: sig ?? undefined, level: engineLevel }) : ""), [keys, sig, engineLevel]);
 
-  const currentServerResult = serverResult?.input === text ? serverResult.result : null;
-  const result = account.status === "known" && !manualOverride
-    ? { score: account.score, label: account.label, reasons: account.reasons, signalGroups: groupsFromReasons(account.reasons) }
+  // 이용자 신고 수·비슷한 신고 글·검토 중 여부 — 입력이 정해질 때마다 한 번
+  useEffect(() => {
+    if (!checkBody || aiOff) return;   // AI 없이 확인: 연락처·서명·계정 키 어떤 것도 보내지 않고 신고 수도 묻지 않는다(카이 2257ada)
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/community/check", { method: "POST", headers: { "content-type": "application/json" }, body: checkBody, cache: "no-store", signal: controller.signal });
+        const data = await response.json().catch(() => null);
+        if (response.ok && data?.counts) setCommunity(data as Check);
+        else setCommunity({ counts: {}, similar: 0, unavailable: true });
+      } catch (e) {   // 신고 장부를 못 읽으면 "0건"처럼 보이지 않게 신고 칸을 숨긴다(카이 ④ 검수 4). 판독은 그대로
+        if ((e as Error).name !== "AbortError") setCommunity({ counts: {}, similar: 0, unavailable: true });
+      }
+    }, 200);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [checkBody, aiOff, known]);
+
+  const currentServerResult = serverResult?.input === inputKey && serverResult.result.label ? serverResult.result : null;
+  const result = account.status === "known"
+    ? { label: account.label, reasons: account.reasons, signalGroups: account.signalGroups }
     : (currentServerResult ?? textResult);
-  const level = result ? LEVEL[result.label] : null;
-  const reasons = result?.reasons.filter((reason) => reason.points > 0).slice(0, 4) ?? [];
+  const level = result ? (result.label as keyof typeof TONE) : null;
+  const positive = result?.reasons.filter((reason) => reason.points > 0) ?? [];
+  const reported = keys.filter((k) => (community.counts[k] ?? 0) > 0).sort((a, b) => (community.counts[b] ?? 0) - (community.counts[a] ?? 0));
+  // 계정 조회는 서버가 고른 문장 id(내부 코드 없이), 붙여넣은 글은 브라우저가 같은 함수로 고른다
+  // 문장 id: 계정 조회·AI 재검토는 서버가 고른 것, 브라우저 판독만 같은 함수로 직접(공개 응답엔 code 가 없으므로)
+  const signs = !level ? [] : signTexts(account.status === "known" ? account.signs : currentServerResult?.signs ?? signIds(level, positive, extractEntities(text).map((e) => e.type), text), t.result);
+  const hasAnything = !!result || (shots.length > 0 && !known) || account.status === "paste" || account.status === "demoFail" || reported.length > 0 || community.similar > 0;
 
-  async function checkAccount(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const handle = accountHandle(accountQuery);
-    if (!handle) {
-      setAccount({ status: "error", message: "@계정명이나 Threads 프로필 주소를 확인해 주세요." });
-      return;
+  function reset() {
+    gen.current += 1;
+    setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY); setShareMsg("");
+    setCommunity({ counts: {}, similar: 0 });
+  }
+
+  async function addShots(files: FileList | null) {
+    if (!files || aiOff) return;
+    setUploadMsg("");
+    const next = [...pending];
+    for (const f of Array.from(files)) {
+      if (next.length >= MAX_SHOTS) { setUploadMsg(t.hero.uploadTooMany); break; }
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { setUploadMsg(t.hero.uploadBad); continue; }
+      if (f.size > MAX_SHOT_BYTES) { setUploadMsg(t.hero.uploadTooBig); continue; }
+      try { next.push({ name: f.name, data: await shrinkImage(f) }); } catch { setUploadMsg(t.hero.uploadTooBig); }
     }
+    setPending(next);
+  }
 
-    setAccount({ status: "loading", handle });
-    setManualOverride(false);
+  async function submit(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const value = input.trim();
+    if (!value && !pending.length) return;
+    reset();
+    const h = !pending.length && accountFromInput(value);
+    if (h) { setText(""); setShots([]); await lookup(h); }
+    else { setAccount({ status: "idle" }); setText(value); setShots(aiOff ? [] : pending.map((p) => p.data)); }
+    document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /** 합성 데모 계정을 한 번에 연다. 조회가 안 되면(DB 불통 등) 예시 글로 대신 보여 준다 */
+  async function showDemo() {
+    reset();
+    setInput(`@${DEMO_HANDLE}`);
+    const ok = await lookup(DEMO_HANDLE);
+    if (!ok) { setText(SAMPLE); setAccount({ status: "demoFail" }); }
+  }
+
+  async function lookup(h: string): Promise<boolean> {
+    // 새 대상 — 이전 글·서버 결과·공유 키를 먼저 비운다(새 핸들과 이전 글의 연락처가 한 신고로 섞이지 않게, 카이 ④ 검수 1)
+    gen.current += 1;
+    setText(""); setShots([]); setServerResult(null); setAiStatus("idle"); setRegistry(NO_REGISTRY);
+    setAccount({ status: "loading", handle: h }); setLimited(false);
     try {
-      const response = await fetch(`/api/accounts/${encodeURIComponent(handle)}`, { cache: "no-store" });
+      const response = await fetch(`/api/accounts/${encodeURIComponent(h)}`, { cache: "no-store" });
       const data = await response.json().catch(() => null);
+      if (response.status === 429) { setAccount({ status: "idle" }); setLimited(true); return false; }   // 같은 IP 하루 20회
       if (response.ok && data?.found) {
         const postText = Array.isArray(data.posts)
           ? data.posts.slice(0, 8).map((post: { text?: string }) => post.text?.trim()).filter(Boolean).join("\n\n")
           : "";
-        if (postText) setText(postText);
+        setText(postText);
         setAccount({
           status: "known",
-          handle: data.account.handle ?? handle,
-          profileUrl: data.account.profileUrl ?? `https://www.threads.com/@${handle}`,
-          score: Number(data.account.score ?? 0),
+          handle: data.account.handle ?? h,
           label: (["LOW", "REVIEW", "HIGH"].includes(data.account.label) ? data.account.label : "LOW") as Label,
           reasons: Array.isArray(data.account.reasons) ? data.account.reasons : [],
+          signalGroups: Array.isArray(data.account.signalGroups) ? data.account.signalGroups : [],
+          signs: Array.isArray(data.account.signs) ? data.account.signs : [],
           postCount: Number(data.account.postTotal ?? data.posts?.length ?? 0),
-          profileCountry: data.account.profileCountry,
-          sharedAccounts: Array.isArray(data.sharedWith) ? data.sharedWith.length : 0,
         });
-        return;
+        return true;
       }
-      setAccount({ status: "paste", handle, profileUrl: `https://www.threads.com/@${handle}` });
+    } catch { /* 아래 "기록 없음" 과 같게 */ }
+    setAccount({ status: "paste", handle: h, profileUrl: `https://www.threads.com/@${h}` });
+    return false;
+  }
+
+  // 가족이 보낸 링크(?a=계정)로 들어오면 그 조회를 바로 연다. 연락처 키(?k=)는 링크에 싣지 않는다(카이 948d5a7)
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const q = new URLSearchParams(window.location.search);
+      const a = q.get("a");
+      if (a) {
+        const c = classifyInput(a);
+        if (c.kind === "handle") { setInput(`@${c.handle}`); void lookup(c.handle); }
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  async function sendToParents() {
+    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, null));
+    if (r !== "shared") { setFamilyMsg(r); window.setTimeout(() => setFamilyMsg(""), 4000); }
+  }
+
+  async function shareResult() {
+    const r = await shareOrCopy("Scam Radar", t.family.text, shareUrl(window.location.origin, handle));
+    if (r !== "shared") { setShareMsg(r); window.setTimeout(() => setShareMsg(""), 4000); }
+  }
+
+  async function submitRegistry(picked: string[], withText: boolean) {
+    // AI 없이 확인 중이면 보내기 전에 한 번 묻는다 — 그 모드의 "브라우저 밖으로 나가지 않아요"가 사실이도록(테오 1791951462)
+    if (aiOff && !window.confirm(t.community.aiOffConfirm)) return;
+    const mine = gen.current;
+    setRegistry({ status: "sending", picked, withText });
+    try {
+      const response = await fetch("/api/community", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ keys: picked.slice(0, 5), sig: withText && sig ? sig : undefined }),
+      });
+      if (gen.current !== mine) return;
+      setRegistry({ status: response.status === 429 ? "limited" : response.ok ? "done" : "failed", picked, withText });
     } catch {
-      setAccount({ status: "paste", handle, profileUrl: `https://www.threads.com/@${handle}` });
+      if (gen.current !== mine) return;
+      setRegistry({ status: "failed", picked, withText });
     }
   }
 
   return (
-    <section id="check" className="analyzer-shell" aria-labelledby="analyzer-title">
-      <header className="analyzer-hero">
-        <div className="analyzer-hero-copy">
-          <div className="hero-label">SCAM RADAR · AI 리딩방 문구 판독</div>
-          <h1>사원증까지 위조하는,<br /><em>AI 리딩방 사기</em> —<br />꼭 한번 확인해보아요</h1>
-          <p>사진과 경력이 그럴듯해도 안심할 수 없어요. 먼저 확인할 Threads 계정을 넣어보세요.</p>
-          <form className="account-form" onSubmit={checkAccount}>
-            <label htmlFor="account-query">Threads 계정 확인</label>
-            <div>
-              <input
-                id="account-query"
-                value={accountQuery}
-                onChange={(event) => setAccountQuery(event.target.value)}
-                placeholder="@계정명 또는 Threads 프로필 주소"
-                autoComplete="off"
-              />
-              <button type="submit" disabled={account.status === "loading"}>
-                {account.status === "loading" ? "확인 중…" : "계정 확인"}
-              </button>
-            </div>
-            <small>로그인 없이 공개된 정보만 확인하며, 계정명만으로 사기를 단정하지 않습니다.</small>
-          </form>
-        </div>
-        <div className="analyzer-evidence" aria-label="페이크 사원증 이미지로 신뢰를 위조하고 유사한 사칭 내용을 반복 게시한 사례">
-          <figure className="analyzer-evidence-card evidence-dark">
-            <Image src="/evidence-dark.jpeg" alt="삼성전자 사원증을 내세운 Threads 게시물 캡처" fill priority sizes="(max-width: 900px) 50vw, 28vw" />
-          </figure>
-          <figure className="analyzer-evidence-card evidence-light">
-            <Image src="/evidence-light.jpeg" alt="다른 직무와 부서가 적힌 삼성전자 사원증 게시물 캡처" fill priority sizes="(max-width: 900px) 50vw, 28vw" />
-          </figure>
-          <div className="analyzer-evidence-note"><b>CASE 01</b><span>페이크 증빙 이미지 · 유사 사칭글 반복 살포</span></div>
-        </div>
-      </header>
+    <>
 
-      {account.status !== "idle" && account.status !== "loading" && (
-        <div className={`account-status account-status-${account.status}`} aria-live="polite">
-          {account.status === "known" && (
-            <>
-              <div><b>@{account.handle}</b><span>게시물 {account.postCount}건 · 연결 계정 {account.sharedAccounts}개{account.profileCountry ? ` · 프로필 국가 ${account.profileCountry}` : ""}의 종합 근거를 불러왔어요.</span></div>
-              <strong>{account.score}점</strong>
-            </>
-          )}
-          {account.status === "paste" && (
-            <>
-              <div>
-                <b>@{account.handle}</b>
-                <span>Threads가 임의 계정의 게시물을 외부에서 자동으로 읽는 것을 제한하고 있어요. 최근 글을 복사해 아래에 붙여넣으면 즉시 판독합니다.</span>
-              </div>
-              <a href={account.profileUrl} target="_blank" rel="noreferrer">계정 열기 ↗</a>
-            </>
-          )}
-          {account.status === "error" && <span>{account.message}</span>}
-        </div>
-      )}
-
-      <div className="analyzer-body">
-        <div className="analyzer-input">
-          <div className="section-kicker"><span /> 2단계 · 실시간 문구 판독</div>
-          <h2 id="analyzer-title">의심되는 글을 붙여넣으세요.</h2>
-          <p>{account.status === "known" ? `@${account.handle}의 확인된 문구를 불러왔어요. 수정하거나 더 붙여넣어도 바로 다시 계산됩니다.` : "계정에서 본 게시물·댓글·DM을 붙여넣으면 규칙 엔진이 즉시 분석하고, 경계 사례만 AI가 한 번 더 검토합니다."}</p>
-          <div className="textarea-wrap">
-            <textarea
-              value={text}
-              onChange={(event) => { setText(event.target.value); setManualOverride(true); setServerResult(null); setAiStatus("idle"); }}
-              placeholder={"Threads 게시물, 댓글, DM 문구를 여기에 붙여넣으세요.\n\n예) 무료 종목 공개, 수익 보장, 텔레그램 입장…"}
-              aria-label="분석할 게시물 문구"
-              rows={9}
-            />
-            <div className="textarea-meta">
-              <span>{text.length.toLocaleString()}자</span>
-              <div>
-                <button type="button" onClick={() => { setText(SAMPLE); setManualOverride(true); setServerResult(null); setAiStatus("idle"); }}>예시 넣기</button>
-                {text && <button type="button" onClick={() => { setText(""); setManualOverride(true); setServerResult(null); setAiStatus("idle"); }}>지우기</button>}
-              </div>
-            </div>
+      <section id="check" className="checker" aria-labelledby="checker-title">
+        {/* 자녀가 보낸 링크로 처음 온 분 — 할 일 세 단계를 맨 위에 크게(카이 노인 검수 2, 테오 1791956461). 원문은 URL 에 넣지 않는다 */}
+        <ol className="checker-steps">{t.hero.steps.map((s, i) => <li key={s}><b>{["①", "②", "③"][i]}</b> {s}</li>)}</ol>
+        <h1 id="checker-title">{t.hero.title}</h1>
+        <form onSubmit={submit}>
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder={t.hero.placeholder}
+            aria-label={t.hero.aria}
+            rows={5}
+          />
+          <div className="shot-row">
+            <label className={`shot-button${aiOff ? " disabled" : ""}`} aria-disabled={aiOff}>
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={aiOff} onChange={(e) => { void addShots(e.target.files); e.target.value = ""; }} />
+              📷 {t.hero.upload}
+            </label>
+            {pending.map((p, i) => (
+              <span key={i} className="shot-chip"><img src={p.data} alt="" /> <button type="button" onClick={() => setPending(pending.filter((_, j) => j !== i))}>{t.hero.uploadRemove}</button></span>
+            ))}
           </div>
-          <p className="privacy-note"><span aria-hidden="true">✓</span> 원문은 저장하지 않습니다. 기본 판독은 브라우저에서 처리하고, 경계 사례만 Gemini에 전송됩니다. 무료 티어 입력은 Google의 제품 개선에 사용될 수 있습니다.</p>
+          <p className="shot-note">{aiOff ? t.hero.uploadOff : t.hero.uploadNote}</p>
+          {uploadMsg && <p className="act-msg" role="status">{uploadMsg}</p>}
+          <button type="submit" className="checker-go" disabled={account.status === "loading" || (!input.trim() && !pending.length)}>
+            {account.status === "loading" ? t.hero.checking : t.hero.check}
+          </button>
+        </form>
+        {limited && <p className="act-msg" role="status">{t.result.limited}</p>}
+        <div className="checker-links">
+          <button type="button" onClick={() => setInput(SAMPLE)}>{t.hero.sample}</button>
+          <button type="button" onClick={showDemo}>{t.hero.demo}</button>
+          {(input || pending.length > 0) && <button type="button" onClick={() => { setInput(""); setPending([]); }}>{t.hero.clear}</button>}
         </div>
+        <p className="checker-scope">{t.hero.scope}</p>
+        {aiOff ? (
+          <p className="privacy-note ai-off">✓ {t.notice.aiOffOn} <button type="button" className="inline-link" onClick={() => toggleAiOff(false)}>{t.notice.aiOffUndo}</button></p>
+        ) : (
+          <details className="privacy-note">
+            <summary>✓ {t.notice.lead} <button type="button" className="inline-link" onClick={(e) => { e.preventDefault(); toggleAiOff(true); }}>[{t.notice.aiOffButton}]</button>{t.notice.leadTail} <span className="more">{t.notice.more} ▸</span></summary>
+            <dl>{t.notice.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+          </details>
+        )}
+      </section>
 
-        <div className={`analyzer-result ${level?.tone ?? "risk-empty"}`} aria-live="polite">
-        {!result || !level ? (
-          <div className="empty-result">
-            <div className="radar-mark" aria-hidden="true"><span /><i /></div>
-            <div>
-              <strong>{account.status === "paste" ? "게시물 문구가 필요해요" : "계정 판독 대기 중"}</strong>
-              <p>{account.status === "paste" ? `@${account.handle}에서 의심되는 글 하나만 복사해 붙여넣어 주세요.` : "계정을 먼저 확인하거나 문구를 바로 붙여넣으면 유인 신호를 확인해요."}</p>
-            </div>
-            </div>
-          ) : (
-            <>
-              <div className="result-topline"><span>{level.eyebrow}</span><span>{aiStatus === "checking" ? "AI 재검토 중…" : aiStatus === "applied" ? "Gemini 보조 판독" : aiStatus === "error" ? "규칙 판독 · AI 재시도 필요" : "실시간 규칙 분석"}</span></div>
-              <div className="result-score-row">
-                <div><strong>{level.title}</strong><p>리딩방 유인 신호 점수</p></div>
-                <div className="score-orb"><b>{result.score}</b><span>/ 100</span></div>
-              </div>
-              <div className="score-track" aria-label={`신호 점수 ${result.score}점`}><span style={{ width: `${result.score}%` }} /></div>
-              <div className="result-reasons">
-                <h3>감지 근거 {reasons.length}개</h3>
-                {reasons.length ? (
-                  <ul>
-                    {reasons.map((reason) => (
-                      <li key={reason.code}>
-                        <span>+{reason.points}</span>
-                        <div><strong>{reason.label}</strong>{reason.evidence && <small>“{reason.evidence}”</small>}</div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="no-reason">현재 문구에서는 뚜렷한 유인 신호를 찾지 못했어요.</p>}
-              </div>
-              <div className="signal-groups" aria-label="활성 탐지 신호군">
-                {result.signalGroups.map((group) => <span key={group.code} data-active={group.active}>{group.label}</span>)}
-              </div>
-              <p className="result-caution">자동 판독은 참고용이며, 특정 계정을 사기로 단정하지 않습니다.</p>
-            </>
-          )}
-        </div>
+      {/* "소중한 사람에게 보내기"는 받은 분이 아니라 보내는 분의 행동 — 첫 화면 맨 위에서 입력칸 아래로(카이 노인 검수 2) */}
+      <div className="family-bar">
+        <p>{t.family.lead}</p>
+        <button type="button" onClick={sendToParents}>{t.family.button}</button>
+        {familyMsg && <small role="status">{t.family[familyMsg]}</small>}
       </div>
-    </section>
-  );
-}
 
-function groupsFromReasons(reasons: Reason[]): SignalGroup[] {
-  const has = (...prefixes: string[]) => reasons.some((reason) => prefixes.some((prefix) => reason.code.startsWith(prefix)) && reason.points > 0);
-  return [
-    { code: "normalization", label: "숨긴 글자 복원", active: has("obfuscation"), evidence: [] },
-    { code: "impersonation", label: "재직·퇴직 사칭", active: has("impersonate:"), evidence: [] },
-    { code: "evidence", label: "페이크 증빙 정황", active: has("evidence:", "term:사원증", "term:급여명세", "term:재직증명"), evidence: [] },
-    { code: "conversion", label: "투자 유인 전환", active: has("combo:", "cta"), evidence: [] },
-    { code: "infrastructure", label: "외부 이동 인프라", active: has("acct:lure-link", "term:텔레", "term:카카오", "term:오픈"), evidence: [] },
-    { code: "coordination", label: "계정·캠페인 연결", active: has("spread", "spray", "cluster", "shared-contact"), evidence: [] },
-    { code: "identity", label: "신원 맥락 불일치", active: has("identity:"), evidence: [] },
-  ];
+      <section id="result" className="result-area" aria-live="polite">
+        {hasAnything && (
+          <div className={`result-card ${level ? TONE[level] : "risk-none"}`}>
+            {account.status === "known" && (
+              <p className="result-account">{t.status.known(account.handle, account.postCount)} <a href={`/report/${encodeURIComponent(`threads:${account.handle.toLowerCase()}`)}`}>{t.status.report}</a></p>
+            )}
+            {account.status === "paste" && (
+              <p className="result-account">{t.status.noRecord(account.handle)} <a href={account.profileUrl} target="_blank" rel="noreferrer">{t.status.open}</a></p>
+            )}
+            {account.status === "demoFail" && <p className="result-account">{t.status.demoFail}</p>}
+
+            {/* AI 확인 못 함(하루 상한·장애·IP 상한) — 결과 위에 율 문구. 규칙만으로는 놓치는 사기가 많아 '깨끗'으로 읽히지 않게(율 1791957681) */}
+            {(level || shots.length > 0) && !known && !aiOff && (aiStatus === "error" || aiStatus === "limited") && <p className="ai-unavailable" role="status">{t.result.aiUnavailable}</p>}
+            {!level && shots.length > 0 && aiStatus === "checking" && <p className="result-account" role="status">{t.hero.uploadOnly}</p>}
+            {level && (
+              <>
+                <div className="verdict-top">
+                  <span>{t.result.level[level]}</span>
+                  <span className="level-meter" role="img" aria-label={t.result.level[level]}>{[1, 2, 3].map((n) => <i key={n} data-on={n <= STEP[level]} />)}</span>
+                  <span className="engine-state">{aiStatus === "checking" ? t.result.engine.checking : aiStatus === "applied" ? t.result.engine.applied : aiStatus === "error" ? t.result.engine.error : aiStatus === "limited" ? t.result.engine.limited : t.result.engine.rule}</span>
+                </div>
+                <div className="verdict">
+                  <strong>{t.result.banner[level].title}</strong>
+                  <span>{t.result.banner[level].sub}</span>
+                </div>
+              </>
+            )}
+            <p className="result-disclaimer">{t.result.disclaimer}</p>
+
+            {/* 할 일과 보내기를 긴 설명(징후·멈추세요)보다 위로(카이 노인 검수 5, 테오 1791956461) */}
+            {level && (
+              <div className="result-todo">
+                <h3>{t.result.todoTitle}</h3>
+                <ol>{t.result.todo[level].map((line) => <li key={line}>{line}</li>)}</ol>
+                <p className="report-links"><b>{t.result.reportTo}</b> {t.result.reportLinks.map((l, i) => <span key={l.url}>{i > 0 && " · "}<a href={l.url} target="_blank" rel="noreferrer">{l.name}</a></span>)}</p>
+              </div>
+            )}
+
+            <div className="result-actions">
+              <button type="button" className="act-share" onClick={shareResult}>{t.family.button}</button>
+              {!community.unavailable && <button type="button" className="act-register" onClick={() => setRegistry({ status: "open", picked: aiOff ? [] : keys, withText: !!sig && !aiOff })}   /* AI 없이 확인: 아무것도 미리 고르지 않음(테오 1791952508) */>{t.community.button}</button>}
+            </div>
+            {shareMsg && <p className="act-msg" role="status">{t.family[shareMsg]}</p>}
+
+            {!aiOff && !community.unavailable && (reported.length > 0 || community.similar > 0) && (
+              <div className="community-warn" role="alert">
+                <ul>
+                  {reported.slice(0, 3).map((k) => <li key={k}><b>⚠ {t.community.warn(community.counts[k], k.slice(0, k.indexOf(":")))}</b><span>{keyLabel(k, t.community.kind)}</span></li>)}
+                  {community.similar > 0 && <li><b>⚠ {t.result.similar(community.similar)}</b></li>}
+                </ul>
+                <small>{t.community.warnNote}</small>
+              </div>
+            )}
+
+            {signs.length > 0 && (
+              <div className="result-signs">
+                <h3>{t.result.signsTitle}</h3>
+                <ul>{signs.map(([fact, why]) => <li key={fact}><b>{fact}</b><span>{why}</span></li>)}</ul>
+              </div>
+            )}
+
+            {level && <p className="ai-proof-note">{t.result.aiProofNote}</p>}
+
+
+            <div className="stop-box">
+              <h3>{t.result.stopTitle}</h3>
+              <ul>{t.result.stop.map((line) => <li key={line}>{line}</li>)}</ul>
+              {t.result.stopFooter && <p className="stop-footer">{t.result.stopFooter}</p>}
+            </div>
+
+
+            {registry.status !== "closed" && (
+              <div className="side-panel">
+                <h3>{t.community.title}</h3>
+                {registry.status === "done" ? <p>{t.community.done}</p>
+                  : registry.status === "limited" ? <p>{t.community.limited}</p>
+                  : registry.status === "failed" ? <p>{t.community.failed}</p>
+                  : !keys.length && !sig ? <p>{t.community.none}</p>
+                  : (
+                    <>
+                      <p>{t.community.lead}</p>
+                      <ul>
+                        {keys.map((k) => (
+                          <li key={k}>
+                            <label>
+                              <input type="checkbox" checked={registry.picked.includes(k)} disabled={registry.status === "sending"}
+                                onChange={(e) => setRegistry({ ...registry, status: "open", picked: e.target.checked ? [...registry.picked, k] : registry.picked.filter((x) => x !== k) })} />
+                              {keyLabel(k, t.community.kind)}
+                            </label>
+                          </li>
+                        ))}
+                        {sig && (
+                          <li>
+                            <label>
+                              <input type="checkbox" checked={registry.withText} disabled={registry.status === "sending"}
+                                onChange={(e) => setRegistry({ ...registry, status: "open", withText: e.target.checked })} />
+                              {t.community.textOption}
+                            </label>
+                          </li>
+                        )}
+                      </ul>
+                      <small>{t.community.privacy}</small>
+                      <div className="panel-buttons">
+                        <button type="button" disabled={(!registry.picked.length && !(registry.withText && sig)) || registry.status === "sending"} onClick={() => submitRegistry(registry.picked, registry.withText)}>
+                          {registry.status === "sending" ? t.community.sending : t.community.submit}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                <button type="button" className="panel-close" onClick={() => setRegistry(NO_REGISTRY)}>{t.community.cancel}</button>
+              </div>
+            )}
+
+            {/* 엔진 원문 라벨은 한국어 — 영어 화면에는 위의 쉬운 말 징후만 (테오 1791945676) */}
+            {lang === "ko" && result && positive.length > 0 && (
+              <details className="result-details">
+                <summary>{t.result.details}</summary>
+                <ul className="result-reasons">
+                  {positive.slice(0, 6).map((reason, i) => (
+                    <li key={i}><span aria-hidden="true">●</span><div><strong>{reason.label}</strong>{reason.evidence && <small>“{reason.evidence}”</small>}</div></li>
+                  ))}
+                </ul>
+                <small>{t.result.detailsNote}</small>
+              </details>
+            )}
+            {t.result.contactLine && <p className="contact-line">{t.result.contactLine}</p>}
+          </div>
+        )}
+      </section>
+    </>
+  );
 }

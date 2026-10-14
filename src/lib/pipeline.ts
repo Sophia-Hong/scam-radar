@@ -3,7 +3,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import { db, schema } from "@/db";
 import { normalize, exactKey, minhash, bandKeys, jaccard, scoreText, fnv1a64, JACCARD_THRESHOLD, extractEntities, entityId, entityLabel, STRONG_ENTITY_TYPES, type Label, type Reason, type Entity } from "@/engine";
-import { reviewEvidenceImage, reviewPost } from "./llm";
+import { REVIEW_CHECK_LABEL, reviewEvidenceImage, reviewPost } from "./llm";
+import { isSyntheticAccountId } from "./visibility";
 import { accountIdOf } from "./ids";
 export { accountIdOf };
 
@@ -59,7 +60,7 @@ async function uploadShot(kind: "post" | "profile", id: string, data?: string | 
   const b64 = m?.[2] ?? data;
   const buf = Buffer.from(b64, "base64");
   const ext = mime.split("/")[1] === "jpeg" ? "jpg" : mime.split("/")[1];
-  const blob = await put(`shots/${kind}/${id}.${ext}`, buf, { access: "public", contentType: mime, addRandomSuffix: false });
+  const blob = await put(`shots/${kind}/${id}.${ext}`, buf, { access: "public", contentType: mime, addRandomSuffix: true }); // 핸들로 URL 을 추측하지 못하게 (공개 경계: 캡처 파일 주소는 조회 API 를 거쳐야만 알 수 있다)
   return blob.url;
 }
 
@@ -202,9 +203,15 @@ export async function recomputeSharedContact(d: Dbh, accountIds: string[]): Prom
   return out;
 }
 
-export async function ingest(payload: IngestPayload): Promise<IngestResult> {
+/** 예약된 합성 계정 ID 로는 시드(fixture) 경로만 쓸 수 있다 — 같은 핸들의 실계정이 수집돼 공개 목록에 섞이지 않게(카이 392ac60) */
+export function reservedIdRejected(accountId: string, opts: { fixture?: boolean } = {}): boolean {
+  return isSyntheticAccountId(accountId) && !opts.fixture;
+}
+
+export async function ingest(payload: IngestPayload, opts: { fixture?: boolean } = {}): Promise<IngestResult> {
   const d = db();
   const accountId = accountIdOf(payload.platform, payload.author.handle);
+  if (reservedIdRejected(accountId, opts)) throw new Error(`reserved synthetic account id: ${accountId} (fixture seed only)`);
   const postId = fnv1a64(`${payload.platform}|${payload.postUrl}`);
 
   // 0) URL 기준 정확 중복 → 즉시 반환 (재수집 비용 0)
@@ -286,9 +293,9 @@ export async function ingest(payload: IngestPayload): Promise<IngestResult> {
   if (r.needsLlmReview) {
     const v = await reviewPost(payload.text, r.reasons.map((x) => x.label), baseFeatures);
     llmVerdict = { ...(typeof llmVerdict === "object" && llmVerdict ? llmVerdict : {}), text: v };
-    if (v.verdict === "scam" && v.confidence >= 0.6) { score = Math.min(100, score + 20); reasons.unshift({ code: "llm:scam", label: `LLM 재판정: 유인글 (${v.rationale})`, points: 20 }); }
+    if (v.verdict === "scam" && v.confidence >= 0.6) { score = Math.min(100, score + 20); reasons.unshift({ code: "llm:scam", label: "AI 재검토: 유인 수법이 보임", points: 20, evidence: v.checks.map((c) => REVIEW_CHECK_LABEL[c]).join(", ") || undefined }); }
     const hasCoordinationEvidence = r.reasons.some((reason) => /^(cluster|spread|spray|shared-contact)/.test(reason.code) && reason.points > 0);
-    if (v.verdict === "benign" && v.confidence >= 0.6 && !hasCoordinationEvidence) { score = Math.max(0, score - 20); reasons.unshift({ code: "llm:benign", label: `LLM 재판정: 정상 (${v.rationale})`, points: -20 }); }
+    if (v.verdict === "benign" && v.confidence >= 0.6 && !hasCoordinationEvidence) { score = Math.max(0, score - 20); reasons.unshift({ code: "llm:benign", label: "AI 재검토: 정상 맥락으로 보임", points: -20, evidence: v.checks.map((c) => REVIEW_CHECK_LABEL[c]).join(", ") || undefined }); }
     label = score >= 70 ? "HIGH" : score >= 40 ? "REVIEW" : "LOW";
   }
 

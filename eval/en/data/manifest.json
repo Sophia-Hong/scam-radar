@@ -1,0 +1,109 @@
+{
+  "dataset": "Multimodal Dataset for Investment-Related Deceptive Content Detection on Social Platforms",
+  "version": 2,
+  "author": "Yi Xuan Kong (Multimedia University)",
+  "doi": "10.17632/6wnd7jrt6z.2",
+  "landingPage": "https://data.mendeley.com/datasets/6wnd7jrt6z/2",
+  "fileUrl": "https://data.mendeley.com/public-files/datasets/6wnd7jrt6z/files/71fde40c-a8bd-4217-9e77-1ea5de74675f/file_downloaded",
+  "licence": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+  "downloaded": "2026-10-14",
+  "rawSha256": "a4b336074176efb5746d1981506c1f1faba19a1b0a20f3b9e95dc8be94ea2504",
+  "rawRows": 16202,
+  "labelDefinition": "Binary label from the dataset author: 1 = 'investment-related deceptive or suspicious behaviour derived from harmonised source annotations after filtering'; 0 = not. The author states labels 'should not be interpreted as verified ground-truth investment scam status for every individual record'. Contact details in text were replaced by the author with [PHONE]/[EMAIL]/[URL]/[HANDLE]/[ID] placeholders.",
+  "inScopeSources": [
+    "phishing",
+    "spam_email",
+    "fake_profile_post"
+  ],
+  "outOfScopeSources": [
+    "twitter_bot_detection",
+    "cresci_stock_2018"
+  ],
+  "outOfScopeReason": "label marks the account as a bot, not the text as a scam; twitter_bot_detection text is random filler words",
+  "split": {
+    "method": "near-duplicate groups (word-bigram Jaccard >= 0.5 after lowercase+digit masking, per source, union-find); group -> dev if fnv1a64(groupKey) % 100 < 40, else test",
+    "datasetPartitionIgnoredBecause": "fake_profile_post: 1162/1259 test texts occur verbatim in the dataset's train/validation",
+    "groupsOnBothSides": 0,
+    "testRowsWhoseTextAppearsInDev": 0
+  },
+  "counts": {
+    "dev": {
+      "phishing": {
+        "n": 376,
+        "pos": 225,
+        "neg": 151,
+        "groups": 270,
+        "uniqueTexts": 341
+      },
+      "spam_email": {
+        "n": 511,
+        "pos": 132,
+        "neg": 379,
+        "groups": 335,
+        "uniqueTexts": 481
+      },
+      "fake_profile_post": {
+        "n": 5932,
+        "pos": 5190,
+        "neg": 742,
+        "groups": 14,
+        "uniqueTexts": 387
+      },
+      "twitter_bot_detection": {
+        "n": 1022,
+        "pos": 491,
+        "neg": 531,
+        "groups": 1022,
+        "uniqueTexts": 1022
+      },
+      "cresci_stock_2018": {
+        "n": 321,
+        "pos": 173,
+        "neg": 148,
+        "groups": 310,
+        "uniqueTexts": 319
+      }
+    },
+    "test": {
+      "phishing": {
+        "n": 681,
+        "pos": 449,
+        "neg": 232,
+        "groups": 453,
+        "uniqueTexts": 586
+      },
+      "spam_email": {
+        "n": 599,
+        "pos": 169,
+        "neg": 430,
+        "groups": 440,
+        "uniqueTexts": 575
+      },
+      "fake_profile_post": {
+        "n": 4675,
+        "pos": 3869,
+        "neg": 806,
+        "groups": 11,
+        "uniqueTexts": 128
+      },
+      "twitter_bot_detection": {
+        "n": 1629,
+        "pos": 869,
+        "neg": 760,
+        "groups": 1629,
+        "uniqueTexts": 1629
+      },
+      "cresci_stock_2018": {
+        "n": 456,
+        "pos": 242,
+        "neg": 214,
+        "groups": 429,
+        "uniqueTexts": 447
+      }
+    }
+  },
+  "outputs": {
+    "dev.jsonl": "65a48c2465248872204097f60e438d8c64da86bac6808c3b4b826d9fbef36be6",
+    "test.jsonl": "c2a9682150e9de4a94df8d74f6214d7248b3ca575e6c929aee1c09d0ac05028e"
+  }
+}

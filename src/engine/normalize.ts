@@ -46,7 +46,9 @@ export function normalize(raw: string): Normalized {
       // 숫자/기호 → 문자 치환은 라틴 문자 사이에 끼어 있을 때만 (te1egram O, 300% X)
       const prev = chars[i - 1]?.toLowerCase() ?? "";
       const next = chars[i + 1]?.toLowerCase() ?? "";
-      if (LATIN.test(prev) && LATIN.test(next)) {
+      // 이메일 주소의 '@' 는 난독화가 아니다 (name@mail.com) — 뒤가 도메인 꼴이면 접지 않는다
+      const isEmailAt = c === "@" && /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}/i.test(chars.slice(i + 1, i + 64).join(""));
+      if (LATIN.test(prev) && LATIN.test(next) && !isEmailAt) {
         chars[i] = CONFUSABLES[c];
         folded++;
         techniques.add("leet");
@@ -73,6 +75,13 @@ export function normalize(raw: string): Normalized {
   const beforeZw = s.length;
   s = s.replace(ZERO_WIDTH, "");
   if (s.length !== beforeZw) techniques.add("zero-width");
+
+  // Collapse runs of isolated letters, never ordinary multi-letter words.
+  // Two spaces preserve a deliberately spelled phrase's word boundaries.
+  s = s.replace(/(?<![a-z])(?:[a-z](?:[ \t]|[ \t]*[.\-_*·•・‧ㆍ]+[ \t]*)){2,}[a-z](?![a-z])/g, (run) => {
+    techniques.add("separator-insert");
+    return run.replace(/[^a-z]/g, "");
+  });
 
   const text = s.replace(/\s+/g, " ").trim();
   const compact = text.replace(SEPARATORS, "");
