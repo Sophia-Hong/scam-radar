@@ -247,7 +247,7 @@ const en: Strings = {
   },
   hero: {
     title: "Before you send money, put the message you received here",
-    howto: ["Screenshot the message", "Upload the screenshot here", "See the result and what to do"],
+    howto: ["Screenshot the message", "Upload the screenshot here", "See the result and next steps"],
     orPaste: "Or paste the text you received",
     upload: "Upload screenshots",
     uploadNote: "Please cover other people's faces, names and numbers first. Don't upload ID or card photos.",
