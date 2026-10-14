@@ -76,6 +76,13 @@ export function normalize(raw: string): Normalized {
   s = s.replace(ZERO_WIDTH, "");
   if (s.length !== beforeZw) techniques.add("zero-width");
 
+  // Collapse runs of isolated letters, never ordinary multi-letter words.
+  // Two spaces preserve a deliberately spelled phrase's word boundaries.
+  s = s.replace(/(?<![a-z])(?:[a-z](?:[ \t]|[ \t]*[.\-_*·•・‧ㆍ]+[ \t]*)){2,}[a-z](?![a-z])/g, (run) => {
+    techniques.add("separator-insert");
+    return run.replace(/[^a-z]/g, "");
+  });
+
   const text = s.replace(/\s+/g, " ").trim();
   const compact = text.replace(SEPARATORS, "");
 

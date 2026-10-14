@@ -19,6 +19,8 @@ const T = (id: string, cat: Category, re: RegExp, label: string, w?: number, ext
   ({ term: `en:${id}`, cat, re, label, w, lang: "en", ...extra });
 
 export const EN_TERMS: Term[] = [
+  T("contact:profile-button", "contact", /\b(?:check|tap|click|use|visit)\b.{0,30}\b(?:button|profile)\b.{0,30}\b(?:stock|trading|investment|list|picks?)\b|\b(?:stock|trading|investment) (?:list|picks?)\b.{0,50}\b(?:profile|button)\b/, "프로필에서 투자 자료 제공"),
+  T("contact:comment-offer", "contact", /\b(?:comment|reply)\b.{0,30}\b(?:i'll|i will|we'll|we will) (?:send|share|give)\b/, "댓글 회신 후 자료 제공", 0.8),
   // ── lure to contact / off-platform chat ──
   T("contact:whatsapp", "contact", /whatsapp|watsapp|whatsap/, "WhatsApp 유도", 1, { on: "compact" }),
   T("contact:wa-link", "contact", /\bwa\.me\/|chat\.whatsapp\.com|api\.whatsapp\.com/, "WhatsApp 링크"),
@@ -33,8 +35,9 @@ export const EN_TERMS: Term[] = [
   T("contact:reach-out", "contact", /\breach out\b|\bget in touch\b|\bhit me up\b|\bhmu\b/, "개별 연락 유도", 0.6),
   T("contact:call-text", "contact", /\b(call|text|sms|email|e-mail|contact|write to) (us|me) (now|today|at|on|via)\b/, "전화·문자·메일 연락 유도", 0.4),
 
+  T("invest:spelled-picks", "invest", /\bstockpicks\b/, "종목·매매 신호 제공", 1.2),
   // ── investment / "leading" offer ──
-  T("invest:tips", "invest", /\b(stock|stocks|crypto|coin|forex|fx|options?|trading|trade|investment|penny stock|day trading) (tips?|picks?|alerts?|calls?|signals?|recommendations?)\b/, "종목·매매 신호 제공", 1.2),
+  T("invest:tips", "invest", /\b(stock|stocks|crypto|coin|forex|fx|options?|trading|trade|investment|penny stock|day trading) (tips?|picks?|alerts?|calls?|signals?|recommendations?|lists?)\b/, "종목·매매 신호 제공", 1.2),
   T("invest:signal-group", "invest", /\b(signal|signals) (group|channel|service|provider)\b|\bvip signals?\b|\b(buy|sell|entry) signals?\b/, "매매 시그널 제공"),
   T("invest:forex", "invest", /\b(forex|fx trading|binary options?|cfds?|futures trading)\b/, "외환·바이너리 옵션", 0.8),
   T("invest:crypto", "invest", /\b(crypto|cryptocurrency|bitcoin|btc|eth|ethereum|usdt|altcoins?|memecoins?|web3|defi|nfts?|blockchain)\b/, "가상자산", 0.4),
